@@ -37,8 +37,8 @@ samples _ i maxSz = do
 -- | Replace the hole in d indexed by idx with a bunch of random values, and
 -- test the new d against the property.  Returns the first new d that succeeds.
 iterateArb :: (Data a, SubTypes a) 
-           => SmartArgs -> a -> Idx -> Int -> (a -> Bool) -> IO (Maybe a)
-iterateArb args d idx sz prop = 
+           => a -> Idx -> Int -> Int -> (a -> Bool) -> IO (Maybe a)
+iterateArb d idx tries sz prop = 
   case getAtIdx d idx of
     Nothing -> return Nothing
     Just v  -> do rnds <- mkVals v
@@ -48,7 +48,7 @@ iterateArb args d idx sz prop =
                   return (find prop res)
   where
   mkVals SubT { unSubT = v } = do
-    rnds <- samples v (grows args) sz -- XXX should be a smartArgs parameter?
+    rnds <- samples v tries sz
     return $ map subT rnds
 
   repl SubT { unSubT = v } = replaceAtIdx d idx v

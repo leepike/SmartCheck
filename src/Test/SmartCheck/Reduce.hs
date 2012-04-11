@@ -62,7 +62,8 @@ smartShrink args d prop = iter d (Idx 0 0)
                        else mkTry
                                   
     where
-    mkTry = do try <- iterateArb args d' idx (fromJust maxSize) notProp
+    mkTry = do try <- iterateArb d' idx (shrinks args) 
+                        (fromJust maxSize) notProp
                -- first failing try
                if isJust try
                -- Found a try fails prop.  We'll now test try, and start trying

@@ -1,0 +1,3 @@
+* Rename Reduce to SmartShrink
+* Rename examples/Test to examples/MutRecData
+  * Rename it in the README, too.

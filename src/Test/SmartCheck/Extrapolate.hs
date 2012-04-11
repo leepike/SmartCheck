@@ -37,9 +37,7 @@ extrapolate args d prop = do
     if done then return idxs
        else if nextLevel 
               then iter forest (idx { level = level idx + 1 }) idxs
-                               -- XXX right ratio?  Should I use a
-                               -- user-specified arg?
-              else do tries <- iterateArb args d idx (grows args `div` 2) prop
+              else do tries <- iterateArb d idx (grows args) rate prop                                 
                       if isNothing tries 
                       -- None of the tries satisfy prop.  Prevent recurring down
                       -- this tree, since we can generalize.
@@ -52,6 +50,8 @@ extrapolate args d prop = do
                                   idxs
                       
     where
+    -- XXX right ratio?  Should I use a user-specified arg?
+    rate      = ceiling (sqrt $ fromIntegral (grows args) :: Float) :: Int
     pts       = breadthLevels forest
     done      = length pts <= level idx
     nextLevel = length (pts !! level idx) <= column idx

@@ -65,8 +65,8 @@ smartShrink args d prop = iter d (Idx 0 0)
     mkTry = do try <- iterateArb args d' idx (fromJust maxSize) notProp
                -- first failing try
                if isJust try
-               -- Found a try that satisfies prop.  We'll now test try,
-               -- and start trying to reduce from the top!
+               -- Found a try fails prop.  We'll now test try, and start trying
+               -- to reduce from the top!
                  then iter (fromJust try) (Idx 0 0)
                -- Can't generalize.
                  else iter d' (idx { column = column idx + 1 }) 
@@ -80,7 +80,6 @@ smartShrink args d prop = iter d (Idx 0 0)
     maxSize   = case getIdxForest forest idx of
                   Nothing -> Nothing
                   Just t  -> let dep = depth (subForest t) in
-                             -- XXX figure this out.
                              if dep <= 1 then Nothing
                                else Just (dep-1)
 

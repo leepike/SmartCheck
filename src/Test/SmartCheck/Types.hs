@@ -27,7 +27,7 @@ data SmartArgs = SmartArgs
 ---------------------------------------------------------------------------------
 
 stdSmartArgs :: SmartArgs
-stdSmartArgs = SmartArgs Q.stdArgs 100 1000
+stdSmartArgs = SmartArgs Q.stdArgs 1000 1000
 
 ---------------------------------------------------------------------------------
 -- User-defined subtypes of data

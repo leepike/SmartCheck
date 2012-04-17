@@ -1,6 +1,7 @@
 module Test.SmartCheck.Common
   ( samples
   , iterateArb
+  , resultify
   , smartPrefix
   ) where
 
@@ -8,7 +9,9 @@ import Test.SmartCheck.Types
 import Test.SmartCheck.DataToTree
 
 import qualified Test.QuickCheck.Gen as Q
-import qualified Test.QuickCheck as Q
+import qualified Test.QuickCheck as Q hiding (Result)
+import qualified Test.QuickCheck.Property as Q
+
 import System.Random
 import Data.List
 import Data.Data
@@ -37,21 +40,35 @@ samples _ i maxSz = do
 -- | Replace the hole in d indexed by idx with a bunch of random values, and
 -- test the new d against the property.  Returns the first new d that succeeds.
 iterateArb :: (Data a, SubTypes a) 
-           => a -> Idx -> Int -> Int -> (a -> Bool) -> IO (Maybe a)
-iterateArb d idx tries sz prop = 
+           => a -> Idx -> Int -> Int
+           -> (a -> Q.Property) -> IO (Maybe a)
+iterateArb d idx tries sz prop =
   case getAtIdx d idx of
     Nothing -> return Nothing
     Just v  -> do rnds <- mkVals v
                   let res = catMaybes $ map repl rnds
                   -- Catch errors
                   when (length res /= length rnds) (error "iterateArb")
-                  return (find prop res)
+--                  return (find prop res)
+                  return (find undefined res)
   where
   mkVals SubT { unSubT = v } = do
     rnds <- samples v tries sz
     return $ map subT rnds
 
   repl SubT { unSubT = v } = replaceAtIdx d idx v
+
+---------------------------------------------------------------------------------
+
+resultify :: (a -> Q.Property) -> a -> Q.Result
+resultify prop a = 
+  let Q.MkGen { Q.unGen = f } = prop a :: Q.Gen Q.Prop    in
+  let fs = Q.unProp $ f err err        :: Q.Rose Q.Result in
+  let (Q.MkRose res _) = fs                               in
+  res
+
+  where
+  err = error "in propify: should not evaluate."
 
 ---------------------------------------------------------------------------------
 

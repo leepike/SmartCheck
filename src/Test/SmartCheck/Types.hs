@@ -34,7 +34,7 @@ stdSmartArgs = SmartArgs Q.stdArgs 1000 1000
 ---------------------------------------------------------------------------------
 
 data SubT = forall a. (Data a, Q.Arbitrary a, Show a) 
-          => SubT  { unSubT :: a }
+          => SubT { unSubT :: a }
 
 instance Show SubT where
   show (SubT t) = show t

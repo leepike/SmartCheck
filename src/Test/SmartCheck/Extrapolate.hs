@@ -8,6 +8,8 @@ import Test.SmartCheck.Types
 import Test.SmartCheck.DataToTree
 import Test.SmartCheck.Common
 
+import qualified Test.QuickCheck as Q
+
 import Data.Data
 import Data.Tree
 import Data.List
@@ -19,7 +21,7 @@ import Data.Maybe
 -- 100% failure for, we claim we can generalize it---any term in that hole
 -- fails.
 extrapolate :: (Data a, SubTypes a) 
-            => SmartArgs -> a -> (a -> Bool) -> IO ()
+            => SmartArgs -> a -> (a -> Q.Property) -> IO ()
 extrapolate args d prop = do 
   putStrLn ""
   putStrLn $ smartPrefix ++ "Extrapolating ..."

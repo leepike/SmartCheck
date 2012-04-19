@@ -14,12 +14,17 @@ TODO
 * When I'm shrinking, if I find a hole that is of the same type (via cast) that
   also fails the property, replace the original value with the hole.
 
-* Replace (a -> Bool) properties with Properties.  This is needed in case we
-  originally want to omit certain values from triggering a failure.
+* Use instances so I can pass anything that can be turned into a property to
+  reduce.
 
+* Make sure I can use extrapolation on its own, without reduce.
 
 Done
 -----------------------------------------------
 * ~~Rename examples/Test to examples/MutRecData~~
 
   * ~~Rename it in the README, too.~~
+
+* ~~Replace (a -> Bool) properties with Properties.  This is needed in case we
+  originally want to omit certain values from triggering a failure.~~
+

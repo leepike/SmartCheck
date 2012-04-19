@@ -1,9 +1,9 @@
 -- | Interface module.
 
 module Test.SmartCheck 
-  ( SmartArgs (..)
-  , stdSmartArgs 
-  , smartRun
+  ( -- SmartArgs (..)
+  -- , stdSmartArgs 
+    smartRun
   , extrapolate
   -- SubTypes class
   , SubT(..)

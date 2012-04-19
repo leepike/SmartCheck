@@ -1,9 +1,9 @@
 {-# LANGUAGE ExistentialQuantification #-} 
 
 module Test.SmartCheck.Types
-  ( SmartArgs(..)
-  , stdSmartArgs
-  , SubT(..)
+  ( -- SmartArgs(..)
+  -- , stdSmartArgs
+    SubT(..)
   , subT
   , SubTypes(..)
   , Idx(..)
@@ -18,16 +18,16 @@ import qualified Test.QuickCheck as Q
 -- Arguments
 ---------------------------------------------------------------------------------
 
-data SmartArgs = SmartArgs
-  { qcArgs  :: Q.Args
-  , shrinks :: Int -- How many tries to smart shrink the failed value?
-  , grows   :: Int -- How many tries to generalize the smart-shrunk value?
-  }
+-- data SmartArgs = SmartArgs
+--   { qcArgs  :: Q.Args
+--   , shrinks :: Int -- How many tries to smart shrink the failed value?
+--   , grows   :: Int -- How many tries to generalize the smart-shrunk value?
+--   }
 
 ---------------------------------------------------------------------------------
 
-stdSmartArgs :: SmartArgs
-stdSmartArgs = SmartArgs Q.stdArgs 1000 1000
+-- stdSmartArgs :: SmartArgs
+-- stdSmartArgs = SmartArgs Q.stdArgs 1000 1000
 
 ---------------------------------------------------------------------------------
 -- User-defined subtypes of data

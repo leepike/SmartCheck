@@ -3,11 +3,10 @@
 module MutualRecData where
 
 import Test.SmartCheck
+import Test.QuickCheck hiding (Result)
 
-import Data.Tree
 import Data.Data
 import Control.Monad.State 
-import Test.QuickCheck hiding (Result)
 
 ---------------------------------------------------------------------------------
 
@@ -65,10 +64,11 @@ prop0 (M _ _ a) = a < 100
 prop0 _         = True
 
 main :: IO ()
-main = do result <- smartRun args prop0
-          extrapolate args result prop0
+main = do result <- smartRun args p
+          extrapolate args result p
   where 
-  args = stdSmartArgs { qcArgs = stdArgs { maxSuccess = 1000 } }
+  p = \a -> property (prop0 a)
+  args = stdArgs { maxSuccess = 1000 }
 
 ---------------------------------------------------------------------------------
 

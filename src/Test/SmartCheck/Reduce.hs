@@ -8,10 +8,8 @@ import Test.SmartCheck.Common
 import Test.SmartCheck.DataToTree
 
 import qualified Test.QuickCheck as Q
-import Control.Monad
 import Data.Maybe
 import Data.Tree
---import Data.List
 
 ---------------------------------------------------------------------------------
 
@@ -20,17 +18,24 @@ import Data.Tree
 -- increasingly larger) randomly-generated values until we find a failure, and
 -- return that result.  (We call smartShrink recursively.)
 smartRun :: (Read a, Show a, Q.Arbitrary a, SubTypes a)
-         => SmartArgs -> (a -> Q.Property) -> IO a
+         => Q.Args -> (a -> Q.Property) -> IO (Maybe a)
 smartRun args prop = do
   let genProp = Q.forAllShrink Q.arbitrary Q.shrink prop
-  res <- runQC (qcArgs args) genProp
-  unless (isJust res) (return ())
-  new <- smartShrink args (fromJust res) prop
-  putStrLn ""
-  putStrLn $ smartPrefix ++ "Smart Shrinking ... "
-  putStrLn $ smartPrefix ++ "Smart-shrunk value:"
-  print new
-  return new
+  res <- runQC args genProp
+  if (isJust res) then runSmart (fromJust res)
+    else do putStrLn ""
+            putStrLn $ smartPrefix ++ "No value to smart-shrink!"
+            return Nothing
+
+  where
+  runSmart r = do
+    putStrLn ""
+    putStrLn $ smartPrefix ++ "Smart Shrinking ... "
+    new <- smartShrink args r prop
+
+    putStrLn $ smartPrefix ++ "Smart-shrunk value:"
+    print new
+    return (Just new)
 
 ---------------------------------------------------------------------------------
 
@@ -50,7 +55,7 @@ runQC args propGen = do
 -- | Breadth-first traversal of d, trying to shrink it with *strictly* smaller
 -- children.  We replace d whenever a successful shrink is found and try again.
 smartShrink :: SubTypes a
-            => SmartArgs -> a -> (a -> Q.Property) -> IO a
+            => Q.Args -> a -> (a -> Q.Property) -> IO a
 smartShrink args d prop = iter d (Idx 0 0) 
 
   where 
@@ -70,7 +75,7 @@ smartShrink args d prop = iter d (Idx 0 0)
                        else mkTry
                                   
     where
-    mkTry = do try <- iterateArb d' idx (shrinks args) 
+    mkTry = do try <- iterateArb d' idx (Q.maxDiscard args) 
                         (fromJust maxSize) notProp
                -- first failing try
                if isJust try
@@ -81,10 +86,7 @@ smartShrink args d prop = iter d (Idx 0 0)
                  else iter d' (idx { column = column idx + 1 }) 
 
     forest    = mkSubstForest d'
---    notProp   = not . prop
-    -- notProp   = do p <- prop
-    --                return $ not p
-    notProp   = undefined
+    notProp   = Q.expectFailure . prop
                    
 
     -- XXX How do I know that the size of arbitrary relates to the depth of the

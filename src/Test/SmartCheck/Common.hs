@@ -49,9 +49,25 @@ iterateArb d idx tries sz prop =
                   let res = catMaybes $ map repl rnds
                   -- Catch errors
                   when (length res /= length rnds) (error "iterateArb")
---                  return (find prop res)
-                  return (find undefined res)
+                  findM goodResult res
+                  
   where
+  findM _ []     = return Nothing
+  findM f (x:xs) = do b <- f x
+                      if b then return (Just x)
+                         else findM f xs
+
+  goodResult a = do
+    res <- resultify prop a 
+    let go = if Q.expect res 
+             then case Q.ok res of
+                    Just True -> True
+                    _         -> False
+             else case Q.ok res of
+                    Just False -> True
+                    _          -> False
+    return go
+                   
   mkVals SubT { unSubT = v } = do
     rnds <- samples v tries sz
     return $ map subT rnds
@@ -60,14 +76,22 @@ iterateArb d idx tries sz prop =
 
 ---------------------------------------------------------------------------------
 
-resultify :: (a -> Q.Property) -> a -> Q.Result
-resultify prop a = 
-  let Q.MkGen { Q.unGen = f } = prop a :: Q.Gen Q.Prop    in
-  let fs = Q.unProp $ f err err        :: Q.Rose Q.Result in
-  let (Q.MkRose res _) = fs                               in
-  res
+-- XXX need to protect by calling (protectRose . reduceRose) ?
+resultify :: (a -> Q.Property) -> a -> IO Q.Result
+resultify prop a = do 
+  Q.MkRose r _ <- res fs
+  return r
 
   where
+  Q.MkGen { Q.unGen = f } = prop a :: Q.Gen Q.Prop
+  fs = Q.unProp $ f err err        :: Q.Rose Q.Result
+  res = Q.protectRose . Q.reduceRose
+
+-- case fs' of
+--              (Q.MkRose res' _) -> res'
+--              io                -> res (Q.ioRose io)
+
+
   err = error "in propify: should not evaluate."
 
 ---------------------------------------------------------------------------------

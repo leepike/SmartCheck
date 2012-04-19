@@ -81,6 +81,20 @@ getIdxForest forest idx              =
 
 ---------------------------------------------------------------------------------
 
+-- | Returns the value at index idx.  Returns nothing if the index is out of
+-- bounds.
+getAtIdx :: SubTypes a
+         => a     -- ^ Parent value
+         -> Idx   -- ^ Index of hole to replace
+         -> Maybe SubT
+getAtIdx d Idx { level  = l
+               , column = c } 
+  = if length lev > c then Just (lev !! c) else Nothing
+  where
+  lev = getLevel (subTypes d) l
+
+---------------------------------------------------------------------------------
+
 -- | Replace a tree at index Idx in a Forest.  Return the original if the index
 -- is out of range.  All subforests are removed.
 sub :: Forest a -> Idx -> a -> Forest a
@@ -114,20 +128,6 @@ sub forest idx              a =
 mkSubstForest :: SubTypes a => a -> Forest Subst
 mkSubstForest a = map tMap (subTypes a)
   where tMap t = fmap (\_ -> Keep) t
-
----------------------------------------------------------------------------------
-
--- | Returns the value at index idx.  Returns nothing if the index is out of
--- bounds.
-getAtIdx :: SubTypes a
-         => a     -- ^ Parent value
-         -> Idx   -- ^ Index of hole to replace
-         -> Maybe SubT
-getAtIdx d Idx { level  = l
-               , column = c } 
-  = if length lev > c then Just (lev !! c) else Nothing
-  where
-  lev = getLevel (subTypes d) l
 
 ---------------------------------------------------------------------------------
 

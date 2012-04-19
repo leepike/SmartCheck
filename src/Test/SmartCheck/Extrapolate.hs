@@ -14,6 +14,7 @@ import Data.Data
 import Data.Tree
 import Data.List
 import Data.Maybe
+import Control.Monad
 
 ---------------------------------------------------------------------------------
 
@@ -21,16 +22,18 @@ import Data.Maybe
 -- 100% failure for, we claim we can generalize it---any term in that hole
 -- fails.
 extrapolate :: (Data a, SubTypes a) 
-            => SmartArgs -> a -> (a -> Q.Property) -> IO ()
-extrapolate args d prop = do 
+            => Q.Args -> Maybe a -> (a -> Q.Property) -> IO ()
+extrapolate args md prop = do 
   putStrLn ""
-  putStrLn $ smartPrefix ++ "Extrapolating ..."
-  putStrLn $ smartPrefix ++ "Extrapolated value:"
-
-  idxs <- iter (mkSubstForest d) (Idx 0 0) []
-  renderWithVars d idxs
+  when (isNothing md) (putStrLn $ smartPrefix ++ "No value to extrapolate.")
+  unless (isNothing md) $ do putStrLn $ smartPrefix ++ "Extrapolating ..."
+                             putStrLn $ smartPrefix ++ "Extrapolated value:"
+                             idxs <- iter (mkSubstForest d) (Idx 0 0) []
+                             renderWithVars d idxs
 
   where
+  Just d = md -- depends on laziness
+  
   -- Do a breadth-first traversal of the data, trying to replace items.  When we
   -- find an index we can replace, add it's index to the index list.  Recurse
   -- down the structure, following subtrees that have *not* been replaced.
@@ -39,7 +42,7 @@ extrapolate args d prop = do
     if done then return idxs
        else if nextLevel 
               then iter forest (idx { level = level idx + 1 }) idxs
-              else do tries <- iterateArb d idx (grows args) rate prop                                 
+              else do tries <- iterateArb d idx (Q.maxDiscard args) rate prop
                       if isNothing tries 
                       -- None of the tries satisfy prop.  Prevent recurring down
                       -- this tree, since we can generalize.
@@ -53,7 +56,7 @@ extrapolate args d prop = do
                       
     where
     -- XXX right ratio?  Should I use a user-specified arg?
-    rate      = ceiling (sqrt $ fromIntegral (grows args) :: Float) :: Int
+    rate      = ceiling (sqrt $ fromIntegral (Q.maxDiscard args) :: Float) :: Int
     pts       = breadthLevels forest
     done      = length pts <= level idx
     nextLevel = length (pts !! level idx) <= column idx

@@ -53,12 +53,13 @@ div0 m = eval m /= Nothing
 
 div1 :: M -> Property
 div1 m =
---  True ==> 
-  pre ==> eval m /= Nothing
+  True ==> eval m /= Nothing
+--  pre ==> eval m /= Nothing
   where
-  -- precondition: no dividand in a subterm can evaluate to 0.
-  pre = and $ map non0Divsors (divSubTerms m)
-  non0Divsors m0 = eval m0 /= Just 0
+  -- precondition: no dividand in a subterm can be 0.
+  pre = null (divSubTerms m)
+--  non0Divsors m0 = eval m0 /= Just 0
+  divSubTerms (C 0)     = [C 0]
   divSubTerms (C _)     = []
   divSubTerms (A m0 m1) = divSubTerms m0 ++ divSubTerms m1
   divSubTerms (D m0 m1) = m1 : divSubTerms m0 ++ divSubTerms m1
@@ -70,10 +71,9 @@ div1 m =
 main :: IO ()
 main = do result <- smartRun args div1
           extrapolate args result div1
-  where args = stdSmartArgs { qcArgs = stdArgs { maxSuccess = 1000
-                                               , maxSize    = 20   }
-                                               
-                            }
+          
+  where args = stdArgs { maxSuccess = 1000
+                       , maxSize    = 20 }
 
 ---------------------------------------------------------------------------------
 -- XXX cruft

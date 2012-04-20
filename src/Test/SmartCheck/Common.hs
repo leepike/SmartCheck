@@ -3,6 +3,7 @@ module Test.SmartCheck.Common
   , iterateArb
   , resultify
   , smartPrtLn
+  , replace
   ) where
 
 import Test.SmartCheck.Types
@@ -46,7 +47,7 @@ iterateArb d idx tries sz prop =
   case getAtIdx d idx of
     Nothing -> return Nothing
     Just v  -> do rnds <- mkVals v
-                  let res = catMaybes $ map repl rnds
+                  let res = catMaybes $ map (replace d idx) rnds
                   -- Catch errors
                   when (length res /= length rnds) (error "iterateArb")
                   findM goodResult res
@@ -72,10 +73,14 @@ iterateArb d idx tries sz prop =
     rnds <- samples v tries sz
     return $ map subT rnds
 
-  repl SubT { unSubT = v } = replaceAtIdx d idx v
+---------------------------------------------------------------------------------
+
+replace :: SubTypes a => a -> Idx -> SubT -> Maybe a
+replace d idx SubT { unSubT = v } = replaceAtIdx d idx v
 
 ---------------------------------------------------------------------------------
 
+-- | Make a QuickCheck Result by applying a property function to a value.
 resultify :: (a -> Q.Property) -> a -> IO Q.Result
 resultify prop a = do 
   Q.MkRose r _ <- res fs

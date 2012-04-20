@@ -120,11 +120,6 @@ sub forest idx              a =
 
 -- | Make a substitution Forest (all proper children).  Initially we don't
 -- replace anything.
--- mkSubstForest :: Data a => a -> Forest Subst
--- mkSubstForest = gmapQ f 
---   where
---   f :: forall d. Data d => d -> Tree Subst
---   f x = Node Keep (mkSubstForest x)
 mkSubstForest :: SubTypes a => a -> Forest Subst
 mkSubstForest a = map tMap (subTypes a)
   where tMap t = fmap (\_ -> Keep) t

@@ -15,9 +15,12 @@ TODO
   also fails the property, replace the original value with the hole.
 
 * Use instances so I can pass anything that can be turned into a property to
-  reduce.
+  reduce, like in QuickCheck.
 
 * Make sure I can use extrapolation on its own, without reduce.
+
+* Testing with arguments to value constructors omitted in the SubTypes
+  instances.
 
 Done
 -----------------------------------------------

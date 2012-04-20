@@ -59,11 +59,14 @@ div1 m = divSubTerms m ==> eval m /= Nothing
   divSubTerms (A m0 m1)   = divSubTerms m0 && divSubTerms m1
   divSubTerms (D m0 m1)   = divSubTerms m0 && divSubTerms m1
 
+-- div0 (A _ _) = property False
+-- div0 _       = property True
+
 main :: IO ()
 main = do result <- smartRun args div1
           extrapolate args result div1
           
-  where args = stdArgs { maxSuccess = 1000
+  where args = stdArgs { maxSuccess = 100
                        , maxSize    = 20 }
 
 ---------------------------------------------------------------------------------

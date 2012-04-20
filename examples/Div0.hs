@@ -48,25 +48,16 @@ instance Arbitrary M where
   shrink (A a b) = [a, b]
   shrink (D a b) = [a, b]
 
-div0 :: M -> Bool
-div0 m = eval m /= Nothing
-
+-- property: so long as 0 isn't in the divisor, we won't try to divide by 0.
+-- It's false: something might evaluate to 0 still.
 div1 :: M -> Property
-div1 m =
-  True ==> eval m /= Nothing
---  pre ==> eval m /= Nothing
+div1 m = divSubTerms m ==> eval m /= Nothing
   where
   -- precondition: no dividand in a subterm can be 0.
-  pre = null (divSubTerms m)
---  non0Divsors m0 = eval m0 /= Just 0
-  divSubTerms (C 0)     = [C 0]
-  divSubTerms (C _)     = []
-  divSubTerms (A m0 m1) = divSubTerms m0 ++ divSubTerms m1
-  divSubTerms (D m0 m1) = m1 : divSubTerms m0 ++ divSubTerms m1
-           
--- divProp :: Gen Prop
--- divProp = forAllShrink arbitrary shrink div1
-
+  divSubTerms (C _)       = True
+  divSubTerms (D _ (C 0)) = False
+  divSubTerms (A m0 m1)   = divSubTerms m0 && divSubTerms m1
+  divSubTerms (D m0 m1)   = divSubTerms m0 && divSubTerms m1
 
 main :: IO ()
 main = do result <- smartRun args div1
@@ -76,84 +67,3 @@ main = do result <- smartRun args div1
                        , maxSize    = 20 }
 
 ---------------------------------------------------------------------------------
--- XXX cruft
-
--- Fails if some leaf in a complex m == (C 0)
-prop0 :: M -> Property
-prop0 m = 
-  (complex m) 
---    False
-    ==> f m
-  where
-  f (C i)     = i /= 0
-  f (A m0 m1) = f m0 && f m1
-  f (D m0 m1) = f m0 && f m1
-
-  complex (C _) = False
-  complex _     = True
-
--- Negation of a property.  
-propNot :: (M -> Property) -> (M -> Property)
-propNot prop = \m -> expectFailure (prop m)
---  p <- prop
-
-
--- props :: IO ()
--- props = do
---   -- 0 not valid, 1 succeed, 2 fail
---   let xs = [(C 0), A (C 2) (C 1), A (C 0) (C 1)]
---   let xs' = map prop0 xs :: [Gen Prop]
---   let fs = map (\(MkGen {unGen = f}) -> unProp $ f undefined undefined) xs' 
---              :: [Rose Result]
---   r <- mapM (protectRose . reduceRose) fs 
---          :: IO [Rose Result]
---   let reses = map (\(MkRose res _) -> res) r
---   putStrLn (show $ map ok reses)
-
-
-
-
-
--- runATest :: State -> (StdGen -> Int -> Prop) -> IO Result
--- runATest st f =
---   do let size = computeSize st (numSuccessTests st) (numDiscardedTests st)
---      MkRose res ts <- protectRose (reduceRose (unProp (f rnd1 size)))
---      callbackPostTest st res
-     
---      case res of
---        MkResult{ok = Just True, stamp = stamp, expect = expect} -> -- successful test
---          do test st{ numSuccessTests = numSuccessTests st + 1
---                    , randomSeed      = rnd2
---                    , collected       = stamp : collected st
---                    , expectedFailure = expect
---                    } f
-       
---        MkResult{ok = Nothing, expect = expect} -> -- discarded test
---          do test st{ numDiscardedTests = numDiscardedTests st + 1
---                    , randomSeed        = rnd2
---                    , expectedFailure   = expect
---                    } f
-         
---        MkResult{ok = Just False} -> -- failed test
---          do if expect res
---               then putPart (terminal st) (bold "*** Failed! ")
---               else putPart (terminal st) "+++ OK, failed as expected. "
---             numShrinks <- foundFailure st res ts
---             theOutput <- terminalOutput (terminal st)
---             if not (expect res) then
---               return Success{ labels = summary st,
---                               numTests = numSuccessTests st+1,
---                               output = theOutput }
---              else
---               return Failure{ usedSeed    = randomSeed st -- correct! (this will be split first)
---                             , usedSize    = size
---                             , numTests    = numSuccessTests st+1
---                             , numShrinks  = numShrinks
---                             , output      = theOutput
---                             , reason      = P.reason res
---                             , labels      = summary st
---                             }
---  where
---   (rnd1,rnd2) = split (randomSeed st)
-
-

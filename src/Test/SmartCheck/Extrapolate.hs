@@ -25,9 +25,9 @@ extrapolate :: (Data a, SubTypes a)
             => Q.Args -> Maybe a -> (a -> Q.Property) -> IO ()
 extrapolate args md prop = do 
   putStrLn ""
-  when (isNothing md) (putStrLn $ smartPrefix ++ "No value to extrapolate.")
-  unless (isNothing md) $ do putStrLn $ smartPrefix ++ "Extrapolating ..."
-                             putStrLn $ smartPrefix ++ "Extrapolated value:"
+  when (isNothing md) (smartPrtLn "No value to extrapolate.")
+  unless (isNothing md) $ do smartPrtLn "Extrapolating ..."
+                             smartPrtLn "Extrapolated value:"
                              idxs <- iter (mkSubstForest d) (Idx 0 0) []
                              renderWithVars d idxs
 

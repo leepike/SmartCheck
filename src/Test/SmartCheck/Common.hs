@@ -2,7 +2,7 @@ module Test.SmartCheck.Common
   ( samples
   , iterateArb
   , resultify
-  , smartPrefix
+  , smartPrtLn
   ) where
 
 import Test.SmartCheck.Types
@@ -76,7 +76,6 @@ iterateArb d idx tries sz prop =
 
 ---------------------------------------------------------------------------------
 
--- XXX need to protect by calling (protectRose . reduceRose) ?
 resultify :: (a -> Q.Property) -> a -> IO Q.Result
 resultify prop a = do 
   Q.MkRose r _ <- res fs
@@ -87,16 +86,14 @@ resultify prop a = do
   fs = Q.unProp $ f err err        :: Q.Rose Q.Result
   res = Q.protectRose . Q.reduceRose
 
--- case fs' of
---              (Q.MkRose res' _) -> res'
---              io                -> res (Q.ioRose io)
-
-
   err = error "in propify: should not evaluate."
 
 ---------------------------------------------------------------------------------
 
 smartPrefix :: String
 smartPrefix = "*** "
+
+smartPrtLn :: String -> IO ()
+smartPrtLn = putStrLn . (smartPrefix ++)
 
 ---------------------------------------------------------------------------------

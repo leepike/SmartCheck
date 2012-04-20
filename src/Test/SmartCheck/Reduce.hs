@@ -24,16 +24,16 @@ smartRun args prop = do
   res <- runQC args genProp
   if (isJust res) then runSmart (fromJust res)
     else do putStrLn ""
-            putStrLn $ smartPrefix ++ "No value to smart-shrink!"
+            smartPrtLn "No value to smart-shrink!"
             return Nothing
 
   where
   runSmart r = do
     putStrLn ""
-    putStrLn $ smartPrefix ++ "Smart Shrinking ... "
+    smartPrtLn "Smart Shrinking ... "
     new <- smartShrink args r prop
 
-    putStrLn $ smartPrefix ++ "Smart-shrunk value:"
+    smartPrtLn "Smart-shrunk value:"
     print new
     return (Just new)
 
@@ -68,7 +68,6 @@ smartShrink args d prop = iter d (Idx 0 0)
                        -- XXX We could shrink base values, but I'm not sure if
                        -- it's worth it.  Doesn't affect extrapolation or make
                        -- counter-examples more readable.
-
                        -- then case getAtIdx d' idx of
                        --        Nothing -> iter d' (idx { column = column idx + 1 }) 
                        --        Just v  -> mkVals v
@@ -101,11 +100,5 @@ smartShrink args d prop = iter d (Idx 0 0)
     pts       = breadthLevels forest
     done      = length pts <= level idx
     nextLevel = length (pts !! level idx) <= column idx
-
-    -- mkVals SubT { unSubT = v } = 
-    --   let vs = map (replaceAtIdx d' idx) (Q.shrink v) in
-    --   case find notProp (catMaybes vs) of
-    --     Nothing -> iter d' (idx { column = column idx + 1 }) 
-    --     Just x  -> iter x (idx { column = column idx + 1 }) 
 
 ---------------------------------------------------------------------------------

@@ -24,7 +24,7 @@ smartRun args prop = do
   res <- runQC args genProp
   if (isJust res) then runSmart (fromJust res)
     else do putStrLn ""
-            smartPrtLn "No value to smart-shrink!"
+            smartPrtLn "No value to smart-shrink, done."
             return Nothing
 
   where

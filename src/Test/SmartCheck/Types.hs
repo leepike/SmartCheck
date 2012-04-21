@@ -25,7 +25,7 @@ instance Show SubT where
 subT :: (Data a, Q.Arbitrary a, Show a) => a -> SubT
 subT = SubT
 
-class (Eq a, Data a) => SubTypes a where
+class Data a => SubTypes a where
   subTypes :: a -> Forest SubT
 
 ---------------------------------------------------------------------------------

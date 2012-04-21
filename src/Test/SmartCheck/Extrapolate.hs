@@ -28,15 +28,22 @@ extrapolate :: (Data a, SubTypes a, Read a, Show a, Q.Arbitrary a)
             => Q.Args -> Maybe a -> (a -> Q.Property) -> IO ()
 extrapolate args md prop = do 
   putStrLn ""
-  when (isNothing md) (smartPrtLn "No value to extrapolate.")
+  when (isNothing md) (smartPrtLn "No value to extrapolate, done.")
   when (isJust md) $ do smartPrtLn "Extrapolating ..."
                         smartPrtLn "Extrapolated value:"
                         idxs <- iter (mkSubstForest d) (Idx 0 0) []
                         renderWithVars d idxs
-                        d' <- smartRun args (prop' idxs)
-                        extrapolate args d' (prop' idxs)
+                        c <- continue
+                        when c $ do d' <- smartRun args (prop' idxs)
+                                    when (isJust d') 
+                                      (extrapolate args d' (prop' idxs))
+                        unless c (smartPrtLn "Done.")
 
   where
+  continue = do putStrLn "Attempt to find a new counterexample? (Enter to continue, 'n' to quit.)"
+                s <- getLine
+                return (s == "")
+
   prop' idxs a = (not $ matchesShape d a idxs) Q.==> prop a
 
   Just d = md -- use depends on laziness!
@@ -90,16 +97,28 @@ renderWithVars d idxs = do
 
 ---------------------------------------------------------------------------------
 
--- | Does a == b modulo the values located at the idxes?  We compute this by
--- filling in the holes in a with values from b, and seeing if the result is
--- equal.
+-- | a matches the shape of b iff a and b have the same constructor, and for all
+-- holes not indexed by the indexes from idxs, their immediate subchildren have
+-- the same constructors.
+-- 
+-- > matchesShape (D (C 0) (A (C 1) (C 1)))   (D (C 1) (A (A (C 0) (C 3)) (C 0))) []
+-- > True
+--
+-- > matchesShape (D (C 0) (A (C 1) (C 1)))   (D (C 1) (D (A (C 1) (C 1)))) []
+-- > False
+--
+-- > matchesShape (D (C 0) (A (C 1) (C 1)))   (D (C 1) (D (A (C 1) (C 1)))) [Idx 0 1]
+-- > True
 matchesShape :: (SubTypes a) => a -> a -> [Idx] -> Bool
 matchesShape a b idxs =
-  case foldl' f (Just b) idxs of
-    Nothing -> False
-    Just b' -> a == b'
+     toConstr a == toConstr b
+  && repIdxs 
 
   where
+  repIdxs = case foldl' f (Just b) idxs of
+              Nothing -> False
+              Just b' -> gmapQ toConstr a == gmapQ toConstr b'
+
   f mb idx = do
     b' <- mb
     v  <- getAtIdx a idx

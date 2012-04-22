@@ -20,17 +20,24 @@ import Data.Maybe
 
 ---------------------------------------------------------------------------------
 
+-- | Main interface function.
 smartCheck :: (Read a, Show a, Q.Arbitrary a, SubTypes a)
            => Q.Args -> (a -> Q.Property) -> IO ()
-smartCheck args prop = do
-  d <- smartRun args prop
-  if isNothing d then return ()
-    else do prop' <- extrapolate args (fromJust d) prop
-            c <- continue
-            if c then smartCheck args  prop'
-              else smartPrtLn "Done."
+smartCheck args prop = smartCheck' prop []
 
   where
+  smartCheck' prop' ds = do
+    d <- smartRun args prop'
+    if isNothing d then return ()
+              -- Extrapolate with the original property to see if we get a
+              -- previously-visited value back.
+      else do mprop <- extrapolate args (fromJust d) prop prop' ds
+              if isNothing mprop then return ()
+                else do c <- continue
+                        if c 
+                          then smartCheck' (fromJust mprop) (fromJust d : ds)
+                          else smartPrtLn "Done."
+
   continue = do putStrLn $ "Attempt to find a new counterexample?" 
                             ++ " (Enter to continue, 'n' to quit.)"
                 s <- getLine

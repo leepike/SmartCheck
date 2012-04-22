@@ -16,10 +16,6 @@ TODO
 * Testing with arguments to value constructors omitted in the SubTypes
   instances.
 
-* D (A (D (A (C 2) (C 2)) (D (C 0) (C (-2)))) (A (C (-1)) (C 2))) (A (C 0) (C
-  1)) doesn't seem to extrapolate properly.  Why isn't (A (C 2) (C 2))
-  extrapolated?
-
 * Right now, in DataToTree, sub (and functions it depends on) fail silently if
   you give them an index that is out of bounds.  Perhaps I should return a
   Maybe?  

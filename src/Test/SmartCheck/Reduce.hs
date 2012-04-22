@@ -24,7 +24,7 @@ smartRun args prop = do
   res <- runQC args genProp
   if (isJust res) then runSmart (fromJust res)
     else do putStrLn ""
-            smartPrtLn "No value to smart-shrink, done."
+            smartPrtLn "No value to smart-shrink; done."
             return Nothing
 
   where
@@ -32,7 +32,6 @@ smartRun args prop = do
     putStrLn ""
     smartPrtLn "Smart Shrinking ... "
     new <- smartShrink args r prop
-
     smartPrtLn "Smart-shrunk value:"
     print new
     return (Just new)
@@ -76,13 +75,13 @@ smartShrink args d prop = iter d (Idx 0 0)
     where
     mkTry = do try <- iterateArb d' idx (Q.maxDiscard args) 
                         (fromJust maxSize) notProp
-               -- first failing try
-               if isJust try
-               -- Found a try fails prop.  We'll now test try, and start trying
-               -- to reduce from the top!
-                 then iter (fromJust try) (Idx 0 0)
-               -- Can't generalize.
-                 else iter d' (idx { column = column idx + 1 }) 
+               case try of
+                 -- Found a try fails prop.  We'll now test try, and start
+                 -- trying to reduce from the top!
+                 Result x -> iter x (Idx 0 0)
+                 -- Either couldn't satisfy the precondition or nothing
+                 -- satisfied the property.  Either way, we can't shrink it.
+                 _        -> iter d' (idx { column = column idx + 1 })
 
     forest    = mkSubstForest d'
     notProp   = Q.expectFailure . prop

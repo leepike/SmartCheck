@@ -96,24 +96,29 @@ getAtIdx d Idx { level  = l
 ---------------------------------------------------------------------------------
 
 -- | Replace a tree at index Idx in a Forest.  Return the original if the index
--- is out of range.  All subforests are removed.
-sub :: Forest a -> Idx -> a -> Forest a
+-- is out of range.  All subforests are removed.  If the Boolean is true, we we
+-- replace every rootLabel in the path to Index with a; otherwise, we just
+-- replace the value at index with a.
+sub :: Forest a -> Idx -> a -> Bool -> Forest a
 -- on right level, and we'll assume correct subtree.
-sub forest (Idx (0::Int) n) a = 
+sub forest (Idx (0::Int) n) a _ = 
   take n forest ++ Node a [] : drop (n+1) forest
-sub forest idx              a = 
+sub forest idx              a b = 
   snd $ mapAccumL findTree (column idx) forest
   where
   l = level idx - 1
   -- Invariant: not at the right level yet.
   findTree n t = 
-    let len = levelLength l t in
     if n < 0 -- Already found index
       then (n, t)
       else if n < len -- Big enough to index, so we climb down this one.
-             then (n-len, Node (rootLabel t) (sub (subForest t) (Idx l n) a))
+             then (n-len, newTree)
              else (n-len, t)
-  
+    where
+    len = levelLength l t
+    newRootLabel = if b then a else rootLabel t
+    newTree = Node newRootLabel (sub (subForest t) (Idx l n) a b)
+
 ---------------------------------------------------------------------------------
 -- Operations on SubTypes.
 ---------------------------------------------------------------------------------
@@ -132,7 +137,7 @@ replaceAtIdx :: (SubTypes a, Data b)
              -> Idx   -- ^ Index of hole to replace
              -> b     -- ^ Value to replace with
              -> Maybe a
-replaceAtIdx m idx = replaceChild m (sub (mkSubstForest m) idx Subst)
+replaceAtIdx m idx = replaceChild m (sub (mkSubstForest m) idx Subst True)
 
 ---------------------------------------------------------------------------------
 

@@ -64,10 +64,9 @@ prop0 (M _ _ a) = a < 100
 prop0 _         = True
 
 main :: IO ()
-main = do result <- smartRun args p
-          extrapolate args result p
+main = smartCheck args p
   where 
-  p = \a -> property (prop0 a)
+  p    = \a -> property (prop0 a)
   args = stdArgs { maxSuccess = 1000 }
 
 ---------------------------------------------------------------------------------

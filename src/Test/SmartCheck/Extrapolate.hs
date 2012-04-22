@@ -9,7 +9,6 @@ module Test.SmartCheck.Extrapolate
 import Test.SmartCheck.Types
 import Test.SmartCheck.DataToTree
 import Test.SmartCheck.Common
-import Test.SmartCheck.Reduce
 
 import qualified Test.QuickCheck as Q
 
@@ -17,7 +16,6 @@ import Data.Data
 import Data.Tree
 import Data.List
 import Data.Maybe
-import Control.Monad
 
 ---------------------------------------------------------------------------------
 
@@ -25,29 +23,18 @@ import Control.Monad
 -- 100% failure for, we claim we can generalize it---any term in that hole
 -- fails.
 extrapolate :: (Data a, SubTypes a, Read a, Show a, Q.Arbitrary a) 
-            => Q.Args -> Maybe a -> (a -> Q.Property) -> IO ()
-extrapolate args md prop = do 
+            => Q.Args -> a -> (a -> Q.Property) -> IO (a -> Q.Property)
+extrapolate args d prop = do 
   putStrLn ""
-  when (isNothing md) (smartPrtLn "No value to extrapolate, done.")
-  when (isJust md) $ do smartPrtLn "Extrapolating ..."
-                        smartPrtLn "Extrapolated value:"
-                        idxs <- iter (mkSubstForest d) (Idx 0 0) []
-                        renderWithVars d idxs
-                        c <- continue
-                        when c $ do d' <- smartRun args (prop' idxs)
-                                    when (isJust d') 
-                                      (extrapolate args d' (prop' idxs))
-                        unless c (smartPrtLn "Done.")
+  smartPrtLn "Extrapolating ..."
+  smartPrtLn "Extrapolated value:"
+  idxs <- iter (mkSubstForest d) (Idx 0 0) []
+  renderWithVars d idxs
+  return (prop' idxs)
 
   where
-  continue = do putStrLn "Attempt to find a new counterexample? (Enter to continue, 'n' to quit.)"
-                s <- getLine
-                return (s == "")
-
   prop' idxs a = (not $ matchesShape d a idxs) Q.==> prop a
 
-  Just d = md -- use depends on laziness!
-  
   -- Do a breadth-first traversal of the data, trying to replace items.  When we
   -- find an index we can replace, add it's index to the index list.  Recurse
   -- down the structure, following subtrees that have *not* been replaced.
@@ -100,6 +87,9 @@ renderWithVars d idxs = do
 -- | a matches the shape of b iff a and b have the same constructor, and for all
 -- holes not indexed by the indexes from idxs, their immediate subchildren have
 -- the same constructors.
+
+
+-- XXX redo documentation to be true!
 -- 
 -- > matchesShape (D (C 0) (A (C 1) (C 1)))   (D (C 1) (A (A (C 0) (C 3)) (C 0))) []
 -- > True
@@ -109,7 +99,7 @@ renderWithVars d idxs = do
 --
 -- > matchesShape (D (C 0) (A (C 1) (C 1)))   (D (C 1) (D (A (C 1) (C 1)))) [Idx 0 1]
 -- > True
-matchesShape :: (SubTypes a) => a -> a -> [Idx] -> Bool
+matchesShape :: SubTypes a => a -> a -> [Idx] -> Bool
 matchesShape a b idxs =
      toConstr a == toConstr b
   && repIdxs 
@@ -117,11 +107,18 @@ matchesShape a b idxs =
   where
   repIdxs = case foldl' f (Just b) idxs of
               Nothing -> False
-              Just b' -> gmapQ toConstr a == gmapQ toConstr b'
+              Just b' -> and $ map test $ zip (nextLevel a) (nextLevel b')
 
   f mb idx = do
     b' <- mb
     v  <- getAtIdx a idx
     replace b' idx v
+
+  nextLevel x = map rootLabel (subTypes x)
+
+  test (SubT x, SubT y)  = 
+    if isAlgType (dataTypeOf x) 
+      then toConstr x == toConstr y
+      else True
 
 ---------------------------------------------------------------------------------

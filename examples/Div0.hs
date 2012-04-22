@@ -63,9 +63,7 @@ div1 m = divSubTerms m ==> eval m /= Nothing
 -- div0 _       = property True
 
 main :: IO ()
-main = do result <- smartRun args div1
-          extrapolate args result div1
-          
+main = smartCheck args div1
   where args = stdArgs { maxSuccess = 100
                        , maxSize    = 20 }
 

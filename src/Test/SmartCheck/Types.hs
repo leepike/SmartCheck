@@ -19,6 +19,9 @@ import qualified Test.QuickCheck as Q
 data SubT = forall a. (Data a, Q.Arbitrary a, Show a) 
           => SubT { unSubT :: a }
 
+-- instance Eq SubT where
+--   SubT a == SubT b = cast a == Just b
+
 instance Show SubT where
   show (SubT t) = show t
 

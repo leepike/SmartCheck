@@ -59,9 +59,12 @@ smartShrink args d prop = iter d (Idx 0 0)
 
   where 
   iter d' idx = do 
+    putStrLn ("IDX: " ++ show idx)
     if done then return d'
       else if nextLevel 
-             then iter d' (idx { level = level idx + 1 })
+             then iter d' (idx { column = 0
+                               , level  = level idx + 1 
+                               })
              else do if isNothing maxSize 
                        then iter d' (idx { column = column idx + 1 }) 
                        -- XXX We could shrink base values, but I'm not sure if

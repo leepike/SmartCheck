@@ -1,5 +1,6 @@
 module Test.SmartCheck.Common
   ( samples
+  , Result(..)
   , iterateArb
   , resultify
   , smartPrtLn
@@ -38,35 +39,41 @@ samples _ i maxSz = do
 
 ---------------------------------------------------------------------------------
 
+-- | Possible results of iterateArb: couldn't satisfy the precondition of a
+-- QuickCheck property, failed the property, or satisfied it, with the
+-- satisfying value.
+data Result a = FailedPreCond
+              | FailedProp
+              | Result a
+  deriving (Show, Read, Eq)
+
+---------------------------------------------------------------------------------
+
 -- | Replace the hole in d indexed by idx with a bunch of random values, and
 -- test the new d against the property.  Returns the first new d that succeeds.
 iterateArb :: (Data a, SubTypes a) 
            => a -> Idx -> Int -> Int
-           -> (a -> Q.Property) -> IO (Maybe a)
+           -> (a -> Q.Property) -> IO (Result a)
 iterateArb d idx tries sz prop =
   case getAtIdx d idx of
-    Nothing -> return Nothing
+    Nothing -> error "iterateArb 0"
     Just v  -> do rnds <- mkVals v
                   let res = catMaybes $ map (replace d idx) rnds
-                  -- Catch errors
-                  when (length res /= length rnds) (error "iterateArb")
-                  findM goodResult res
+                  -- Catch errors that shouldn't ever happen
+                  when (length res /= length rnds) (error "iterateArb 1")
+                  
+                  foldM goodResult FailedPreCond res
                   
   where
-  findM _ []     = return Nothing
-  findM f (x:xs) = do b <- f x
-                      if b then return (Just x)
-                         else findM f xs
 
-  goodResult a = do
+  goodResult r@(Result _) _ = return r
+  goodResult r a = do
     res <- resultify prop a 
-    let go = if Q.expect res 
-             then case Q.ok res of
-                    Just True -> True
-                    _         -> False
-             else case Q.ok res of
-                    Just False -> True
-                    _          -> False
+    let go = case Q.ok res of
+               Nothing -> r -- Failed the precondition
+               Just b  -> if Q.expect res 
+                            then if b then Result a else FailedProp
+                            else if b then FailedProp else Result a
     return go
                    
   mkVals SubT { unSubT = v } = do

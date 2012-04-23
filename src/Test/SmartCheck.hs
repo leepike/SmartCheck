@@ -39,7 +39,8 @@ smartCheck args prop = smartCheck' prop []
                           else smartPrtLn "Done."
 
   continue = do putStrLn $ "Attempt to find a new counterexample?" 
-                            ++ " (Enter to continue, 'n' to quit.)"
+                            ++ " ('Enter' to continue;"
+                            ++ " any character then 'Enter' to quit.)"
                 s <- getLine
                 return (s == "")
 

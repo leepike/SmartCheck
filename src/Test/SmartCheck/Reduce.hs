@@ -1,7 +1,8 @@
 {-# LANGUAGE ScopedTypeVariables #-} 
 
 module Test.SmartCheck.Reduce
-  where
+  (smartRun
+  ) where
 
 import Test.SmartCheck.Types
 import Test.SmartCheck.Common
@@ -19,10 +20,8 @@ import Data.Tree
 -- increasingly larger) randomly-generated values until we find a failure, and
 -- return that result.  (We call smartShrink recursively.)
 smartRun :: (Read a, Show a, Q.Arbitrary a, SubTypes a)
-         => Q.Args -> (a -> Q.Property) -> IO (Maybe a)
-smartRun args prop = do
-  let genProp = Q.forAllShrink Q.arbitrary Q.shrink prop
-  res <- runQC args genProp
+         => Q.Args -> Maybe a -> (a -> Q.Property) -> IO (Maybe a)
+smartRun args res prop = do
   if (isJust res) then runSmart (fromJust res)
     else do putStrLn ""
             smartPrtLn "No value to smart-shrink; done."
@@ -39,19 +38,6 @@ smartRun args prop = do
 
 ---------------------------------------------------------------------------------
 
-runQC :: forall a b. (Q.Testable b, Read a) => Q.Args -> Q.Gen b -> IO (Maybe a)
-runQC args propGen = do
-  res <- Q.quickCheckWithResult args propGen
-  case res of
-    -- XXX C'mon, QuickCheck, let me grab the result in a sane way rather than
-    -- parsing a string!
-    Q.Failure _ _ _ _ _ _ out -> do let ms = (lines out) !! 1 
-                                    let m = (read ms) :: a
-                                    return $ Just m
-    _ -> return Nothing
-
----------------------------------------------------------------------------------
-  
 -- | Breadth-first traversal of d, trying to shrink it with *strictly* smaller
 -- children.  We replace d whenever a successful shrink is found and try again.
 smartShrink :: SubTypes a

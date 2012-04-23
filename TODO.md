@@ -5,9 +5,6 @@ TODO
 * Use [GHC generics](http://www.haskell.org/ghc/docs/latest/html/users_guide/generic-programming.html)
   instead of SubTypes class.
 
-* When I'm shrinking, if I find a hole that is of the same type (via cast) that
-  also fails the property, replace the original value with the hole.
-
 * Use instances so I can pass anything that can be turned into a property to
   reduce, like in QuickCheck.
 
@@ -41,4 +38,7 @@ Done
   originally want to omit certain values from triggering a failure.~~
 
 * ~~Collect failed tests as preconditions until we reach a fixed point.~~
+
+* ~~When I'm shrinking, if I find a hole that is of the same type (via cast)
+  that also fails the property, replace the original value with the hole.~~
 

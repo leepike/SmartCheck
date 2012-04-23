@@ -27,22 +27,22 @@ extrapolate :: SubTypes a
             => Q.Args            -- ^ QuickCheck arguments
             -> a                 -- ^ Current failed value
             -> (a -> Q.Property) -- ^ Original property
-            -> (a -> Q.Property) -- ^ Property with preconditions
             -> [a]               -- ^ Previous failed values
-            -> IO (Maybe (a -> Q.Property))
-extrapolate args d origProp newProp ds = do 
+            -> IO ((a -> Q.Property) -> a -> Q.Property)
+extrapolate args d origProp ds = do 
   putStrLn ""
   smartPrtLn "Extrapolating ..."
   idxs <- iter args (mkSubstForest d) d origProp (Idx 0 0) []
   if matchesShapes d ds idxs
     then do smartPrtLn "Could not extrapolate a new value; done."
-            return Nothing
+            return (prop' idxs)
     else do smartPrtLn "Extrapolated value:"
             renderWithVars d idxs
-            return (Just $ prop' idxs)
+            return (prop' idxs)
 
   where
-  prop' idxs a = (not $ matchesShapes a (d:ds) idxs) Q.==> newProp a
+  prop' idxs newProp a = 
+    (not $ matchesShapes a (d:ds) idxs) Q.==> newProp a
 
 ---------------------------------------------------------------------------------
 

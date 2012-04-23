@@ -33,14 +33,14 @@ smartCheck args prop = smartCheck' prop []
 
     d <- smartRun args res prop
     if isNothing d then return ()
-              -- Extrapolate with the original property to see if we get a
-              -- previously-visited value back.
-      else do mprop <- extrapolate args (fromJust d) prop prop' ds
-              if isNothing mprop then return ()
-                else do c <- continue
-                        if c 
-                          then smartCheck' (fromJust mprop) (fromJust d : ds)
-                          else smartPrtLn "Done."
+    -- Extrapolate with the original property to see if we get a
+    -- previously-visited value back.
+      else do prop_ <- extrapolate args (fromJust d) prop ds
+              c <- continue
+              if c 
+                then smartCheck' (prop_ prop) 
+                       (fromJust d : ds)
+                else smartPrtLn "Done."
 
   continue = do putStrLn $ "Attempt to find a new counterexample?" 
                             ++ " ('Enter' to continue;"

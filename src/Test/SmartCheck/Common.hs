@@ -2,6 +2,7 @@ module Test.SmartCheck.Common
   ( samples
   , Result(..)
   , iterateArb
+  , extractResult
   , resultify
   , smartPrtLn
   , replace
@@ -50,7 +51,8 @@ data Result a = FailedPreCond
 ---------------------------------------------------------------------------------
 
 -- | Replace the hole in d indexed by idx with a bunch of random values, and
--- test the new d against the property.  Returns the first new d that succeeds.
+-- test the new d against the property.  Returns the first new d (the full d but
+-- with the hole replaced) that succeeds.
 iterateArb :: (Data a, SubTypes a) 
            => a -> Idx -> Int -> Int
            -> (a -> Q.Property) -> IO (Result a)
@@ -62,23 +64,25 @@ iterateArb d idx tries sz prop =
                   -- Catch errors that shouldn't ever happen
                   when (length res /= length rnds) (error "iterateArb 1")
                   
-                  foldM goodResult FailedPreCond res
-                  
+                  foldM (extractResult prop) FailedPreCond res
   where
-
-  goodResult r@(Result _) _ = return r
-  goodResult r a = do
-    res <- resultify prop a 
-    let go = case Q.ok res of
-               Nothing -> r -- Failed the precondition
-               Just b  -> if Q.expect res 
-                            then if b then Result a else FailedProp
-                            else if b then FailedProp else Result a
-    return go
                    
   mkVals SubT { unSubT = v } = do
     rnds <- samples v tries sz
     return $ map subT rnds
+
+---------------------------------------------------------------------------------
+
+extractResult :: (a -> Q.Property) -> Result a -> a -> IO (Result a)
+extractResult _    r@(Result _) _ = return r
+extractResult prop r            a = do
+  res <- resultify prop a 
+  let go = case Q.ok res of
+             Nothing -> r -- Failed the precondition
+             Just b  -> if Q.expect res 
+                          then if b then Result a else FailedProp
+                          else if b then FailedProp else Result a
+  return go
 
 ---------------------------------------------------------------------------------
 

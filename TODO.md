@@ -1,6 +1,5 @@
 TODO
 -----------------------------------------------
-* Rename Reduce to SmartShrink
 
 * Use [GHC generics](http://www.haskell.org/ghc/docs/latest/html/users_guide/generic-programming.html)
   instead of SubTypes class.
@@ -16,6 +15,15 @@ TODO
 * Right now, in DataToTree, sub (and functions it depends on) fail silently if
   you give them an index that is out of bounds.  Perhaps I should return a
   Maybe?  
+
+* Check that the SubTypes class works with tuples, lists.
+
+* Options:
+  * Chatty option for reducing/extrapolating.
+  * Option for controlling depth into structure we recurse.
+  * Show output as data-tree or just replace values in extrapolated value.
+
+* Performance analysis of extrapolation.
 
 
 Won't Do / Can't Do

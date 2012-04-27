@@ -18,7 +18,6 @@ import Test.SmartCheck.Common
 
 import qualified Test.QuickCheck as Q
 import Data.Tree
-import Data.Maybe
 
 ---------------------------------------------------------------------------------
 
@@ -30,30 +29,29 @@ smartCheck args prop = smartCheck' prop []
   where
   smartCheck' prop' ds = do
     res <- runQC args prop'
+    d   <- smartRun args res prop
+    case d of
+      Nothing -> continue id ds
+      -- Extrapolate with the original property to see if we get a
+      -- previously-visited value back.
+      Just d' -> do prop_ <- extrapolate args d' prop ds
+                    continue prop_ (d' : ds)
 
-    d <- smartRun args res prop
-    if isNothing d then return ()
-    -- Extrapolate with the original property to see if we get a
-    -- previously-visited value back.
-      else do prop_ <- extrapolate args (fromJust d) prop ds
-              c <- continue
-              if c 
-                then smartCheck' (prop_ prop) 
-                       (fromJust d : ds)
-                else smartPrtLn "Done."
-
-  continue = do putStrLn $ "Attempt to find a new counterexample?" 
-                            ++ " ('Enter' to continue;"
-                            ++ " any character then 'Enter' to quit.)"
-                s <- getLine
-                return (s == "")
+  continue f ds = do 
+    putStrLn $ "Attempt to find a new counterexample?" 
+                 ++ " ('Enter' to continue;"
+                 ++ " any character then 'Enter' to quit.)"
+    s <- getLine
+    if (s == "")
+      then smartCheck' (f prop) ds
+      else smartPrtLn "Done."
 
 ---------------------------------------------------------------------------------
 
 runQC :: forall a. (Show a, Read a, Q.Arbitrary a)
       => Q.Args -> (a -> Q.Property) -> IO (Maybe a)
 runQC args prop = do
-  let genProp = Q.forAllShrink Q.arbitrary Q.shrink prop
+  let genProp = Q.forAllShrink Q.arbitrary Q.shrink propo
   res <- Q.quickCheckWithResult args genProp
   case res of
     -- XXX C'mon, QuickCheck, let me grab the result in a sane way rather than

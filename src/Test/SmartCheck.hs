@@ -51,7 +51,7 @@ smartCheck args prop = smartCheck' prop []
 runQC :: forall a. (Show a, Read a, Q.Arbitrary a)
       => Q.Args -> (a -> Q.Property) -> IO (Maybe a)
 runQC args prop = do
-  let genProp = Q.forAllShrink Q.arbitrary Q.shrink propo
+  let genProp = Q.forAllShrink Q.arbitrary Q.shrink prop
   res <- Q.quickCheckWithResult args genProp
   case res of
     -- XXX C'mon, QuickCheck, let me grab the result in a sane way rather than

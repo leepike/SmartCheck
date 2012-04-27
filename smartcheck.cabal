@@ -1,6 +1,7 @@
-Name:                SmartCheck
+Name:                smartcheck
 Version:             0.1
 Synopsis:            A smarter QuickCheck.
+Description:         See the README.md.
 License:             BSD3
 License-file:        LICENSE.md
 Author:              Lee Pike

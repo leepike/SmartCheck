@@ -25,6 +25,20 @@ TODO
 
 * Performance analysis of extrapolation.
 
+* Make SubT from Forest into Tree.  More natural and allows to index the head.
+
+* Make sure that printing, etc. doesn't depend on subTypes.  Just want that to
+  do with replacing values during testing.  I'm not sure I can do this
+  independently of SubT.
+
+* How to do custom Show instances for showing variables?  You might have a
+  custom Show for some datatype a, but when I replace values with variables in
+  it, I can't show the same way.  DrawTree kind of works since it shows
+  according to the custom Show instance on each level, but also shows the
+  structure.  
+
+* Bugs in the new tree showing/showing with variables.  Test Heap_Program.
+
 
 Won't Do / Can't Do
 -----------------------------------------------

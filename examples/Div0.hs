@@ -63,8 +63,8 @@ div1 m = divSubTerms m ==> eval m /= Nothing
 -- div0 (A _ _) = property False
 -- div0 _       = property True
 
-main :: IO ()
-main = smartCheck args div1
+divTest :: IO ()
+divTest = smartCheck args div1
   where 
   args = scStdArgs { qcArgs = stdArgs 
                                 { maxSuccess = 100

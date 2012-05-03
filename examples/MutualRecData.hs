@@ -5,6 +5,7 @@ module MutualRecData where
 import Test.SmartCheck
 import Test.QuickCheck hiding (Result)
 
+import Data.Tree
 import Data.Data
 import Control.Monad.State 
 
@@ -63,11 +64,11 @@ prop0 :: M -> Bool
 prop0 (M _ _ a) = a < 100
 prop0 _         = True
 
-main :: IO ()
-main = smartCheck args p
+mutRecTest :: IO ()
+mutRecTest = smartCheck args p
   where 
   p    = \a -> property (prop0 a)
-  args = stdArgs { maxSuccess = 1000 }
+  args = scStdArgs { qcArgs = stdArgs {maxSuccess = 1000} }
 
 ---------------------------------------------------------------------------------
 

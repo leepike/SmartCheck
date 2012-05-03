@@ -2,13 +2,12 @@
 
 -- Copied from QuickCheck2's examples.
 
-module Main where
+module Heap_Program where
 
 --------------------------------------------------------------------------
 -- imports
 
 import Test.QuickCheck
-import Test.QuickCheck.Text
 import Test.QuickCheck.All
 import Test.QuickCheck.Poly
 
@@ -17,13 +16,56 @@ import Data.List
   , (\\)
   )
 
-import Control.Monad
-  ( liftM
-  , liftM2
-  )
-
+import qualified Data.Tree as T
 import Data.Data
 import qualified Test.SmartCheck as SC
+
+--------------------------------------------------------------------------
+-- SmartCheck Testing.  Comment out shrink instance if you want to be more
+-- impressed. :)
+--------------------------------------------------------------------------
+
+instance Read OrdA where
+  readsPrec _ i = [ (OrdA j, str) | (j, str) <- reads i ]
+
+deriving instance Data OrdA
+deriving instance Typeable OrdA
+
+heapProgramTest :: IO ()
+heapProgramTest = SC.smartCheck SC.scStdArgs (\h -> property (prop_ToSortedList h))
+
+instance (Ord a, Arbitrary a, Data a, Show a) => SC.SubTypes (Heap a) where
+  subTypes Nil = []
+  subTypes (Node x h0 h1) = 
+    [ T.Node (SC.subT x) []
+    , T.Node (SC.subT h0) (SC.subTypes h0)
+    , T.Node (SC.subT h1) (SC.subTypes h1)
+    ]
+
+instance (Arbitrary a, Data a, Show a) => SC.SubTypes (HeapP a) where
+  subTypes Empty = []
+  subTypes (Unit a) = [ T.Node (SC.subT a) [] ]
+  subTypes (Insert i h)      = 
+    [ T.Node (SC.subT i) []
+    , T.Node (SC.subT h) (SC.subTypes h) 
+    ]
+  subTypes (SafeRemoveMin h) = 
+    [ T.Node (SC.subT h) (SC.subTypes h) ]
+  subTypes (Merge h0 h1)     = 
+    [ T.Node (SC.subT h0) (SC.subTypes h0) 
+    , T.Node (SC.subT h1) (SC.subTypes h1) 
+    ]
+  subTypes (FromList a) = [ T.Node (SC.subT a) [] ]
+
+instance (Ord a, Arbitrary a, Data a, Show a) => SC.SubTypes (HeapPP a) where
+  subTypes (HeapPP hp h) = 
+    [ T.Node (SC.subT hp) (SC.subTypes hp)
+    , T.Node (SC.subT h) (SC.subTypes h)
+    ]
+
+instance (Ord a, Arbitrary a) => Arbitrary (Heap a) where
+  arbitrary = do p <- arbitrary :: Gen (HeapP a)
+                 return $ heap p
 
 --------------------------------------------------------------------------
 -- skew heaps
@@ -32,9 +74,6 @@ data Heap a
   = Node a (Heap a) (Heap a)
   | Nil
  deriving ( Eq, Ord, Show, Read, Data, Typeable )
-
--- instance Read a => Read (Heap a) where
---   readsPrec _  = 
 
 empty :: Heap a
 empty = Nil
@@ -132,18 +171,18 @@ instance Arbitrary a => Arbitrary (HeapP a) where
       s2 = s`div`2
 
 
-  shrink (Unit x)          = [ Unit x' | x' <- shrink x ]
-  shrink (FromList xs)     = [ Unit x | x <- xs ]
-                          ++ [ FromList xs' | xs' <- shrink xs ]
-  shrink (Insert x p)      = [ p ]
-                          ++ [ Insert x p' | p' <- shrink p ]
-                          ++ [ Insert x' p | x' <- shrink x ]
-  shrink (SafeRemoveMin p) = [ p ]
-                          ++ [ SafeRemoveMin p' | p' <- shrink p ]
-  shrink (Merge p q)       = [ p, q ]
-                          ++ [ Merge p' q | p' <- shrink p ]
-                          ++ [ Merge p q' | q' <- shrink q ]
-  shrink _                 = []
+  -- shrink (Unit x)          = [ Unit x' | x' <- shrink x ]
+  -- shrink (FromList xs)     = [ Unit x | x <- xs ]
+  --                         ++ [ FromList xs' | xs' <- shrink xs ]
+  -- shrink (Insert x p)      = [ p ]
+  --                         ++ [ Insert x p' | p' <- shrink p ]
+  --                         ++ [ Insert x' p | x' <- shrink x ]
+  -- shrink (SafeRemoveMin p) = [ p ]
+  --                         ++ [ SafeRemoveMin p' | p' <- shrink p ]
+  -- shrink (Merge p q)       = [ p, q ]
+  --                         ++ [ Merge p' q | p' <- shrink p ]
+  --                         ++ [ Merge p q' | q' <- shrink q ]
+  -- shrink _                 = []
 
 data HeapPP a = HeapPP (HeapP a) (Heap a)
  deriving (Show, Read, Data, Typeable)
@@ -197,30 +236,7 @@ prop_ToSortedList (HeapPP _ h) =
 --------------------------------------------------------------------------
 -- main
 
-main = $(quickCheckAll)
+-- main = $(quickCheckAll)
 
 --------------------------------------------------------------------------
 -- the end.
-
-instance Read OrdA where
-  readsPrec _ i = [ (OrdA j, str) | (j, str) <- reads i ]
-
-deriving instance Data OrdA
-deriving instance Typeable OrdA
-
-sc :: IO ()
-sc = SC.smartCheck stdArgs (\h -> property (prop_ToSortedList h))
-
-instance (Arbitrary a, Data a, Show a) => SC.SubTypes (HeapPP a) where
-  subTypes (HeapPP hp _) = 
-    [ SC.Node (SC.subT hp) (SC.subTypes hp)
-    ]
-
-instance (Arbitrary a, Data a, Show a) => SC.SubTypes (HeapP a) where
-  subTypes (Insert _ h)      = [ SC.Node (SC.subT h) (SC.subTypes h) ]
-  subTypes (SafeRemoveMin h) = [ SC.Node (SC.subT h) (SC.subTypes h) ]
-  subTypes (Merge h0 h1)     = 
-    [ SC.Node (SC.subT h0) (SC.subTypes h0) 
-    , SC.Node (SC.subT h1) (SC.subTypes h1) 
-    ]
-  subTypes _                 = []

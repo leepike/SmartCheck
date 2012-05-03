@@ -2,11 +2,14 @@
 
 module Test.SmartCheck.Extrapolate
   ( extrapolate
+  -- YYY
+  , renderWithVars
   ) where
 
 import Test.SmartCheck.Types
 import Test.SmartCheck.DataToTree
 import Test.SmartCheck.Common
+import Test.SmartCheck.Render
 
 import qualified Test.QuickCheck as Q
 
@@ -24,7 +27,7 @@ import Data.List
 -- any values that fail the precondition of the property (i.e., before the
 -- Q.==>). XXX
 extrapolate :: SubTypes a 
-            => Q.Args            -- ^ QuickCheck arguments
+            => ScArgs            -- ^ Arguments
             -> a                 -- ^ Current failed value
             -> (a -> Q.Property) -- ^ Original property
             -> [a]               -- ^ Previous failed values
@@ -32,12 +35,12 @@ extrapolate :: SubTypes a
 extrapolate args d origProp ds = do 
   putStrLn ""
   smartPrtLn "Extrapolating ..."
-  idxs <- iter args (mkSubstForest d) d origProp (Idx 0 0) []
+  idxs <- iter (qcArgs args) (mkSubstForest d) d origProp (Idx 0 0) []
   if matchesShapes d ds idxs
     then do smartPrtLn "Could not extrapolate a new value; done."
             return (prop' idxs)
     else do smartPrtLn "Extrapolated value:"
-            renderWithVars d idxs
+            renderWithVars (treeShow args) d idxs
             return (prop' idxs)
 
   where
@@ -120,25 +123,5 @@ matchesShape a b idxs =
     if isAlgType (dataTypeOf x) 
       then toConstr x == toConstr y
       else True
-
----------------------------------------------------------------------------------
--- PrettyPrinting
----------------------------------------------------------------------------------
-
--- | At each index into d from idxs, replace the whole with a fresh value.
-replaceWithVars :: SubTypes a => a -> [Idx] -> [String] -> Tree String
-replaceWithVars d idxs vars = 
-  foldl' f (mkShowTree d) (zip vars idxs)
-  where
-  f :: Tree String -> (String, Idx) -> Tree String
-  f tree (var, idx) = let forest = sub (subForest tree) idx var False in
-                      Node (rootLabel tree) forest
-
-renderWithVars :: SubTypes a => a -> [Idx] -> IO ()
-renderWithVars d idxs = do
-  putStrLn $ "forall " ++ unwords (take (length idxs) vars) ++ ":"
-  putStrLn . drawTree $ replaceWithVars d idxs vars
-  where
-  vars = map (\(x,i) -> x ++ show i) $ zip (repeat "x") [0::Int ..]
 
 ---------------------------------------------------------------------------------

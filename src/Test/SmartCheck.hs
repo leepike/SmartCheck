@@ -4,32 +4,29 @@
 
 module Test.SmartCheck 
   ( smartCheck
-  , SubT(..)
-  , subT
-  , SubTypes(..)
-  , Tree(..)
-  , Forest
+  , module Test.SmartCheck.Types
   ) where
 
+import Test.SmartCheck.Types
 import Test.SmartCheck.Reduce
 import Test.SmartCheck.Extrapolate
-import Test.SmartCheck.Types
-import Test.SmartCheck.Common
+import Test.SmartCheck.Render
 
 import qualified Test.QuickCheck as Q
-import Data.Tree
 
 ---------------------------------------------------------------------------------
 
 -- | Main interface function.
 smartCheck :: (Read a, Show a, Q.Arbitrary a, SubTypes a)
-           => Q.Args -> (a -> Q.Property) -> IO ()
+           => ScArgs -> (a -> Q.Property) -> IO ()
 smartCheck args prop = smartCheck' prop []
 
   where
+  qc = qcArgs args
+
   smartCheck' prop' ds = do
-    res <- runQC args prop'
-    d   <- smartRun args res prop
+    res <- runQC qc prop'
+    d   <- smartRun qc res prop
     case d of
       Nothing -> continue id ds
       -- Extrapolate with the original property to see if we get a

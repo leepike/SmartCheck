@@ -4,10 +4,11 @@
 
 module Div0 where
 
-import Test.QuickCheck 
+import Test.QuickCheck
 import Test.SmartCheck
 import Control.Monad
 import Data.Data
+import Data.Tree
 
 data M = C Int
        | A M M
@@ -64,7 +65,10 @@ div1 m = divSubTerms m ==> eval m /= Nothing
 
 main :: IO ()
 main = smartCheck args div1
-  where args = stdArgs { maxSuccess = 100
-                       , maxSize    = 20 }
+  where 
+  args = scStdArgs { qcArgs = stdArgs 
+                                { maxSuccess = 100
+                                , maxSize    = 20  }
+                   }
 
 ---------------------------------------------------------------------------------

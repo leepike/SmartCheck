@@ -15,11 +15,12 @@ Cabal-version:       >=1.10
 
 Library
   Exposed-modules:   Test.SmartCheck,
-                     Test.SmartCheck.Reduce
+                     Test.SmartCheck.Reduce,
                      Test.SmartCheck.Extrapolate,
-                     Test.SmartCheck.Types
-                     Test.SmartCheck.Common
-                     Test.SmartCheck.DataToTree
+                     Test.SmartCheck.Types,
+                     Test.SmartCheck.Common,
+                     Test.SmartCheck.DataToTree,
+                     Test.SmartCheck.Render
 
   
   Build-depends:     base >= 4.0,

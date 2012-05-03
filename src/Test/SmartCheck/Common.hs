@@ -4,7 +4,6 @@ module Test.SmartCheck.Common
   , iterateArb
   , extractResult
   , resultify
-  , smartPrtLn
   , replace
   ) where
 
@@ -103,13 +102,5 @@ resultify prop a = do
   res = Q.protectRose . Q.reduceRose
 
   err = error "in propify: should not evaluate."
-
----------------------------------------------------------------------------------
-
-smartPrefix :: String
-smartPrefix = "*** "
-
-smartPrtLn :: String -> IO ()
-smartPrtLn = putStrLn . (smartPrefix ++)
 
 ---------------------------------------------------------------------------------

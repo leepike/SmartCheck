@@ -6,7 +6,6 @@ module Test.SmartCheck.DataToTree
   , getAtIdx
   , replaceAtIdx
   , getIdxForest
-  , mkShowTree
   , breadthLevels
   , mkSubstForest
   , depth
@@ -169,15 +168,5 @@ replaceChild d idx s =
                                                          return x
       ((Node Keep _):rst)             -> do put (lr, rst)
                                             return x
-
----------------------------------------------------------------------------------
--- Rendering.
----------------------------------------------------------------------------------
-
-mkShowTree :: SubTypes a => a -> Tree String
-mkShowTree d = Node (show $ toConstr d) (strForest $ subTypes d)
-
-strForest :: Forest SubT -> Forest String
-strForest = fmap (\(Node r forest) -> Node (show r) (strForest forest))
 
 ---------------------------------------------------------------------------------

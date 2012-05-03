@@ -7,6 +7,7 @@ module Test.SmartCheck.Reduce
 import Test.SmartCheck.Types
 import Test.SmartCheck.Common
 import Test.SmartCheck.DataToTree
+import Test.SmartCheck.Render
 
 import qualified Test.QuickCheck as Q
 import Data.Typeable

@@ -6,11 +6,34 @@ module Test.SmartCheck.Types
   , SubTypes(..)
   , Idx(..)
   , Subst(..)
+  , ScArgs(..)
+  , Format(..)
+  , scStdArgs
   ) where
 
 import Data.Tree
 import Data.Data
 import qualified Test.QuickCheck as Q
+
+---------------------------------------------------------------------------------
+-- User-defined subtypes of data
+---------------------------------------------------------------------------------
+
+data Format = PrntTree | PrntString
+  deriving (Eq, Read, Show)
+
+data ScArgs = 
+  ScArgs { chatty   :: Bool   -- ^ Verbose output while running SmartCheck
+         , treeShow :: Format -- ^ How to show extrapolated formula
+         , qcArgs   :: Q.Args -- ^ QuickCheck arguments
+         }
+  deriving (Show, Read)
+
+scStdArgs :: ScArgs
+scStdArgs = ScArgs { chatty   = False
+                   , treeShow = PrntTree
+                   , qcArgs   = Q.stdArgs
+                   }
 
 ---------------------------------------------------------------------------------
 -- User-defined subtypes of data
@@ -28,7 +51,7 @@ instance Show SubT where
 subT :: (Data a, Q.Arbitrary a, Show a) => a -> SubT
 subT = SubT
 
-class Data a => SubTypes a where
+class (Show a, Data a) => SubTypes a where
   subTypes :: a -> Forest SubT
 
 ---------------------------------------------------------------------------------

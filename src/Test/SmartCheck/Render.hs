@@ -39,14 +39,15 @@ replaceWithVars :: SubTypes a
                 => Format -> a -> [Idx] -> [String] -> String
 replaceWithVars format d idxs vars = 
   case format of
-    PrntTree   -> drawTree $ foldl' f t vis
+    PrntTree   -> drawTree strTree
     -- We have to be careful here.  We can't just show d and then find the
     -- matching substrings to replace, since the same substring may show up in
     -- multiple places.  Rather, we have to recursively descend down the tree of
     -- substrings, finding matches, til we hit our variable.
-    PrntString -> error "not implemented" --foldl' g (show d) vis
+    PrntString -> stitchTree strTree
 
   where
+  strTree = foldl' f t vis
   t    = mkShowTree d
   vis  = zip vars idxs
 
@@ -54,12 +55,55 @@ replaceWithVars format d idxs vars =
   f tree (var, idx) = let forest = sub (subForest tree) idx var False in
                       Node (rootLabel tree) forest
 
-  -- subF = mkSubstForest d
+---------------------------------------------------------------------------------
 
-  -- g :: String -> (String, Idx) -> String
-  -- g showTree (var, idx) = 
-  --   let subPath = sub subF idx Subst True in
-  --   replaceStr showTree var idx subPath
+stitchTree :: Tree String -> String
+stitchTree = stitch
+  where 
+  stitchTree' (Node str []) = str
+  stitchTree' node = 
+    '(' : stitch node ++ ")"
+
+  stitch (Node str forest) = str ++ " " ++ (unwords $ map stitchTree' forest)
+
+---------------------------------------------------------------------------------
+
+-- Make a Tree out of a Data value.  On each level, we just use the user-defined
+-- Show instance.  This is good in that it's what user expects, but it's bad in
+-- that we show the entire subtree at each level.  
+--
+-- XXX Also, it's inconsistent since toConstr is not part of the user-defined
+-- show instances.
+mkShowTree :: SubTypes a => a -> Tree String
+mkShowTree d = Node (show $ toConstr d) (strForest $ subTypes d)
+
+---------------------------------------------------------------------------------
+
+strForest :: Forest SubT -> Forest String
+strForest = map prtTree
+  where
+  prtTree (Node r forest) =
+    let nextLevel       = map (show . rootLabel) forest in
+    let stripSubForests = dropWhileEnd isSpace $
+                          removeParens $
+                          foldl' nubSubForest (show r) nextLevel in
+    Node stripSubForests (strForest forest)
+ 
+  removeParens ss = unwords $ foldl' (\acc x -> if x == "()" then acc
+                                                  else x:acc
+                                     ) [] (words ss)
+
+  -- Strips a subforest, including possible parentheses enclosing the
+  -- expression.  Strip trailing whitespace when done.
+  nubSubForest :: String -> String -> String
+  nubSubForest str subTree = 
+    go [] str
+
+    where
+    go acc [] = reverse acc
+    go acc ss = case stripPrefix subTree ss of
+                     Nothing  -> go (head ss : acc) (tail ss)
+                     Just rst -> reverse acc ++ rst
 
 ---------------------------------------------------------------------------------
 
@@ -84,35 +128,4 @@ replaceWithVars format d idxs vars =
 --     Nothing -> ls
 --     Just i  -> take i ls ++ b : drop (i+1) ls
   
----------------------------------------------------------------------------------
-
--- Make a Tree out of a Data value.  On each level, we just use the user-defined
--- Show instance.  This is good in that it's what user expects, but it's bad in
--- that we show the entire subtree at each level.  
---
--- XXX Also, it's inconsistent since toConstr is not part of the user-defined
--- show instances.
-mkShowTree :: SubTypes a => a -> Tree String
-mkShowTree d = Node (show $ toConstr d) (strForest $ subTypes d)
-
-strForest :: Forest SubT -> Forest String
-strForest = fmap prtTree
-
-  where
-  prtTree (Node r forest) =
-    let rec = strForest forest in 
-    let nextLevel = fmap rootLabel rec in
-    Node (stripSuffix (show r) nextLevel) rec
- 
-  -- If the proposed suffix is not actually a suffix, we just return the
-  -- original string.  We eat spaces and parentheses.  XXX, yes, this is a bit
-  -- of a hack.
-  stripSuffix :: String -> [String] -> String
-  stripSuffix st ls = 
-    let suffix = concat ls in
-    let st' = filter (\c -> c /= '(' && c /= ')' && (not . isSpace) c) st in
-    case stripPrefix (reverse suffix) (reverse st') of
-      Nothing -> st
-      Just x  -> reverse x
-
 ---------------------------------------------------------------------------------

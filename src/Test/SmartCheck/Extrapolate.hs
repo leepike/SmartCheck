@@ -17,6 +17,8 @@ import Data.Data
 import Data.Tree
 import Data.List
 
+import Debug.Trace
+
 ---------------------------------------------------------------------------------
 
 -- | Test d with arbitrary values replacing its children.  For anything we get
@@ -55,27 +57,15 @@ extrapolate args d origProp ds = do
 iter :: SubTypes a 
      => Q.Args -> Forest Subst -> a 
      -> (a -> Q.Property) -> Idx -> [Idx] -> IO [Idx]
-iter args forest d prop idx idxs = 
+iter args forest d prop idx idxs = trace ("testing\n" ++ show d ++ "\n known idxs: " ++ show idxs ++ "\n trying " ++ show idx ++ "\n tree:" ++ show forest ++ "\n") $
   if done then return idxs
      else if nextLevel 
-            then iter' forest (idx { column = 0 
-                                   , level  = level idx + 1  
-                                   }) 
+            then iter' forest (idx { level  = level idx + 1  
+                                   , column = 0 })
                        idxs
-            else do tries <- iterateArb d idx (Q.maxDiscard args)
-                               rate prop
-                    case tries of
-                      -- None of the tries satisfy prop.  Prevent recurring down
-                      -- this tree, since we can generalize (we do this with
-                      -- sub, which replaces the subForest with []).
-                      FailedProp    -> iter' (sub forest idx Keep False)
-                                         (idx { column = column idx + 1 }) 
-                                         (idx : idxs)
-                      -- Either something satisfied it or the precondition
-                      -- couldn't be satisfied.  Recurse down.
-                      _             -> iter' forest 
-                                         (idx { column = column idx + 1 }) 
-                                         idxs
+            else case getIdxForest forest idx of
+                   Just (Node Keep _) -> runTest
+                   _                  -> next
 
   where
   -- XXX right ratio?  Should I use a user-specified arg?
@@ -84,7 +74,25 @@ iter args forest d prop idx idxs =
   done      = length pts <= level idx
   nextLevel = length (pts !! level idx) <= column idx
 
-  iter' for i is = iter args for d prop i is
+  next = iter' forest 
+           idx { column = column idx + 1 }
+           idxs
+
+  iter' frst = iter args frst d prop
+
+  runTest = do 
+    tries <- iterateArb d idx (Q.maxDiscard args)
+               rate prop
+    case tries of
+      -- None of the tries satisfy prop.  Prevent recurring down this tree,
+      -- since we can generalize (we do this with sub, which replaces the
+      -- subForest with []).
+      FailedProp    -> iter' (forestStop forest idx)
+                         idx { column = column idx + 1 } 
+                         (idx : idxs)
+      -- Either something satisfied it or the precondition couldn't be
+      -- satisfied.  Recurse down.
+      _             -> next
 
 ---------------------------------------------------------------------------------
 

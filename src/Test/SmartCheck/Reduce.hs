@@ -14,6 +14,8 @@ import Data.Typeable
 import Data.Maybe
 import Data.Tree
 
+import Debug.Trace
+
 ---------------------------------------------------------------------------------
 
 -- Smarter than shrinks.  Does substitution.  m is a value that failed QC that's
@@ -47,19 +49,16 @@ smartShrink args d prop = iterReduce args d (Idx 0 0) notProp
   where
   notProp = Q.expectFailure . prop
 
----------------------------------------------------------------------------------
-
 iterReduce :: SubTypes a
       => Q.Args -> a -> Idx -> (a -> Q.Property) -> IO a
 iterReduce args d idx prop = do 
   if done then return d
     else if nextLevel 
-           then iterReduce args d (idx { column = 0
-                                       , level  = level idx + 1 
-                                       })
+           then iterReduce args d idx { column = 0
+                                      , level  = level idx + 1 }
                            prop
            else do if isNothing maxSize 
-                     then iterReduce args d (idx { column = column idx + 1 }) 
+                     then iterReduce args d (idx { column = column idx + 1 })
                                      prop
                      -- XXX We could shrink base values, but I'm not sure if
                      -- it's worth it.  Doesn't affect extrapolation or make

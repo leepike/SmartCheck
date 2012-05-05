@@ -2,7 +2,10 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Test.SmartCheck.DataToTree
-  ( sub
+  ( subForestPath
+--  , forestReplace
+  , forestReplaceChop
+  , forestStop
   , getAtIdx
   , replaceAtIdx
   , getIdxForest
@@ -95,14 +98,63 @@ getAtIdx d Idx { level  = l
 ---------------------------------------------------------------------------------
 
 -- | Replace a tree at index Idx in a Forest.  Return the original if the index
--- is out of range.  All subforests are removed.  If the Boolean is true, we we
--- replace every rootLabel in the path to Index with a; otherwise, we just
--- replace the value at index with a.
-sub :: Forest a -> Idx -> a -> Bool -> Forest a
+-- is out of range.  All subforests are removed.  Additionally, every rootLabel
+-- in the path to Index is replaced with a.
+subForestPath :: Forest a -> Idx -> a -> Forest a
+subForestPath = sub SubData { path = True
+                            , subs = Chop }
+
+---------------------------------------------------------------------------------
+
+-- | Replace a tree at index Idx in a Forest.  Return the original if the index
+-- is out of range.  All subforests are removed.
+forestReplaceChop :: Forest a -> Idx -> a -> Forest a
+forestReplaceChop = sub SubData { path = False
+                                , subs = Chop }
+
+---------------------------------------------------------------------------------
+
+-- -- | Replace a rootLabel at index Idx in a Forest.  Return the original if the
+-- -- index is out of range.
+-- forestReplace :: Forest a -> Idx -> a -> Forest a
+-- forestReplace = sub SubData { path = False
+--                             , subs = Leave }
+
+---------------------------------------------------------------------------------
+
+-- | Replace a tree at index Idx in a Forest.  Return the original if the
+-- index is out of range.  Replace the subforest of Idx with the Substs.
+forestStop :: Forest Subst -> Idx -> Forest Subst
+forestStop f idx = 
+  sub SubData { path = False
+              , subs = ReplaceSubs }
+    f idx Subst
+
+---------------------------------------------------------------------------------
+
+data Subs = Leave | ReplaceSubs | Chop
+  deriving  (Show, Read, Eq)
+
+data SubData = SubData
+  { path :: Bool
+  , subs :: Subs
+  }
+  deriving (Eq, Read, Show)
+
+sub :: SubData -> Forest a -> Idx -> a -> Forest a
 -- on right level, and we'll assume correct subtree.
-sub forest (Idx (0::Int) n) a _ = 
-  take n forest ++ Node a [] : drop (n+1) forest
-sub forest idx              a b = 
+sub args forest (Idx (0::Int) n) a = 
+  snd $ mapAccumL f 0 forest
+  where
+  f i node | i == n = ( i+1
+                      , Node a $ subf (subForest node) )
+           | True   = ( i+1, node )
+  subf frst = case subs args of
+                Leave       -> frst -- leave things as they are
+                Chop        -> []  -- Chop the subforest
+                ReplaceSubs -> map (fmap $ \x -> a) frst 
+
+sub args forest idx              a = 
   snd $ mapAccumL findTree (column idx) forest
   where
   l = level idx - 1
@@ -115,8 +167,8 @@ sub forest idx              a b =
              else (n-len, t)
     where
     len = levelLength l t
-    newRootLabel = if b then a else rootLabel t
-    newTree = Node newRootLabel (sub (subForest t) (Idx l n) a b)
+    newRootLabel = if path args then a else rootLabel t
+    newTree = Node newRootLabel (sub args (subForest t) (Idx l n) a)
 
 ---------------------------------------------------------------------------------
 -- Operations on SubTypes.
@@ -136,7 +188,7 @@ replaceAtIdx :: (SubTypes a, Data b)
              -> Idx   -- ^ Index of hole to replace
              -> b     -- ^ Value to replace with
              -> Maybe a
-replaceAtIdx m idx = replaceChild m (sub (mkSubstForest m) idx Subst True)
+replaceAtIdx m idx = replaceChild m (subForestPath (mkSubstForest m) idx Subst)
 
 ---------------------------------------------------------------------------------
 

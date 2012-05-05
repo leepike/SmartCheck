@@ -24,7 +24,7 @@ smartPrtLn = putStrLn . (smartPrefix ++)
 renderWithVars :: SubTypes a => Format -> a -> [Idx] -> IO ()
 renderWithVars format d idxs = do
   putStrLn $ "forall " ++ unwords (take (length idxs) vars) ++ ":"
-  -- XXX
+  -- -- XXX
   putStrLn $ show idxs
   putStrLn ""
   putStrLn $ replaceWithVars format d idxs vars
@@ -52,8 +52,9 @@ replaceWithVars format d idxs vars =
   vis  = zip vars idxs
 
   f :: Tree String -> (String, Idx) -> Tree String
-  f tree (var, idx) = let forest = sub (subForest tree) idx var False in
-                      Node (rootLabel tree) forest
+  f tree (var, idx) = 
+    let forest = forestReplaceChop (subForest tree) idx var in
+    Node (rootLabel tree) forest
 
 ---------------------------------------------------------------------------------
 
@@ -76,8 +77,6 @@ stitchTree = stitch
 -- show instances.
 mkShowTree :: SubTypes a => a -> Tree String
 mkShowTree d = Node (show $ toConstr d) (strForest $ subTypes d)
-
----------------------------------------------------------------------------------
 
 strForest :: Forest SubT -> Forest String
 strForest = map prtTree

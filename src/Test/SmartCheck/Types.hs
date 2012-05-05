@@ -13,6 +13,7 @@ module Test.SmartCheck.Types
 
 import Data.Tree
 import Data.Data
+
 import qualified Test.QuickCheck as Q
 
 ---------------------------------------------------------------------------------
@@ -62,7 +63,10 @@ class (Show a, Data a) => SubTypes a where
 -- is the distance d is the dth value on the same level.  Thus, all left-most
 -- nodes are in column 0.  This is a "matrix view" of tree-structured data.
 data Idx = Idx { level :: Int, column :: Int }
-  deriving (Show, Eq, Read)
+  deriving Eq
+
+instance Show Idx where
+  show (Idx l c) = foldr1 (++) ["Idx ", show l, " ", show c]
 
 -- | Keep or substitue a value in the tree.
 data Subst = Keep | Subst

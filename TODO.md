@@ -21,24 +21,13 @@ TODO
 * Options:
   * Chatty option for reducing/extrapolating.
   * Option for controlling depth into structure we recurse.
-  * Show output as data-tree or just replace values in extrapolated value.
 
 * Performance analysis of extrapolation.
 
 * Make SubT from Forest into Tree.  More natural and allows to index the head.
 
-* Make sure that printing, etc. doesn't depend on subTypes.  Just want that to
-  do with replacing values during testing.  I'm not sure I can do this
-  independently of SubT.
-
-* How to do custom Show instances for showing variables?  You might have a
-  custom Show for some datatype a, but when I replace values with variables in
-  it, I can't show the same way.  DrawTree kind of works since it shows
-  according to the custom Show instance on each level, but also shows the
-  structure.  
-
-* Bugs in the new tree showing/showing with variables.  Test Heap_Program.
-
+* In strForest, I need to remove parens when removing subterms.  "()" could be
+  Units!.  Probably just bite the bullet and use parsec.
 
 Won't Do / Can't Do
 -----------------------------------------------
@@ -49,6 +38,11 @@ Won't Do / Can't Do
     seems like wasted time.  In any event, there's commented out code in
     smartShrink (in Reduce) that will do this.
 
+* Make sure that printing, etc. doesn't depend on subTypes.  Just want that to
+  do with replacing values during testing.  I'm not sure I can do this
+  independently of SubT.
+
+  * I think I need something like this.
 
 Done
 -----------------------------------------------
@@ -64,3 +58,5 @@ Done
 * ~~When I'm shrinking, if I find a hole that is of the same type (via cast)
   that also fails the property, replace the original value with the hole.~~
 
+* Options:
+  * ~~Show output as data-tree or just replace values in extrapolated value.~~

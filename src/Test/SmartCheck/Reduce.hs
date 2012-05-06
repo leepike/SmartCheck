@@ -14,8 +14,6 @@ import Data.Typeable
 import Data.Maybe
 import Data.Tree
 
-import Debug.Trace
-
 ---------------------------------------------------------------------------------
 
 -- Smarter than shrinks.  Does substitution.  m is a value that failed QC that's

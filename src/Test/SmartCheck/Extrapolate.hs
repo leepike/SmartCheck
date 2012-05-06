@@ -17,8 +17,6 @@ import Data.Data
 import Data.Tree
 import Data.List
 
-import Debug.Trace
-
 ---------------------------------------------------------------------------------
 
 -- | Test d with arbitrary values replacing its children.  For anything we get
@@ -57,7 +55,7 @@ extrapolate args d origProp ds = do
 iter :: SubTypes a 
      => Q.Args -> Forest Subst -> a 
      -> (a -> Q.Property) -> Idx -> [Idx] -> IO [Idx]
-iter args forest d prop idx idxs = trace ("testing\n" ++ show d ++ "\n known idxs: " ++ show idxs ++ "\n trying " ++ show idx ++ "\n tree:" ++ show forest ++ "\n") $
+iter args forest d prop idx idxs = 
   if done then return idxs
      else if nextLevel 
             then iter' forest (idx { level  = level idx + 1  

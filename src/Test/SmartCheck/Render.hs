@@ -24,8 +24,6 @@ smartPrtLn = putStrLn . (smartPrefix ++)
 renderWithVars :: SubTypes a => Format -> a -> [Idx] -> IO ()
 renderWithVars format d idxs = do
   putStrLn $ "forall " ++ unwords (take (length idxs) vars) ++ ":"
-  -- -- XXX
-  putStrLn $ show idxs
   putStrLn ""
   putStrLn $ replaceWithVars format d idxs vars
   putStrLn ""

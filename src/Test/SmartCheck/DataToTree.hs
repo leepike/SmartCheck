@@ -101,60 +101,38 @@ getAtIdx d Idx { level  = l
 -- is out of range.  All subforests are removed.  Additionally, every rootLabel
 -- in the path to Index is replaced with a.
 subForestPath :: Forest a -> Idx -> a -> Forest a
-subForestPath = sub SubData { path = True
-                            , subs = Chop }
+subForestPath = sub Path
 
 ---------------------------------------------------------------------------------
 
 -- | Replace a tree at index Idx in a Forest.  Return the original if the index
 -- is out of range.  All subforests are removed.
 forestReplaceChop :: Forest a -> Idx -> a -> Forest a
-forestReplaceChop = sub SubData { path = False
-                                , subs = Chop }
-
----------------------------------------------------------------------------------
-
--- -- | Replace a rootLabel at index Idx in a Forest.  Return the original if the
--- -- index is out of range.
--- forestReplace :: Forest a -> Idx -> a -> Forest a
--- forestReplace = sub SubData { path = False
---                             , subs = Leave }
+forestReplaceChop = sub Chop
 
 ---------------------------------------------------------------------------------
 
 -- | Replace a tree at index Idx in a Forest.  Return the original if the
 -- index is out of range.  Replace the subforest of Idx with the Substs.
 forestStop :: Forest Subst -> Idx -> Forest Subst
-forestStop f idx = 
-  sub SubData { path = False
-              , subs = ReplaceSubs }
-    f idx Subst
+forestStop f idx = sub ReplaceSubs f idx Subst
 
 ---------------------------------------------------------------------------------
 
-data Subs = Leave | ReplaceSubs | Chop
+data SubStrat = Path | ReplaceSubs | Chop
   deriving  (Show, Read, Eq)
 
-data SubData = SubData
-  { path :: Bool
-  , subs :: Subs
-  }
-  deriving (Eq, Read, Show)
-
-sub :: SubData -> Forest a -> Idx -> a -> Forest a
+sub :: SubStrat -> Forest a -> Idx -> a -> Forest a
 -- on right level, and we'll assume correct subtree.
 sub args forest (Idx (0::Int) n) a = 
   snd $ mapAccumL f 0 forest
   where
-  f i node | i == n = ( i+1
-                      , Node a $ subf (subForest node) )
+  f i node | i == n = ( i+1, Node a $ subf (subForest node) )
            | True   = ( i+1, node )
-  subf frst = case subs args of
-                Leave       -> frst -- leave things as they are
-                Chop        -> []  -- Chop the subforest
-                ReplaceSubs -> map (fmap $ \x -> a) frst 
-
-sub args forest idx              a = 
+  subf frst = case args of
+                ReplaceSubs -> map (fmap $ \_ -> a) frst -- Replace subforests
+                _           -> [] -- Chop the subforest
+sub args forest idx a = 
   snd $ mapAccumL findTree (column idx) forest
   where
   l = level idx - 1
@@ -167,7 +145,9 @@ sub args forest idx              a =
              else (n-len, t)
     where
     len = levelLength l t
-    newRootLabel = if path args then a else rootLabel t
+    newRootLabel = case args of 
+                     Path -> a 
+                     _    -> rootLabel t
     newTree = Node newRootLabel (sub args (subForest t) (Idx l n) a)
 
 ---------------------------------------------------------------------------------

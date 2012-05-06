@@ -24,10 +24,7 @@ TODO
 
 * Performance analysis of extrapolation.
 
-* Make SubT from Forest into Tree.  More natural and allows to index the head.
-
-* In strForest, I need to remove parens when removing subterms.  "()" could be
-  Units!.  Probably just bite the bullet and use parsec.
+* Make SubT from Forest into Tree(?)  More natural and allows to index the head.
 
 Won't Do / Can't Do
 -----------------------------------------------
@@ -60,3 +57,6 @@ Done
 
 * Options:
   * ~~Show output as data-tree or just replace values in extrapolated value.~~
+
+* ~~In strForest, I need to remove parens when removing subterms.  "()" could be
+  Units!.  Probably just bite the bullet and use parsec.~~

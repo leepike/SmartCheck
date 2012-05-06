@@ -56,12 +56,12 @@ replaceWithVars format d idxs vars =
 
 ---------------------------------------------------------------------------------
 
+-- | Make a string out a Tree of Strings.  Put parentheses around subterms.
 stitchTree :: Tree String -> String
 stitchTree = stitch
   where 
   stitchTree' (Node str []) = str
-  stitchTree' node = 
-    '(' : stitch node ++ ")"
+  stitchTree' node = '(' : stitch node ++ ")"
 
   stitch (Node str forest) = str ++ " " ++ (unwords $ map stitchTree' forest)
 
@@ -82,14 +82,9 @@ strForest = map prtTree
   prtTree (Node r forest) =
     let nextLevel       = map (show . rootLabel) forest in
     let stripSubForests = dropWhileEnd isSpace $
-                          removeParens $
                           foldl' nubSubForest (show r) nextLevel in
     Node stripSubForests (strForest forest)
  
-  removeParens ss = unwords $ foldl' (\acc x -> if x == "()" then acc
-                                                  else x:acc
-                                     ) [] (words ss)
-
   -- Strips a subforest, including possible parentheses enclosing the
   -- expression.  Strip trailing whitespace when done.
   nubSubForest :: String -> String -> String
@@ -98,31 +93,13 @@ strForest = map prtTree
 
     where
     go acc [] = reverse acc
-    go acc ss = case stripPrefix subTree ss of
-                     Nothing  -> go (head ss : acc) (tail ss)
-                     Just rst -> reverse acc ++ rst
+    go acc ss = 
+      case stripPrefix inParens ss of
+        Just rst -> reverse acc ++ rst
+        Nothing  -> case stripPrefix subTree ss of
+                      Nothing  -> go (head ss : acc) (tail ss)
+                      Just rst -> reverse acc ++ rst
 
----------------------------------------------------------------------------------
+    inParens = '(' : subTree ++ ")"
 
--- printTree :: Tree String -> String
--- printTree (Node str forest) = 
---   str ++ " " ++ concatMap printTree' forest
---   where
---   printTree' (Node s []) = s ++ " "
---   printTree' (Node s f)  = "(" ++ s ++ ")" --" " ++ concatMap printTree' f ++ ")" 
-
----------------------------------------------------------------------------------
-
--- replaceStr :: String -> String -> Idx -> Forest Subst -> String
--- replaceStr tree var idx subPath = undefined
-
----------------------------------------------------------------------------------
-
--- -- Replace a value in a list.
--- replaceElem :: Eq a => a -> [a] -> a -> [a]
--- replaceElem a ls b = 
---   case elemIndex a ls of
---     Nothing -> ls
---     Just i  -> take i ls ++ b : drop (i+1) ls
-  
 ---------------------------------------------------------------------------------

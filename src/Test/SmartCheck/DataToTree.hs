@@ -43,7 +43,7 @@ getLevel fs n = concatMap (\fs' -> getLevel (subForest fs') (n-1)) fs
 
 ---------------------------------------------------------------------------------
 
--- | Get the depth of a Forest.
+-- | Get the depth of a Forest.  0-based (an empty Forest has depth 0).
 depth :: Forest a -> Int
 depth forest = if null ls then 0 else maximum ls
   where
@@ -93,7 +93,7 @@ getAtIdx d Idx { level  = l
                , column = c } 
   = if length lev > c then Just (lev !! c) else Nothing
   where
-  lev = getLevel (subTypes d) l
+  lev = getLevel (forestRep d) l
 
 ---------------------------------------------------------------------------------
 
@@ -157,7 +157,7 @@ sub args forest idx a =
 -- | Make a substitution Forest (all proper children).  Initially we don't
 -- replace anything.
 mkSubstForest :: SubTypes a => a -> Forest Subst
-mkSubstForest a = map tMap (subTypes a)
+mkSubstForest a = map tMap (forestRep a)
   where tMap t = fmap (\_ -> Keep) t
 
 ---------------------------------------------------------------------------------

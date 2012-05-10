@@ -50,6 +50,10 @@ smartShrink args d prop = iterReduce args d (Idx 0 0) notProp
 iterReduce :: SubTypes a
       => Q.Args -> a -> Idx -> (a -> Q.Property) -> IO a
 iterReduce args d idx prop = do 
+  -- putStrLn (show d)
+  -- putStrLn (show idx)
+  -- putStrLn (show maxSize)
+
   if done then return d
     else if nextLevel 
            then iterReduce args d idx { column = 0
@@ -69,11 +73,8 @@ iterReduce args d idx prop = do
                      else mkTry args d idx prop (fromJust maxSize)
 
   where
-  -- Extract a tree from a forest and make sure it's big enough.
+  -- Extract a tree from a forest and make sure it's big enough to test.
   -- 
-  -- XXX How do I know that the size of arbitrary relates to the depth of the
-  -- structure?  However, things seem to work, but I'm not sure if it's because
-  -- of the instances I defined.
   maxSize   = case getIdxForest forest idx of
                 Nothing -> Nothing
                 Just t  -> let dep = depth (subForest t) in
@@ -90,15 +91,21 @@ iterReduce args d idx prop = do
 mkTry :: forall a. SubTypes a
       => Q.Args -> a -> Idx -> (a -> Q.Property) -> Int -> IO a
 mkTry args d idx prop maxSize = do
+  -- YYY
+  -- putStrLn (show d)
+  -- putStrLn (show idx)
+  -- putStrLn (show maxSize)
+
   v <- mv
-  if (isJust v) -- This sees if some subterm directly fails the property.  If
-                -- so, we'll take it, if it's well-typed.
+  if isJust v -- This sees if some subterm directly fails the property.  If so,
+              -- we'll take it, if it's well-typed.
     then iterReduce args (fromJust v) (Idx 0 0) prop
     else do try <- iterateArb d idx (Q.maxDiscard args) 
                      maxSize prop
             case try of
               -- Found a try that fails prop.  We'll now test try, and start trying to
               -- reduce from the top!
+              -- YYY
               Result x -> iterReduce args x (Idx 0 0) prop
               -- Either couldn't satisfy the precondition or nothing
               -- satisfied the property.  Either way, we can't shrink it.

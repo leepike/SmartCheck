@@ -123,7 +123,7 @@ matchesShape a b idxs =
     v  <- getAtIdx a idx
     replace b' idx v
 
-  nextLevel x = map rootLabel (subTypes x)
+  nextLevel x = map rootLabel (forestRep x)
 
   test (SubT x, SubT y)  = 
     if isAlgType (dataTypeOf x) 

@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 -- | Divide by 0 example in a simple arithmetic language.
 
@@ -8,22 +9,15 @@ import Test.QuickCheck
 import Test.SmartCheck
 import Control.Monad
 import Data.Data
-import Data.Tree
+
+import GHC.Generics
 
 data M = C Int
        | A M M
        | D M M
-  deriving (Read, Show, Data, Typeable, Eq)
+  deriving (Read, Show, Data, Typeable, Eq, Generic)
 
-mkTypes :: M -> M -> Forest SubT
-mkTypes m0 m1 = [ Node (subT m0) (subTypes m0)
-                , Node (subT m1) (subTypes m1)
-                ]
-
-instance SubTypes M where
-  subTypes (C _)     = []
-  subTypes (A m0 m1) = mkTypes m0 m1 
-  subTypes (D m0 m1) = mkTypes m0 m1 
+instance SubTypes M 
 
 eval :: M -> Maybe Int
 eval (C i) = Just i
@@ -45,9 +39,9 @@ instance Arbitrary M where
                   , liftM2 D mkM' mkM' ]
       where mkM' = mkM =<< choose (0,n-1)
 
-  shrink (C _)   = []
-  shrink (A a b) = [a, b]
-  shrink (D a b) = [a, b]
+  -- shrink (C _)   = []
+  -- shrink (A a b) = [a, b]
+  -- shrink (D a b) = [a, b]
 
 -- property: so long as 0 isn't in the divisor, we won't try to divide by 0.
 -- It's false: something might evaluate to 0 still.
@@ -67,8 +61,9 @@ divTest :: IO ()
 divTest = smartCheck args div1
   where 
   args = scStdArgs { qcArgs = stdArgs 
-                                { maxSuccess = 100
+                                { maxSuccess = 1000
                                 , maxSize    = 20  }
+                   , treeShow = PrntString
                    }
 
 ---------------------------------------------------------------------------------

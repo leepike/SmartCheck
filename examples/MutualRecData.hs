@@ -1,4 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module MutualRecData where
 
@@ -9,40 +11,25 @@ import Data.Tree
 import Data.Data
 import Control.Monad.State 
 
+import GHC.Generics
+
 ---------------------------------------------------------------------------------
 
 data M = M N N Int
        | P
-  deriving (Data, Typeable, Show, Eq, Read)
+  deriving (Data, Typeable, Show, Eq, Read, Generic)
+
+instance SubTypes M
 
 data N = N M Int String
-  deriving (Data, Typeable, Show, Eq, Read)
+  deriving (Data, Typeable, Show, Eq, Read, Generic)
+
+instance SubTypes N
 
 data O = O N String
-  deriving (Data, Typeable, Show, Eq, Read)
+  deriving (Data, Typeable, Show, Eq, Read, Generic)
 
----------------------------------------------------------------------------------
-
-instance SubTypes M where
-  subTypes (M n0 n1 j) = 
-    [ Node (subT n0) (subTypes n0)
-    , Node (subT n1) (subTypes n1)
-    , Node (subT j)  []
-    ] 
-  subTypes P = []
-
-instance SubTypes N where
-  subTypes (N m i s) = 
-    [ Node (subT m) (subTypes m)
-    , Node (subT i) []
-    , Node (subT s) []
-    ]
-
-instance SubTypes O where
-  subTypes (O n s) = 
-    [ Node (subT n) (subTypes n)
-    , Node (subT s) []
-    ]
+instance SubTypes O
 
 ---------------------------------------------------------------------------------
 

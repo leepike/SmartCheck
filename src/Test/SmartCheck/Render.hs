@@ -74,7 +74,7 @@ stitchTree = stitch
 -- XXX Also, it's inconsistent since toConstr is not part of the user-defined
 -- show instances.
 mkShowTree :: SubTypes a => a -> Tree String
-mkShowTree d = Node (show $ toConstr d) (strForest $ subTypes d)
+mkShowTree d = Node (show $ toConstr d) (strForest $ allSubTypes d)
 
 strForest :: Forest SubT -> Forest String
 strForest = map prtTree

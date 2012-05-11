@@ -93,7 +93,7 @@ getAtIdx d Idx { level  = l
                , column = c } 
   = if length lev > c then Just (lev !! c) else Nothing
   where
-  lev = getLevel (forestRep d) l
+  lev = getLevel (subTypes d) l
 
 ---------------------------------------------------------------------------------
 
@@ -157,7 +157,7 @@ sub args forest idx a =
 -- | Make a substitution Forest (all proper children).  Initially we don't
 -- replace anything.
 mkSubstForest :: SubTypes a => a -> Forest Subst
-mkSubstForest a = map tMap (forestRep a)
+mkSubstForest a = map tMap (subTypes a)
   where tMap t = fmap (\_ -> Keep) t
 
 ---------------------------------------------------------------------------------

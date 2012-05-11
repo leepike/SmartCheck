@@ -1,6 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE ScopedTypeVariables #-}
--- {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -12,20 +11,17 @@
 module Test.SmartCheck.Types
   ( SubT(..)
   , subT
-  , SubTypes(..) -- ^ The subTypes method should only be called for rendering.
-                 -- Otherwise, use forestRep, which removes "base types" like
-                 -- Int, Char, etc. --- unary constructors.
+  , SubTypes(..) 
   , Idx(..)
   , Subst(..)
   , ScArgs(..)
   , Format(..)
   , scStdArgs
-  , forestRep
+--  , forestRep
   ) where
 
 import GHC.Generics
 
-import Data.List
 import Data.Tree
 import Data.Data
 
@@ -90,6 +86,11 @@ class (Show a, Data a) => SubTypes a where
   default subTypes :: (Generic a, GST (Rep a)) => a -> Forest SubT
   subTypes = gst . from
 
+  baseType :: a -> Bool
+
+  default baseType :: (Generic a, GST (Rep a)) => a -> Bool
+  baseType _ = False
+
 ---------------------------------------------------------------------------------
 -- Generic representation
 ---------------------------------------------------------------------------------
@@ -111,33 +112,34 @@ instance GST a => GST (M1 i c a) where
   gst (M1 x) = gst x
 
 instance (Show a, Data a, Q.Arbitrary a, SubTypes a) => GST (K1 i a) where
-  gst (K1 x) = [ Node (subT x) (subTypes x) ]
+  gst (K1 x) = if baseType x then []
+                 else [ Node (subT x) (subTypes x) ]
     where
 
 ---------------------------------------------------------------------------------
 
-mkSubT :: (Data a, Q.Arbitrary a, Show a) => a -> Forest SubT
-mkSubT i = [ Node (subT i) [] ]
+instance SubTypes Bool    where 
+  subTypes _ = []
+  baseType _ = True
+instance SubTypes Int     where 
+  subTypes _ = []
+  baseType _ = True
+instance SubTypes Integer where 
+  subTypes _ = []
+  baseType _ = True
+instance SubTypes Char    where 
+  subTypes _ = []
+  baseType _ = True
 
-instance SubTypes Bool   where subTypes _ = []
-instance SubTypes Int    where subTypes _ = []
-instance SubTypes Char   where subTypes _ = [] 
+instance SubTypes String where 
+  subTypes _ = []
+  baseType _ = True
 
---instance SubTypes String where subTypes = concatMap mkSubT
+-- mkSubT :: (Data a, Q.Arbitrary a, Show a) => a -> Forest SubT
+-- mkSubT i = [ Node (subT i) [] ]
 
-instance (Q.Arbitrary a, SubTypes a) => SubTypes ([] a) where 
-  subTypes = concatMap mkSubT
-
----------------------------------------------------------------------------------
-
--- | Remove all Nodes that contain no subforests from a Forest.
-remEmptySubF :: Forest a -> Forest a
-remEmptySubF ls = reverse (foldl' f [] ls)
-  where
-  f acc (Node _ [])      = acc
-  f acc (Node y forest') = Node y (remEmptySubF forest') : acc
-
-forestRep :: SubTypes a => a -> Forest SubT
-forestRep = remEmptySubF . subTypes
+instance (Q.Arbitrary a, SubTypes a) => SubTypes [a] where 
+  subTypes   = concatMap subTypes
+  baseType _ = False
 
 ---------------------------------------------------------------------------------

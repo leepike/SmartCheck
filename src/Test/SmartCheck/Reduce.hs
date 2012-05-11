@@ -11,7 +11,6 @@ import Test.SmartCheck.Render
 
 import qualified Test.QuickCheck as Q
 import Data.Typeable
-import Data.Maybe
 import Data.Tree
 
 ---------------------------------------------------------------------------------
@@ -22,11 +21,12 @@ import Data.Tree
 -- return that result.  (We call smartShrink recursively.)
 smartRun :: (Read a, Show a, Q.Arbitrary a, SubTypes a)
          => Q.Args -> Maybe a -> (a -> Q.Property) -> IO (Maybe a)
-smartRun args res prop = do
-  if (isJust res) then runSmart (fromJust res)
-    else do putStrLn ""
-            smartPrtLn "No value to smart-shrink; done."
-            return Nothing
+smartRun args res prop =
+  case res of 
+    Just res' -> runSmart res'
+    Nothing   -> do putStrLn ""
+                    smartPrtLn "No value to smart-shrink; done."
+                    return Nothing
 
   where
   runSmart r = do
@@ -59,19 +59,18 @@ iterReduce args d idx prop = do
            then iterReduce args d idx { column = 0
                                       , level  = level idx + 1 }
                            prop
-           else do if isNothing maxSize 
-                     then iterReduce args d (idx { column = column idx + 1 })
-                                     prop
-                     -- XXX We could shrink base values, but I'm not sure if
-                     -- it's worth it.  Doesn't affect extrapolation or make
-                     -- counter-examples more readable.
-                     -- then case getAtIdx d idx of
-                     --        Nothing -> iterReduce args d 
-                     --                     (idx { column = column idx + 1 }) 
-                     --                     prop
-                     --        Just v  -> mkVals v
-                     else mkTry args d idx prop (fromJust maxSize)
-
+           else case maxSize of
+                  Nothing -> iterReduce args d (idx { column = column idx + 1 })
+                               prop
+                  -- XXX We could shrink base values, but I'm not sure if
+                  -- it's worth it.  Doesn't affect extrapolation or make
+                  -- counter-examples more readable.
+                  -- then case getAtIdx d idx of
+                  --        Nothing -> iterReduce args d 
+                  --                     (idx { column = column idx + 1 }) 
+                  --                     prop
+                  --        Just v  -> mkVals v
+                  Just ms -> mkTry args d idx prop ms
   where
   -- Extract a tree from a forest and make sure it's big enough to test.
   -- 
@@ -92,24 +91,24 @@ mkTry :: forall a. SubTypes a
       => Q.Args -> a -> Idx -> (a -> Q.Property) -> Int -> IO a
 mkTry args d idx prop maxSize = do
   -- YYY
-  -- putStrLn (show d)
-  -- putStrLn (show idx)
-  -- putStrLn (show maxSize)
+  putStrLn (show d)
+  putStrLn (show idx)
+  putStrLn (show maxSize)
 
   v <- mv
-  if isJust v -- This sees if some subterm directly fails the property.  If so,
-              -- we'll take it, if it's well-typed.
-    then iterReduce args (fromJust v) (Idx 0 0) prop
-    else do try <- iterateArb d idx (Q.maxDiscard args) 
-                     maxSize prop
-            case try of
-              -- Found a try that fails prop.  We'll now test try, and start trying to
-              -- reduce from the top!
-              -- YYY
-              Result x -> iterReduce args x (Idx 0 0) prop
-              -- Either couldn't satisfy the precondition or nothing
-              -- satisfied the property.  Either way, we can't shrink it.
-              _        -> iterReduce args d (idx { column = column idx + 1 }) prop
+  case v of
+    -- This sees if some subterm directly fails the property.  If so, we'll take
+    -- it, if it's well-typed.
+    Just v' -> iterReduce args v' (Idx 0 0) prop
+    Nothing -> do 
+      try <- iterateArb d idx (Q.maxDiscard args) maxSize prop
+      case try of
+        -- Found a try that fails prop.  We'll now test try, and start trying to
+        -- reduce from the top!  
+        Result x -> iterReduce args x (Idx 0 0) prop
+        -- Either couldn't satisfy the precondition or nothing satisfied the
+        -- property.  Either way, we can't shrink it.
+        _        -> iterReduce args d (idx { column = column idx + 1 }) prop
 
   where
   mv = case getAtIdx d idx of

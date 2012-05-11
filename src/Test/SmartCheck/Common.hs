@@ -55,9 +55,7 @@ data Result a = FailedPreCond
 iterateArb :: (Data a, SubTypes a) 
            => a -> Idx -> Int -> Int
            -> (a -> Q.Property) -> IO (Result a)
-iterateArb d idx tries sz prop = do
-  putStrLn ("iteratearb " ++ show idx)
-  putStrLn (show d)
+iterateArb d idx tries sz prop =
   case getAtIdx d idx of
     Nothing -> error "iterateArb 0"
     Just v  -> do rnds <- mkVals v

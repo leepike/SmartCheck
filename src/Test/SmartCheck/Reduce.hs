@@ -90,11 +90,6 @@ iterReduce args d idx prop = do
 mkTry :: forall a. SubTypes a
       => Q.Args -> a -> Idx -> (a -> Q.Property) -> Int -> IO a
 mkTry args d idx prop maxSize = do
-  -- YYY
-  putStrLn (show d)
-  putStrLn (show idx)
-  putStrLn (show maxSize)
-
   v <- mv
   case v of
     -- This sees if some subterm directly fails the property.  If so, we'll take

@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 -- Copied from <http://augustss.blogspot.com/2007/10/simpler-easier-in-recent-paper-simply.html>
 
@@ -8,6 +9,8 @@ import Data.List
 import Data.Tree
 import Data.Data
 import Control.Monad
+import GHC.Generics
+
 import Test.QuickCheck
 
 import Test.SmartCheck
@@ -18,7 +21,7 @@ data Expr
         = Var Sym
         | App Expr Expr
         | Lam Sym Expr
-        deriving (Eq, Read, Show, Data, Typeable)
+        deriving (Eq, Read, Show, Data, Typeable, Generic)
 
 freeVars :: Expr -> [Sym]
 freeVars (Var s) = [s]
@@ -32,7 +35,6 @@ subst v x b = sub b
         sub (Lam i e) =
             if v == i then
                 Lam i e
-            -- Wrong!
             else if i `elem` fvx then
                 let i' = cloneSym e i
                     e' = substVar i i' e
@@ -76,27 +78,13 @@ test0 = betaEq (app2 plus one two) three
 
 ---------------------------------------------------------------------------------
 
-instance SubTypes Expr where
-  subTypes (Var _)     = []
-  subTypes (App e0 e1) = [ Node (subT e0) (subTypes e0)
-                         , Node (subT e1) (subTypes e1)
-                         ]
-  subTypes (Lam v e) = [ Node (subT v) []
-                       , Node (subT e) (subTypes e) 
-                       ]
-
--- instance (SubTypes a, Data a, SubTypes b, Data b) => SubTypes (a,b) where
---   subTypes (a,b) = subTypes a ++ subTypes b
-
-instance SubTypes Pr where
-  subTypes (Pr a b) = [ Node (subT a) (subTypes a)
-                      , Node (subT b) (subTypes b)
-                      ]
+instance SubTypes Expr
+instance SubTypes Pr
 
 ---------------------------------------------------------------------------------
 
 data Pr = Pr Expr Expr
-  deriving (Read, Show, Data, Typeable)
+  deriving (Read, Show, Data, Typeable, Generic)
 
 instance Arbitrary Expr where
   arbitrary = sized mkE

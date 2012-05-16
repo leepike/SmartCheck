@@ -145,25 +145,25 @@ instance (Show a, Data a, Q.Arbitrary a, SubTypes a) => GST (K1 i a) where
 ---------------------------------------------------------------------------------
 
 instance SubTypes Bool    where 
-  subTypes _ = []
-  baseType _ = True
-  allSubTypes = subTypes
+  subTypes _    = []
+  baseType _    = True
+  allSubTypes _ = []
 instance SubTypes Int     where 
-  subTypes _ = []
-  baseType _ = True
-  allSubTypes = subTypes
+  subTypes _    = []
+  baseType _    = True
+  allSubTypes _ = []
 instance SubTypes Integer where 
-  subTypes _ = []
-  baseType _ = True
-  allSubTypes = subTypes
+  subTypes _    = []
+  baseType _    = True
+  allSubTypes _ = []
 instance SubTypes Char    where 
-  subTypes _ = []
-  baseType _ = True
-  allSubTypes = subTypes
+  subTypes _    = []
+  baseType _    = True
+  allSubTypes _ = []
 instance SubTypes String where 
-  subTypes _ = []
-  baseType _ = True
-  allSubTypes = subTypes
+  subTypes _    = []
+  baseType _    = True
+  allSubTypes _ = []
 
 -- mkSubT :: (Data a, Q.Arbitrary a, Show a) => a -> Forest SubT
 -- mkSubT i = [ Node (subT i) [] ]
@@ -171,6 +171,6 @@ instance SubTypes String where
 instance (Q.Arbitrary a, SubTypes a) => SubTypes [a] where 
   subTypes   = concatMap subTypes
   baseType _ = False
-  allSubTypes = subTypes
+  allSubTypes = concatMap allSubTypes
 
 ---------------------------------------------------------------------------------

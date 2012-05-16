@@ -28,7 +28,8 @@ Library
                      mtl >= 2.0.1.0,
                      random >= 1.0.1.1,
                      uniplate >= 1.6.6,
-                     containers >= 0.4
+                     containers >= 0.4,
+                     ghc-prim
 
   default-language:  Haskell2010
 

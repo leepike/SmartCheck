@@ -26,7 +26,6 @@ TODO
 
 * Make SubT from Forest into Tree(?)  More natural and allows to index the head.
 
-* Fix parentheses bug for showing Strings.
 
 Won't Do / Can't Do
 -----------------------------------------------

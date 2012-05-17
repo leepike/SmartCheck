@@ -6,6 +6,7 @@ module Test.SmartCheck.Render
 import Test.SmartCheck.Types
 import Test.SmartCheck.DataToTree
 
+import Data.Maybe
 import Data.Tree
 import Data.Data
 import Data.List
@@ -56,14 +57,25 @@ replaceWithVars format d idxs vars =
 
 ---------------------------------------------------------------------------------
 
--- | Make a string out a Tree of Strings.  Put parentheses around subterms.
+-- | Make a string out a Tree of Strings.  Put parentheses around complex
+-- subterms, where "complex" means we have two or more items (i.e., there's a
+-- space).
 stitchTree :: Tree String -> String
 stitchTree = stitch
   where 
   stitch (Node str forest) = str ++ " " ++ (unwords $ map stitchTree' forest)
 
-  stitchTree' (Node str []) = str
+  stitchTree' (Node str []) = if isJust $ find isSpace str 
+                                then '(' : str ++ ")"
+                                else str
   stitchTree' node = '(' : stitch node ++ ")"
+
+  -- stitchTree' (Node str rst) | find isSpace str = 
+  --   stitch (Node '(' : stitch str ++ ")"   )'(' : stitch str ++ ")"
+  --                            | otherwise        = stitch node
+
+  -- stitchTree' (Node str []) = str
+  -- stitchTree' node = '(' : stitch node ++ ")"
 
 ---------------------------------------------------------------------------------
 

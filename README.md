@@ -80,18 +80,18 @@ division by 0.  We might try the following:
 So our property states that so long as a value satisfies divSubTerms, then we
 won't have division by 0:
 
-div_prop :: M -> Property
-div_prop m = divSubTerms m ==> eval m /= Nothing
+    div_prop :: M -> Property
+    div_prop m = divSubTerms m ==> eval m /= Nothing
 
 Assuming we've defined an Arbitrary instance for M (just like in
 QuickCheck---however, we just have to implement the arbitrary method; the shrink
 method is superfluous), we are ready to run SmartCheck.
 
-divTest :: IO ()
-divTest = smartCheck args div_prop
-  where 
-  args = scStdArgs { qcArgs   = stdArgs 
-                   , treeShow = PrntString }
+    divTest :: IO ()
+    divTest = smartCheck args div_prop
+      where 
+      args = scStdArgs { qcArgs   = stdArgs 
+                       , treeShow = PrntString }
 
 In this example, we won't redefine any of QuickCheck's standard arguments, but
 it's certainly possible.  the treeShow field tells SmartCheck whether you want

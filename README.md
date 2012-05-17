@@ -44,10 +44,12 @@ Div0 defines a toy language containing constants (C), addition (A), and division
 Because SmartCheck performs data-generic operations using Data.Data and
 GHC.Generics we have to derive Data, Typeable, and Generic (we plan to eliminate
 dependence on Data.Data in the future).  To use GHC.Generics, you also need the
-following pragmas:
+following pragmas: and the single automatically-derived instance:
 
     {-# LANGUAGE DeriveDataTypeable #-}
     {-# LANGUAGE DeriveGeneric #-}
+
+    instance SubTypes M 
 
 Let's say we have a little interpreter for the language that takes care not to
 divide by 0:

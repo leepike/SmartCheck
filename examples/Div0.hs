@@ -15,7 +15,7 @@ import GHC.Generics
 data M = C Int
        | A M M
        | D M M
-  deriving (Read, Show, Data, Typeable, Eq, Generic)
+  deriving (Read, Show, Data, Typeable, Generic)
 
 instance SubTypes M 
 
@@ -45,24 +45,25 @@ instance Arbitrary M where
 
 -- property: so long as 0 isn't in the divisor, we won't try to divide by 0.
 -- It's false: something might evaluate to 0 still.
-div1 :: M -> Property
-div1 m = divSubTerms m ==> eval m /= Nothing
-  where
+div_prop :: M -> Property
+div_prop m = divSubTerms m ==> eval m /= Nothing
+
   -- precondition: no dividand in a subterm can be 0.
-  divSubTerms (C _)       = True
-  divSubTerms (D _ (C 0)) = False
-  divSubTerms (A m0 m1)   = divSubTerms m0 && divSubTerms m1
-  divSubTerms (D m0 m1)   = divSubTerms m0 && divSubTerms m1
+divSubTerms :: M -> Bool
+divSubTerms (C _)       = True
+divSubTerms (D _ (C 0)) = False
+divSubTerms (A m0 m1)   = divSubTerms m0 && divSubTerms m1
+divSubTerms (D m0 m1)   = divSubTerms m0 && divSubTerms m1
 
 -- div0 (A _ _) = property False
 -- div0 _       = property True
 
 divTest :: IO ()
-divTest = smartCheck args div1
+divTest = smartCheck args div_prop
   where 
   args = scStdArgs { qcArgs = stdArgs 
-                                { maxSuccess = 1000
-                                , maxSize    = 20  }
+                                -- { maxSuccess = 1000
+                                -- , maxSize    = 20  }
                    , treeShow = PrntString
                    }
 

@@ -60,10 +60,10 @@ replaceWithVars format d idxs vars =
 stitchTree :: Tree String -> String
 stitchTree = stitch
   where 
+  stitch (Node str forest) = str ++ " " ++ (unwords $ map stitchTree' forest)
+
   stitchTree' (Node str []) = str
   stitchTree' node = '(' : stitch node ++ ")"
-
-  stitch (Node str forest) = str ++ " " ++ (unwords $ map stitchTree' forest)
 
 ---------------------------------------------------------------------------------
 

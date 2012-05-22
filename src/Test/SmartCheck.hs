@@ -14,10 +14,12 @@ import Test.SmartCheck.Render
 
 import qualified Test.QuickCheck as Q
 
+import Data.Typeable
+
 ---------------------------------------------------------------------------------
 
 -- | Main interface function.
-smartCheck :: (Read a, Show a, Q.Arbitrary a, SubTypes a)
+smartCheck :: (Read a, Q.Arbitrary a, SubTypes a, Typeable a)
            => ScArgs -> (a -> Q.Property) -> IO ()
 smartCheck args prop = smartCheck' prop []
 

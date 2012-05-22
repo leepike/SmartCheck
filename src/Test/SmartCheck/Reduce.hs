@@ -2,6 +2,8 @@
 
 module Test.SmartCheck.Reduce
   (smartRun
+  -- YYY
+   , smartShrink
   ) where
 
 import Test.SmartCheck.Types
@@ -19,7 +21,7 @@ import Data.Tree
 -- been shrunk.  We substitute successive children with strictly smaller (and
 -- increasingly larger) randomly-generated values until we find a failure, and
 -- return that result.  (We call smartShrink recursively.)
-smartRun :: (Read a, Show a, Q.Arbitrary a, SubTypes a)
+smartRun :: (SubTypes a, Typeable a)
          => Q.Args -> Maybe a -> (a -> Q.Property) -> IO (Maybe a)
 smartRun args res prop =
   case res of 
@@ -41,19 +43,15 @@ smartRun args res prop =
 
 -- | Breadth-first traversal of d, trying to shrink it with *strictly* smaller
 -- children.  We replace d whenever a successful shrink is found and try again.
-smartShrink :: SubTypes a
+smartShrink :: (Typeable a, SubTypes a)
             => Q.Args -> a -> (a -> Q.Property) -> IO a
 smartShrink args d prop = iterReduce args d (Idx 0 0) notProp
   where
   notProp = Q.expectFailure . prop
 
-iterReduce :: SubTypes a
+iterReduce :: (Typeable a, SubTypes a)
       => Q.Args -> a -> Idx -> (a -> Q.Property) -> IO a
-iterReduce args d idx prop = do 
-  -- putStrLn (show d)
-  -- putStrLn (show idx)
-  -- putStrLn (show maxSize)
-
+iterReduce args d idx prop = 
   if done then return d
     else if nextLevel 
            then iterReduce args d idx { column = 0
@@ -70,10 +68,11 @@ iterReduce args d idx prop = do
                   --                     (idx { column = column idx + 1 }) 
                   --                     prop
                   --        Just v  -> mkVals v
+
+                  -- Invariant: ms should be => 1.                
                   Just ms -> mkTry args d idx prop ms
   where
   -- Extract a tree from a forest and make sure it's big enough to test.
-  -- 
   maxSize   = case getIdxForest forest idx of
                 Nothing -> Nothing
                 Just t  -> let dep = depth (subForest t) in
@@ -87,9 +86,14 @@ iterReduce args d idx prop = do
 
 ---------------------------------------------------------------------------------
 
-mkTry :: forall a. SubTypes a
+mkTry :: forall a. (Typeable a, SubTypes a)
       => Q.Args -> a -> Idx -> (a -> Q.Property) -> Int -> IO a
 mkTry args d idx prop maxSize = do
+  putStrLn ("mkTry")
+  putStrLn (show idx)
+  putStrLn (show d)
+  putStrLn (show maxSize)
+
   v <- mv
   case v of
     -- This sees if some subterm directly fails the property.  If so, we'll take

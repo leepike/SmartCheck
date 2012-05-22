@@ -1,6 +1,5 @@
 module Test.SmartCheck.Common
-  ( samples
-  , Result(..)
+  ( Result(..)
   , iterateArb
   , extractResult
   , resultify
@@ -16,7 +15,6 @@ import qualified Test.QuickCheck.Property as Q
 
 import System.Random
 import Data.List
-import Data.Data
 import Data.Maybe
 import Control.Monad
 
@@ -52,15 +50,23 @@ data Result a = FailedPreCond
 -- | Replace the hole in d indexed by idx with a bunch of random values, and
 -- test the new d against the property.  Returns the first new d (the full d but
 -- with the hole replaced) that succeeds.
-iterateArb :: (Data a, SubTypes a) 
+iterateArb :: SubTypes a
            => a -> Idx -> Int -> Int
            -> (a -> Q.Property) -> IO (Result a)
-iterateArb d idx tries sz prop =
+iterateArb d idx tries sz prop = 
   case getAtIdx d idx of
     Nothing -> error "iterateArb 0"
     Just v  -> do rnds <- mkVals v
+                  -- YYY
+                  putStrLn "iterateArb"
+                  forM_ rnds (\a -> if isNothing $ replace d idx a
+                                      then do putStrLn (show a)
+                                              putStrLn (show idx)
+                                      else return ())
+
                   let res = catMaybes $ map (replace d idx) rnds
-                  -- Catch errors that shouldn't ever happen
+                  -- Catch errors that shouldn't ever happen: this means that
+                  -- there is probably a bad idx passed in.
                   when (length res /= length rnds) (error "iterateArb 1")
                   foldM (extractResult prop) FailedPreCond res
   where

@@ -2,8 +2,6 @@
 
 module Test.SmartCheck.Extrapolate
   ( extrapolate
-  -- YYY
-  , renderWithVars
   ) where
 
 import Test.SmartCheck.Types
@@ -13,7 +11,6 @@ import Test.SmartCheck.Render
 
 import qualified Test.QuickCheck as Q
 
-import Data.Data
 import Data.Tree
 import Data.List
 
@@ -107,27 +104,29 @@ matchesShapes d ds idxs = foldl' f False ds
 -- algebraic constructors only, (3) ignore differences in all values at holes
 -- indexed by the indexes.
 matchesShape :: SubTypes a => a -> a -> [Idx] -> Bool
-matchesShape a b idxs =
-     (if isAlgType (dataTypeOf a) 
-        then toConstr a == toConstr b
-        else True)
-  && repIdxs 
+matchesShape a b idxs = error "Fixme-matchesshape"
+--      (if isAlgType (dataTypeOf a) 
+-- --        then toConstr a == toConstr b
+--         then error "FIXME-matches1"
+--         else True)
+--   && repIdxs 
 
-  where
-  repIdxs = case foldl' f (Just b) idxs of
-              Nothing -> False
-              Just b' -> and $ map test $ zip (nextLevel a) (nextLevel b')
+--   where
+--   repIdxs = case foldl' f (Just b) idxs of
+--               Nothing -> False
+--               Just b' -> and $ map test $ zip (nextLevel a) (nextLevel b')
 
-  f mb idx = do
-    b' <- mb
-    v  <- getAtIdx a idx
-    replace b' idx v
+--   f mb idx = do
+--     b' <- mb
+--     v  <- getAtIdx a idx
+--     replace b' idx v
 
-  nextLevel x = map rootLabel (subTypes x)
+--   nextLevel x = map rootLabel (subTypes x)
 
-  test (SubT x, SubT y)  = 
-    if isAlgType (dataTypeOf x) 
-      then toConstr x == toConstr y
-      else True
+--   test (SubT x, SubT y)  = 
+--     if isAlgType (dataTypeOf x) 
+-- --      then toConstr x == toConstr y
+--       then error "FIXME-matches2"
+--       else True
 
 ---------------------------------------------------------------------------------

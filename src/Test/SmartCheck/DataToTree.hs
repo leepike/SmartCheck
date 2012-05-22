@@ -3,7 +3,6 @@
 
 module Test.SmartCheck.DataToTree
   ( subForestPath
---  , forestReplace
   , forestReplaceChop
   , forestStop
   , getAtIdx
@@ -16,11 +15,10 @@ module Test.SmartCheck.DataToTree
 
 import Test.SmartCheck.Types
 
-import Control.Monad.State 
 import Data.Tree
-import Data.Data
 import Data.List
 import Data.Maybe
+import Data.Typeable
 
 ---------------------------------------------------------------------------------
 -- Operations on Trees and Forests.
@@ -66,8 +64,11 @@ getIdxForest forest (Idx (0::Int) n) =
   if length forest > n then Just (forest !! n) else Nothing
 getIdxForest forest idx              =
   -- Should be a single Just x in the list, holding the value.
-  listToMaybe . catMaybes . snd $ mapAccumL findTree (column idx) (map Just forest)
+  listToMaybe . catMaybes . snd $ acc
+
   where
+  acc = mapAccumL findTree (column idx) (map Just forest)
+
   l = level idx - 1
   -- Invariant: not at the right level yet.
   findTree :: Int -> Maybe (Tree a) -> (Int, Maybe (Tree a))
@@ -158,47 +159,16 @@ sub args forest idx a =
 -- replace anything.
 mkSubstForest :: SubTypes a => a -> Forest Subst
 mkSubstForest a = map tMap (subTypes a)
-  where tMap t = fmap (\_ -> Keep) t
+  where tMap = fmap (\_ -> Keep)
 
 ---------------------------------------------------------------------------------
 
 -- | Replace a value at index idx generically in a Tree/Forest generically.
-replaceAtIdx :: (SubTypes a, Data b)
+replaceAtIdx :: (Typeable b, SubTypes a)
              => a     -- ^ Parent value
              -> Idx   -- ^ Index of hole to replace
              -> b     -- ^ Value to replace with
              -> Maybe a
 replaceAtIdx m idx = replaceChild m (subForestPath (mkSubstForest m) idx Subst)
-
----------------------------------------------------------------------------------
-
--- | Generically replace child i in m with value s.  A total function: returns
--- Nothing if you try to replace a child with an ill-typed child s.  (Returns
--- Just (the original data) if your index is out of bounds).
-replaceChild :: (Data a, Data b) => a -> Forest Subst -> b -> Maybe a
-replaceChild d idx s = 
-  case runState (gmapM f d) (Left (), idx) of
-    (d', (Left  _, _)) -> Just d'
-    (_ , (Right _, _)) -> Nothing
-
-  where
-  f :: forall b. Data b 
-    => b -> State (Either () (), Forest Subst) b
-  f x = do 
-    (lr, j)  <- get 
-    case j :: Forest Subst of
-      []                              -> return x
-      ((Node Subst ls):rst) | null ls -> case cast s of
-                                           Just x' -> do put (lr, rst)
-                                                         return x'
-                                           Nothing -> do put (Right (), rst)
-                                                         return x
-                            | True    -> case replaceChild x ls s of
-                                           Just x' -> do put (lr, rst)
-                                                         return x'
-                                           Nothing -> do put (Right (), rst)
-                                                         return x
-      ((Node Keep _):rst)             -> do put (lr, rst)
-                                            return x
 
 ---------------------------------------------------------------------------------

@@ -1,13 +1,9 @@
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE OverlappingInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ExistentialQuantification #-} 
-{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DefaultSignatures #-}
-
+{-# LANGUAGE OverlappingInstances #-}
 
 module Test.SmartCheck.Types
   ( SubT(..)
@@ -18,12 +14,12 @@ module Test.SmartCheck.Types
   , ScArgs(..)
   , Format(..)
   , scStdArgs
-  ) where
+  )
+    where
 
 import GHC.Generics
-
 import Data.Tree
-import Data.Data
+import Data.Typeable
 
 import qualified Test.QuickCheck as Q
 
@@ -68,10 +64,10 @@ data Subst = Keep | Subst
 -- User-defined subtypes of data
 ---------------------------------------------------------------------------------
 
-data SubT = forall a. (Data a, Q.Arbitrary a, Show a) 
+data SubT = forall a. (Q.Arbitrary a, Show a, Typeable a) 
           => SubT { unSubT :: a }
 
-subT :: (Data a, Q.Arbitrary a, Show a) => a -> SubT
+subT :: (Q.Arbitrary a, Show a, Typeable a) => a -> SubT
 subT = SubT
 
 -- instance Eq SubT where
@@ -94,20 +90,31 @@ instance Show SubT where
 --
 -- > allSubTypes (A (C 0) 1)
 -- > [Node {rootLabel = C 0, subForest = []},Node {rootLabel = 1, subForest = []}]
-class (Show a, Data a) => SubTypes a where
+class Show a => SubTypes a where
+  -----------------------------------------------------------
   subTypes :: a -> Forest SubT
   default subTypes :: (Generic a, GST (Rep a)) 
                    => a -> Forest SubT
   subTypes = gst . from
-
+  -----------------------------------------------------------
   allSubTypes :: a -> Forest SubT
   default allSubTypes :: (Generic a, GST (Rep a)) 
                       => a -> Forest SubT
   allSubTypes = gat . from
-
+  -----------------------------------------------------------
   baseType :: a -> Bool
   default baseType :: (Generic a, GST (Rep a)) => a -> Bool
   baseType _ = False
+  -----------------------------------------------------------
+
+  -- | Generically replace child i in m with value s.  A total function: returns
+  -- Nothing if you try to replace a child with an ill-typed child s.  (Returns
+  -- Just (the original data) if your index is out of bounds).
+  replaceChild :: Typeable b => a -> Forest Subst -> b -> Maybe a
+  default replaceChild :: (Generic a, GST (Rep a), Typeable b) 
+                       => a -> Forest Subst -> b -> Maybe a
+  replaceChild a forest b = fmap to $ grp (from a) forest b
+  -----------------------------------------------------------
 
 ---------------------------------------------------------------------------------
 -- Generic representation
@@ -116,14 +123,27 @@ class (Show a, Data a) => SubTypes a where
 class GST f where
   gst :: f a -> Forest SubT
   gat :: f a -> Forest SubT
+  grp :: Typeable b => f a -> Forest Subst -> b -> Maybe (f a)
 
 instance GST U1 where
   gst U1 = []
   gat U1 = []
+  grp _ _ _ = Nothing
 
 instance (GST a, GST b) => GST (a :*: b) where
   gst (a :*: b) = gst a ++ gst b
   gat (a :*: b) = gat a ++ gat b
+
+  grp (a :*: b) forest c 
+    -- If the 1st element is a baseType, we skip it.
+    | null (gst a) = grp b forest c >>= \x -> return (a :*: x)
+    | otherwise       = 
+        case forest of
+          []                       -> Just (a :*: b)
+          (n@(Node Subst _) : _)   -> do left  <- grp a [n] c 
+                                         return $ left :*: b
+          (Node Keep _ : rst)      -> do right <- grp b rst c
+                                         return $ a :*: right
 
 instance (GST a, GST b) => GST (a :+: b) where
   gst (L1 a) = gst a
@@ -132,15 +152,26 @@ instance (GST a, GST b) => GST (a :+: b) where
   gat (L1 a) = gat a
   gat (R1 b) = gat b
 
+  grp (L1 a) forest c = grp a forest c >>= return . L1
+  grp (R1 a) forest c = grp a forest c >>= return . R1
+
 instance GST a => GST (M1 i c a) where
-  gst (M1 x) = gst x
-  gat (M1 x) = gat x
+  gst (M1 a) = gst a
+  gat (M1 a) = gat a
+  grp (M1 a) forest c = grp a forest c >>= return . M1
 
-instance (Show a, Data a, Q.Arbitrary a, SubTypes a) => GST (K1 i a) where
-  gst (K1 x) = if baseType x then []
-                 else [ Node (subT x) (subTypes x) ]
+instance (Show a, Q.Arbitrary a, SubTypes a, Typeable a) => GST (K1 i a) where
+  gst (K1 a) = if baseType a then []
+                 else [ Node (subT a) (subTypes a) ]
 
-  gat (K1 x) = [ Node (subT x) (subTypes x) ]
+  gat (K1 a) = [ Node (subT a) (subTypes a) ]
+
+  grp (K1 a) forest c = 
+    case forest of
+      []                  -> Just (K1 a)
+      (Node Keep  _  : _) -> Just (K1 a)
+      (Node Subst [] : _) -> fmap K1 (cast c)
+      (Node Subst ls : _) -> replaceChild a ls c >>= return . K1
 
 ---------------------------------------------------------------------------------
 
@@ -156,6 +187,9 @@ instance SubTypes Integer where
   subTypes _    = []
   baseType _    = True
   allSubTypes _ = []
+  replaceChild a []                 _ = Just a
+  replaceChild a (Node Keep  _ : _) _ = Just a
+  replaceChild _ (Node Subst _ : _) b = cast b
 instance SubTypes Char    where 
   subTypes _    = []
   baseType _    = True
@@ -164,13 +198,16 @@ instance SubTypes String where
   subTypes _    = []
   baseType _    = True
   allSubTypes _ = []
+  replaceChild a []                 _ = Just a
+  replaceChild a (Node Keep  _ : _) _ = Just a
+  replaceChild _ (Node Subst _ : _) b = cast b
 
--- mkSubT :: (Data a, Q.Arbitrary a, Show a) => a -> Forest SubT
--- mkSubT i = [ Node (subT i) [] ]
-
-instance (Q.Arbitrary a, SubTypes a) => SubTypes [a] where 
+instance (Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes [a] where 
   subTypes   = concatMap subTypes
   baseType _ = False
   allSubTypes = concatMap allSubTypes
+
+-- mkSubT :: (Data a, Q.Arbitrary a, Show a) => a -> Forest SubT
+-- mkSubT i = [ Node (subT i) [] ]
 
 ---------------------------------------------------------------------------------

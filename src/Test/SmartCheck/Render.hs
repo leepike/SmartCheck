@@ -8,7 +8,6 @@ import Test.SmartCheck.DataToTree
 
 import Data.Maybe
 import Data.Tree
-import Data.Data
 import Data.List
 import Data.Char
 
@@ -47,7 +46,7 @@ replaceWithVars format d idxs vars =
 
   where
   strTree = foldl' f t vis
-  t    = mkShowTree d
+  t    = Node (show $ "FIXME" ) (strForest $ allSubTypes d)
   vis  = zip vars idxs
 
   f :: Tree String -> (String, Idx) -> Tree String
@@ -70,33 +69,20 @@ stitchTree = stitch
                                 else str
   stitchTree' node = '(' : stitch node ++ ")"
 
-  -- stitchTree' (Node str rst) | find isSpace str = 
-  --   stitch (Node '(' : stitch str ++ ")"   )'(' : stitch str ++ ")"
-  --                            | otherwise        = stitch node
-
-  -- stitchTree' (Node str []) = str
-  -- stitchTree' node = '(' : stitch node ++ ")"
-
 ---------------------------------------------------------------------------------
-
--- Make a Tree out of a Data value.  On each level, we just use the user-defined
--- Show instance.  This is good in that it's what user expects, but it's bad in
--- that we show the entire subtree at each level.  
---
--- XXX Also, it's inconsistent since toConstr is not part of the user-defined
--- show instances.
-mkShowTree :: SubTypes a => a -> Tree String
-mkShowTree d = Node (show $ toConstr d) (strForest $ allSubTypes d)
 
 strForest :: Forest SubT -> Forest String
 strForest = map prtTree
-  where
-  prtTree (Node r forest) =
-    let nextLevel       = map (show . rootLabel) forest in
-    let stripSubForests = dropWhileEnd isSpace $
-                          foldl' nubSubForest (show r) nextLevel in
-    Node stripSubForests (strForest forest)
+
+prtTree :: Tree SubT -> Tree String
+prtTree (Node r forest) =
+  let nextLevel       = map (show . rootLabel) forest in
+  -- XXX A hack!  May not work if showing a constructor has spaces.
+  let stripSubForests = dropWhileEnd isSpace $
+                        foldl' nubSubForest (show r) nextLevel in
+  Node stripSubForests (strForest forest)
  
+  where
   -- Strips a subforest, including possible parentheses enclosing the
   -- expression.  Strip trailing whitespace when done.
   nubSubForest :: String -> String -> String

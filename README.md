@@ -39,12 +39,11 @@ Div0 defines a toy language containing constants (C), addition (A), and division
     data M = C Int
            | A M M
            | D M M
-      deriving (Read, Show, Data, Typeable, Generic)
+      deriving (Read, Show, Typeable, Generic)
 
 Because SmartCheck performs data-generic operations using Data.Data and
-GHC.Generics we have to derive Data, Typeable, and Generic (we plan to eliminate
-dependence on Data.Data in the future).  To use GHC.Generics, you also need the
-following pragmas: and the single automatically-derived instance:
+GHC.Generics we have to derive Typeable, and Generic.  To use GHC.Generics, you
+also need the following pragmas: and the single automatically-derived instance:
 
     {-# LANGUAGE DeriveDataTypeable #-}
     {-# LANGUAGE DeriveGeneric #-}
@@ -104,7 +103,7 @@ Ok, let's try it.  First, SmartCheck just runs QuickCheck:
     *** Failed! Falsifiable (after 11 tests):  
     A (A (D (A (C (-3)) (C 40)) (C 11)) (D (C (-5)) (C (-42)))) (D (A (D (C (-9)) (C 29)) (C (-23))) (A (D (C (-6)) (D (C 23) (C (-20)))) (D (D (C (-13)) (C (-35))) (D (C 0) (C (-4))))))
 
-It then takes the output from QuickCheck and tries systematic shrinking:
+SmartCheck takes the output from QuickCheck and tries systematic shrinking:
 
     *** Smart Shrinking ... 
     *** Smart-shrunk value:
@@ -156,4 +155,4 @@ At this point, SmartCheck can't find a newly-shaped counterexample.  (This
 doesn't mean there aren't more---you can try to increase the standard arguments
 to QuickCheck to allow more failed test before giving up (maxDiscard) or
 increasing the size of tests (maxSize).  Or you could simply just keep running
-the real-eval-print loop.
+the real-eval-print loop.)

@@ -106,7 +106,6 @@ class Show a => SubTypes a where
   default baseType :: (Generic a, GST (Rep a)) => a -> Bool
   baseType _ = False
   -----------------------------------------------------------
-
   -- | Generically replace child i in m with value s.  A total function: returns
   -- Nothing if you try to replace a child with an ill-typed child s.  (Returns
   -- Just (the original data) if your index is out of bounds).
@@ -114,6 +113,11 @@ class Show a => SubTypes a where
   default replaceChild :: (Generic a, GST (Rep a), Typeable b) 
                        => a -> Forest Subst -> b -> Maybe a
   replaceChild a forest b = fmap to $ grp (from a) forest b
+  -----------------------------------------------------------
+  -- Grab the contructor and any baseType values that follow.
+  toConstrAndBase :: a -> String
+  default toConstrAndBase :: (Generic a, GST (Rep a)) => a -> String
+  toConstrAndBase = gcb . from
   -----------------------------------------------------------
 
 ---------------------------------------------------------------------------------
@@ -124,11 +128,13 @@ class GST f where
   gst :: f a -> Forest SubT
   gat :: f a -> Forest SubT
   grp :: Typeable b => f a -> Forest Subst -> b -> Maybe (f a)
+  gcb :: f a -> String
 
 instance GST U1 where
   gst U1 = []
   gat U1 = []
   grp _ _ _ = Nothing
+  gcb U1 = ""
 
 instance (GST a, GST b) => GST (a :*: b) where
   gst (a :*: b) = gst a ++ gst b
@@ -145,6 +151,13 @@ instance (GST a, GST b) => GST (a :*: b) where
           (Node Keep _ : rst)      -> do right <- grp b rst c
                                          return $ a :*: right
 
+  gcb (a :*: b) = if null (gst a) 
+                    then if null (gst b)
+                           then gcb a ++ ' ' : gcb b
+                           else gcb a
+                    else if null (gst b) then gcb b
+                           else ""
+
 instance (GST a, GST b) => GST (a :+: b) where
   gst (L1 a) = gst a
   gst (R1 b) = gst b
@@ -155,10 +168,20 @@ instance (GST a, GST b) => GST (a :+: b) where
   grp (L1 a) forest c = grp a forest c >>= return . L1
   grp (R1 a) forest c = grp a forest c >>= return . R1
 
-instance GST a => GST (M1 i c a) where
+  gcb (L1 a) = gcb a
+  gcb (R1 a) = gcb a
+
+instance (Constructor c, GST a) => GST (M1 C c a) where
   gst (M1 a) = gst a
   gat (M1 a) = gat a
   grp (M1 a) forest c = grp a forest c >>= return . M1
+  gcb m@(M1 a) = conName m ++ ' ' : gcb a
+
+instance GST a => GST (M1 i k a) where
+  gst (M1 a) = gst a
+  gat (M1 a) = gat a
+  grp (M1 a) forest c = grp a forest c >>= return . M1
+  gcb (M1 a) = gcb a
 
 instance (Show a, Q.Arbitrary a, SubTypes a, Typeable a) => GST (K1 i a) where
   gst (K1 a) = if baseType a then []
@@ -173,16 +196,21 @@ instance (Show a, Q.Arbitrary a, SubTypes a, Typeable a) => GST (K1 i a) where
       (Node Subst [] : _) -> fmap K1 (cast c)
       (Node Subst ls : _) -> replaceChild a ls c >>= return . K1
 
+  gcb (K1 a) = if baseType a then show a
+                 else ""
+
 ---------------------------------------------------------------------------------
 
 instance SubTypes Bool    where 
   subTypes _    = []
   baseType _    = True
   allSubTypes _ = []
+
 instance SubTypes Int     where 
   subTypes _    = []
   baseType _    = True
   allSubTypes _ = []
+
 instance SubTypes Integer where 
   subTypes _    = []
   baseType _    = True
@@ -190,11 +218,14 @@ instance SubTypes Integer where
   replaceChild a []                 _ = Just a
   replaceChild a (Node Keep  _ : _) _ = Just a
   replaceChild _ (Node Subst _ : _) b = cast b
+  toConstrAndBase a = show a
+
 instance SubTypes Char    where 
   subTypes _    = []
   baseType _    = True
   allSubTypes _ = []
-instance SubTypes String where 
+
+instance SubTypes String  where 
   subTypes _    = []
   baseType _    = True
   allSubTypes _ = []
@@ -206,8 +237,5 @@ instance (Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes [a] where
   subTypes   = concatMap subTypes
   baseType _ = False
   allSubTypes = concatMap allSubTypes
-
--- mkSubT :: (Data a, Q.Arbitrary a, Show a) => a -> Forest SubT
--- mkSubT i = [ Node (subT i) [] ]
 
 ---------------------------------------------------------------------------------

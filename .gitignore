@@ -1,3 +1,4 @@
 .svn
 cabal-dev
 dist
+examples/qc-overwhelm

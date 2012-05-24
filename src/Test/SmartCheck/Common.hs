@@ -57,8 +57,6 @@ iterateArb d idx tries sz prop =
   case getAtIdx d idx of
     Nothing -> error "iterateArb 0"
     Just v  -> do rnds <- mkVals v
-                  -- YYY
-                  putStrLn "iterateArb"
                   forM_ rnds (\a -> if isNothing $ replace d idx a
                                       then do putStrLn (show a)
                                               putStrLn (show idx)

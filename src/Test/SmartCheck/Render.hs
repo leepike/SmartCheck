@@ -46,7 +46,7 @@ replaceWithVars format d idxs vars =
 
   where
   strTree = foldl' f t vis
-  t    = Node (show $ "FIXME" ) (strForest $ allSubTypes d)
+  t    = Node (toConstr d) (strForest $ allSubTypes d)
   vis  = zip vars idxs
 
   f :: Tree String -> (String, Idx) -> Tree String
@@ -86,8 +86,7 @@ prtTree (Node r forest) =
   -- Strips a subforest, including possible parentheses enclosing the
   -- expression.  Strip trailing whitespace when done.
   nubSubForest :: String -> String -> String
-  nubSubForest str subTree = 
-    go [] str
+  nubSubForest str subTree = go [] str
 
     where
     go acc [] = reverse acc

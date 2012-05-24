@@ -1,3 +1,8 @@
+**We use [GHC
+  Generics](http://www.haskell.org/ghc/docs/7.4.1/html/libraries/ghc-prim-0.2.0.0/GHC-Generics.html).
+  You may have to define new instances in src/Test/SmartCheck/Types.hs .  Email
+  <leepike at Gmail> if you need instances for other types.**
+
 Synopsis
 --------------------------------
 

@@ -26,11 +26,6 @@ data N = N M Int String
 
 instance SubTypes N
 
-data O = O N String
-  deriving (Data, Typeable, Show, Eq, Read, Generic)
-
-instance SubTypes O
-
 ---------------------------------------------------------------------------------
 
 instance Arbitrary M where

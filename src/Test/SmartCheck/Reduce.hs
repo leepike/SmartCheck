@@ -2,8 +2,6 @@
 
 module Test.SmartCheck.Reduce
   (smartRun
-  -- YYY
-   , smartShrink
   ) where
 
 import Test.SmartCheck.Types
@@ -12,8 +10,8 @@ import Test.SmartCheck.DataToTree
 import Test.SmartCheck.Render
 
 import qualified Test.QuickCheck as Q
-import Data.Typeable
 import Data.Tree
+import Data.Typeable
 
 ---------------------------------------------------------------------------------
 
@@ -21,7 +19,7 @@ import Data.Tree
 -- been shrunk.  We substitute successive children with strictly smaller (and
 -- increasingly larger) randomly-generated values until we find a failure, and
 -- return that result.  (We call smartShrink recursively.)
-smartRun :: (SubTypes a, Typeable a)
+smartRun :: SubTypes a
          => Q.Args -> Maybe a -> (a -> Q.Property) -> IO (Maybe a)
 smartRun args res prop =
   case res of 
@@ -43,14 +41,12 @@ smartRun args res prop =
 
 -- | Breadth-first traversal of d, trying to shrink it with *strictly* smaller
 -- children.  We replace d whenever a successful shrink is found and try again.
-smartShrink :: (Typeable a, SubTypes a)
-            => Q.Args -> a -> (a -> Q.Property) -> IO a
+smartShrink :: SubTypes a => Q.Args -> a -> (a -> Q.Property) -> IO a
 smartShrink args d prop = iterReduce args d (Idx 0 0) notProp
   where
   notProp = Q.expectFailure . prop
 
-iterReduce :: (Typeable a, SubTypes a)
-      => Q.Args -> a -> Idx -> (a -> Q.Property) -> IO a
+iterReduce :: SubTypes a => Q.Args -> a -> Idx -> (a -> Q.Property) -> IO a
 iterReduce args d idx prop = 
   if done then return d
     else if nextLevel 
@@ -86,14 +82,9 @@ iterReduce args d idx prop =
 
 ---------------------------------------------------------------------------------
 
-mkTry :: forall a. (Typeable a, SubTypes a)
+mkTry :: forall a. SubTypes a
       => Q.Args -> a -> Idx -> (a -> Q.Property) -> Int -> IO a
 mkTry args d idx prop maxSize = do
-  putStrLn ("mkTry")
-  putStrLn (show idx)
-  putStrLn (show d)
-  putStrLn (show maxSize)
-
   v <- mv
   case v of
     -- This sees if some subterm directly fails the property.  If so, we'll take

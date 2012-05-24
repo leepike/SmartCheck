@@ -164,7 +164,7 @@ mkSubstForest a = map tMap (subTypes a)
 ---------------------------------------------------------------------------------
 
 -- | Replace a value at index idx generically in a Tree/Forest generically.
-replaceAtIdx :: (Typeable b, SubTypes a)
+replaceAtIdx :: (SubTypes a, Typeable b)
              => a     -- ^ Parent value
              -> Idx   -- ^ Index of hole to replace
              -> b     -- ^ Value to replace with

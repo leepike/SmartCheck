@@ -26,6 +26,7 @@ TODO
 
 * Make SubT from Forest into Tree(?)  More natural and allows to index the head.
 
+* Check all methods to baseTypes and add additional baseTypes as needed.
 
 Won't Do / Can't Do
 -----------------------------------------------

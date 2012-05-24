@@ -23,7 +23,7 @@ import Data.List
 -- We extrapolate w.r.t. the original property since extrapolation throws away
 -- any values that fail the precondition of the property (i.e., before the
 -- Q.==>). XXX
-extrapolate :: SubTypes a 
+extrapolate :: SubTypes a
             => ScArgs            -- ^ Arguments
             -> a                 -- ^ Current failed value
             -> (a -> Q.Property) -- ^ Original property
@@ -104,29 +104,20 @@ matchesShapes d ds idxs = foldl' f False ds
 -- algebraic constructors only, (3) ignore differences in all values at holes
 -- indexed by the indexes.
 matchesShape :: SubTypes a => a -> a -> [Idx] -> Bool
-matchesShape a b idxs = error "Fixme-matchesshape"
---      (if isAlgType (dataTypeOf a) 
--- --        then toConstr a == toConstr b
---         then error "FIXME-matches1"
---         else True)
---   && repIdxs 
+matchesShape a b idxs = test (subT a, subT b) && repIdxs 
 
---   where
---   repIdxs = case foldl' f (Just b) idxs of
---               Nothing -> False
---               Just b' -> and $ map test $ zip (nextLevel a) (nextLevel b')
+  where
+  repIdxs = case foldl' f (Just b) idxs of
+              Nothing -> False
+              Just b' -> and $ map test $ zip (nextLevel a) (nextLevel b')
 
---   f mb idx = do
---     b' <- mb
---     v  <- getAtIdx a idx
---     replace b' idx v
+  f mb idx = do
+    b' <- mb
+    v  <- getAtIdx a idx
+    replace b' idx v
 
---   nextLevel x = map rootLabel (subTypes x)
+  nextLevel x = map rootLabel (subTypes x)
 
---   test (SubT x, SubT y)  = 
---     if isAlgType (dataTypeOf x) 
--- --      then toConstr x == toConstr y
---       then error "FIXME-matches2"
---       else True
+  test (SubT x, SubT y)  = baseType x || toConstr x == toConstr y
 
 ---------------------------------------------------------------------------------

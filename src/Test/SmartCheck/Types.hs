@@ -64,10 +64,10 @@ data Subst = Keep | Subst
 -- User-defined subtypes of data
 ---------------------------------------------------------------------------------
 
-data SubT = forall a. (Q.Arbitrary a, Show a, Typeable a) 
+data SubT = forall a. (Q.Arbitrary a, SubTypes a) 
           => SubT { unSubT :: a }
 
-subT :: (Q.Arbitrary a, Show a, Typeable a) => a -> SubT
+subT :: (Q.Arbitrary a, SubTypes a) => a -> SubT
 subT = SubT
 
 -- instance Eq SubT where
@@ -90,7 +90,7 @@ instance Show SubT where
 --
 -- > allSubTypes (A (C 0) 1)
 -- > [Node {rootLabel = C 0, subForest = []},Node {rootLabel = 1, subForest = []}]
-class Show a => SubTypes a where
+class (Q.Arbitrary a, Show a, Typeable a) => SubTypes a where
   -----------------------------------------------------------
   subTypes :: a -> Forest SubT
   default subTypes :: (Generic a, GST (Rep a)) 
@@ -114,10 +114,15 @@ class Show a => SubTypes a where
                        => a -> Forest Subst -> b -> Maybe a
   replaceChild a forest b = fmap to $ grp (from a) forest b
   -----------------------------------------------------------
+  -- Grab the top contructor.
+  toConstr :: a -> String
+  default toConstr :: (Generic a, GST (Rep a)) => a -> String
+  toConstr = gtc . from
+  -----------------------------------------------------------
   -- Grab the contructor and any baseType values that follow.
-  toConstrAndBase :: a -> String
-  default toConstrAndBase :: (Generic a, GST (Rep a)) => a -> String
-  toConstrAndBase = gcb . from
+  -- toConstrAndBase :: a -> String
+  -- default toConstrAndBase :: (Generic a, GST (Rep a)) => a -> String
+  -- toConstrAndBase = gcb . from
   -----------------------------------------------------------
 
 ---------------------------------------------------------------------------------
@@ -125,23 +130,27 @@ class Show a => SubTypes a where
 ---------------------------------------------------------------------------------
 
 class GST f where
+  -- Names are abbreviations of the corresponding method names above.
   gst :: f a -> Forest SubT
   gat :: f a -> Forest SubT
   grp :: Typeable b => f a -> Forest Subst -> b -> Maybe (f a)
-  gcb :: f a -> String
+  gtc :: f a -> String
+--  gcb :: f a -> String
 
 instance GST U1 where
   gst U1 = []
   gat U1 = []
   grp _ _ _ = Nothing
-  gcb U1 = ""
+  gtc U1 = ""
+--  gcb U1 = ""
 
 instance (GST a, GST b) => GST (a :*: b) where
   gst (a :*: b) = gst a ++ gst b
   gat (a :*: b) = gat a ++ gat b
 
   grp (a :*: b) forest c 
-    -- If the 1st element is a baseType, we skip it.
+    -- If the 1st element is a baseType, we skip it.  Can't use baseTypes
+    -- directly here, so we see if the tree's subforest is empty.
     | null (gst a) = grp b forest c >>= \x -> return (a :*: x)
     | otherwise       = 
         case forest of
@@ -151,12 +160,16 @@ instance (GST a, GST b) => GST (a :*: b) where
           (Node Keep _ : rst)      -> do right <- grp b rst c
                                          return $ a :*: right
 
-  gcb (a :*: b) = if null (gst a) 
-                    then if null (gst b)
-                           then gcb a ++ ' ' : gcb b
-                           else gcb a
-                    else if null (gst b) then gcb b
-                           else ""
+  gtc (a :*: b) = gtc a ++ gtc b
+
+  -- If the element is a baseType, we use it.  Can't use baseTypes directly
+  -- here, so we see if the tree's subforest is empty.
+  -- gcb (a :*: b) = if null (gst a) 
+  --                   then if null (gst b)
+  --                          then addSpace (gcb a) (gcb b)
+  --                          else gcb a
+  --                   else if null (gst b) then gcb b
+  --                          else ""
 
 instance (GST a, GST b) => GST (a :+: b) where
   gst (L1 a) = gst a
@@ -168,20 +181,25 @@ instance (GST a, GST b) => GST (a :+: b) where
   grp (L1 a) forest c = grp a forest c >>= return . L1
   grp (R1 a) forest c = grp a forest c >>= return . R1
 
-  gcb (L1 a) = gcb a
-  gcb (R1 a) = gcb a
+  gtc (L1 a) = gtc a
+  gtc (R1 a) = gtc a
+
+  -- gcb (L1 a) = gcb a
+  -- gcb (R1 a) = gcb a
 
 instance (Constructor c, GST a) => GST (M1 C c a) where
   gst (M1 a) = gst a
   gat (M1 a) = gat a
   grp (M1 a) forest c = grp a forest c >>= return . M1
-  gcb m@(M1 a) = conName m ++ ' ' : gcb a
+  gtc m = conName m 
+--  gcb m@(M1 a) = addSpace (conName m) (gcb a) 
 
 instance GST a => GST (M1 i k a) where
   gst (M1 a) = gst a
   gat (M1 a) = gat a
   grp (M1 a) forest c = grp a forest c >>= return . M1
-  gcb (M1 a) = gcb a
+  gtc (M1 a) = gtc a
+--  gcb (M1 a) = gcb a
 
 instance (Show a, Q.Arbitrary a, SubTypes a, Typeable a) => GST (K1 i a) where
   gst (K1 a) = if baseType a then []
@@ -196,8 +214,9 @@ instance (Show a, Q.Arbitrary a, SubTypes a, Typeable a) => GST (K1 i a) where
       (Node Subst [] : _) -> fmap K1 (cast c)
       (Node Subst ls : _) -> replaceChild a ls c >>= return . K1
 
-  gcb (K1 a) = if baseType a then show a
-                 else ""
+  gtc _ = ""
+
+  -- gcb (K1 a) = if baseType a then show a else ""
 
 ---------------------------------------------------------------------------------
 
@@ -215,10 +234,9 @@ instance SubTypes Integer where
   subTypes _    = []
   baseType _    = True
   allSubTypes _ = []
-  replaceChild a []                 _ = Just a
-  replaceChild a (Node Keep  _ : _) _ = Just a
-  replaceChild _ (Node Subst _ : _) b = cast b
-  toConstrAndBase a = show a
+  replaceChild  = replaceChild'
+  toConstr _    = ""
+--  toConstrAndBase a = show a
 
 instance SubTypes Char    where 
   subTypes _    = []
@@ -229,9 +247,7 @@ instance SubTypes String  where
   subTypes _    = []
   baseType _    = True
   allSubTypes _ = []
-  replaceChild a []                 _ = Just a
-  replaceChild a (Node Keep  _ : _) _ = Just a
-  replaceChild _ (Node Subst _ : _) b = cast b
+  replaceChild  = replaceChild'
 
 instance (Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes [a] where 
   subTypes   = concatMap subTypes
@@ -239,3 +255,16 @@ instance (Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes [a] where
   allSubTypes = concatMap allSubTypes
 
 ---------------------------------------------------------------------------------
+-- Helpers
+
+-- addSpace :: String -> String -> String
+-- addSpace a b = if null b then a else a ++ ' ': b
+
+replaceChild' :: (Typeable a, Typeable b) 
+              => a -> Forest Subst -> b -> Maybe a
+replaceChild' a []                 _ = Just a
+replaceChild' a (Node Keep  _ : _) _ = Just a
+replaceChild' _ (Node Subst _ : _) b = cast b
+
+---------------------------------------------------------------------------------
+

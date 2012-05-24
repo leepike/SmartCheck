@@ -1,7 +1,7 @@
 **We use [GHC
   Generics](http://www.haskell.org/ghc/docs/7.4.1/html/libraries/ghc-prim-0.2.0.0/GHC-Generics.html).
   You may have to define new instances in src/Test/SmartCheck/Types.hs .  Email
-  <leepike at Gmail> if you need instances for other types.**
+  (leepike at Gmail) if you need instances for other types.**
 
 Synopsis
 --------------------------------
@@ -9,19 +9,21 @@ Synopsis
 SmartCheck is a smarter
 [QuickCheck](http://hackage.haskell.org/package/QuickCheck), a powerful testing
 library for Haskell.  The purpose of SmartCheck is to help you more quickly get
-to the heart of a bug and to quickly all the ways that a property fails.
+to the heart of a bug and to quickly discover _each_ possible way that a
+property may fail.
 
 SmartCheck is useful for debugging programs operating on algebraic datatypes.
 When a property is true, SmartCheck is just like QuickCheck (SmartCheck uses
-QuickCheck as a backend).  When a fails, QuickCheck does two things.  First, it
-attempts to find a minimal counterexample to the property is a robust,
-systematic way.  (You do not need to define any custom shrink instances, like
-with QuickCheck.)  Second, once a minimal counterexample is found, SmartCheck
-then attempts to generalize the failed value v by replacing the v's
-substructures with new values to make v', and QuickChecking each new v'.  If for
-each new v' generated, the property also fails, we claim the property fails for
-any substructure replaced here (of course, this is true modulo the coverage of
-the tests).
+QuickCheck as a backend).  When a property fails, SmartCheck kicks into gear.
+First, it attempts to find a _minimal_ counterexample to the property is a
+robust, systematic way.  (You do not need to define any custom shrink instances,
+like with QuickCheck, but if you do, those are used.  SmartCheck usually can do
+much better than even custom shrink instances.)  Second, once a minimal
+counterexample is found, SmartCheck then attempts to generalize the failed value
+d by replacing d's substructures with new values to make d', and QuickChecking
+each new d'.  If for each new d' generated, the property also fails, we claim
+the property fails for any substructure replaced here (of course, this is true
+modulo the coverage of the tests).
 
 SmartCheck executes in a real-eval-print loop.  In each iteration, all values
 that have the "same shape" as the generalized value is removed from possible
@@ -55,8 +57,8 @@ also need the following pragmas: and the single automatically-derived instance:
 
     instance SubTypes M 
 
-Let's say we have a little interpreter for the language that takes care not to
-divide by 0:
+Let's say we have a little interpreter for the language that takes care to
+return `Nothing` if there is a division by 0:
 
     eval :: M -> Maybe Int
     eval (C i) = Just i
@@ -70,7 +72,7 @@ divide by 0:
                 j <- eval b
                 return $ i `div` j
 
-Now suppose we define a set of values in M such that they won't result in
+Now suppose we define a set of values of M such that they won't result in
 division by 0.  We might try the following:
 
     divSubTerms :: M -> Bool
@@ -79,10 +81,8 @@ division by 0.  We might try the following:
     divSubTerms (A m0 m1)   = divSubTerms m0 && divSubTerms m1
     divSubTerms (D m0 m1)   = divSubTerms m0 && divSubTerms m1
 
-(Can you spot the problem?)
-
-So our property states that so long as a value satisfies divSubTerms, then we
-won't have division by 0:
+So our property (tries) to state that so long as a value satisfies divSubTerms,
+then we won't have division by 0 (can you spot the problem in `divSubTerms`?):
 
     div_prop :: M -> Property
     div_prop m = divSubTerms m ==> eval m /= Nothing
@@ -105,49 +105,49 @@ generalized counterexamples shown in a tree format or printed as a long string
 Ok, let's try it.  First, SmartCheck just runs QuickCheck:
 
     *Div0> divTest 
-    *** Failed! Falsifiable (after 11 tests):  
-    A (A (D (A (C (-3)) (C 40)) (C 11)) (D (C (-5)) (C (-42)))) (D (A (D (C (-9)) (C 29)) (C (-23))) (A (D (C (-6)) (D (C 23) (C (-20)))) (D (D (C (-13)) (C (-35))) (D (C 0) (C (-4))))))
+    *** Failed! Falsifiable (after 7 tests):
+    D (D (A (A (C (-1)) (C (-1))) (D (C (-5)) (C (-4)))) (D (C (-3)) (D (C 6) (C (-1))))) (A (D (A (C (-1)) (C (-2))) (D (C 4) (C (-2)))) (D (C (-5)) (C (-5))))
 
 SmartCheck takes the output from QuickCheck and tries systematic shrinking:
 
     *** Smart Shrinking ... 
     *** Smart-shrunk value:
-    D (D (C (-13)) (C (-35))) (D (C 0) (C (-4)))
+    D (C (-1)) (A (C 1) (C (-1)))
 
 Ok, that's some progress!  Now SmartCheck attempt to generalize this minimal counterexample:
 
     *** Extrapolating ...
     *** Extrapolated value:
-    forall x0 x1:
+    forall x0:
 
-    D x1 (D (C 0) x0)
+    D x0 (A (C 1) (C (-1)))
 
-Ahah!  We see that for any possible subvalues x0 and x1, the above value fails.
-Our precondition divSubTerms did not account for the possibility of a
-non-terminal divisor evaluating to 0; we only pattern-matched on constants.  
+Ahah!  We see that for any possible subvalues x0, the above value fails.  Our
+precondition divSubTerms did not account for the possibility of a non-terminal
+divisor evaluating to 0; we only pattern-matched on constants.
 
 SmartCheck asks us if we want to continue:
 
     Attempt to find a new counterexample? ('Enter' to continue; any character
     then 'Enter' to quit.)
 
-SmartCheck will omit any term that has the "same shape" as D x1 (D (C 0) x0) and
-try to find a new counterexample.  
+SmartCheck will omit any term that has the "same shape" as `D x0 (A (C 1) (C
+(-1)))` and try to find a new counterexample.
 
     *** Failed! Falsifiable (after 13 tests):  
-    D (A (C 23) (C (-52))) (A (D (D (C 52) (C 72)) (D (D (D (C 28) (C (-32))) (A (C 36) (C (-85)))) (C (-32)))) (A (A (A (C (-122)) (C (-76))) (C 52)) (D (D (D (C 91) (C 98)) (D (C 122) (C 64))) (C 5))))
+    A (A (D (C (-15)) (D (D (C 11) (C 3)) (A (A (C (-3)) (C (-8))) (D (C 2) (C 12))))) (C (-2))) (D (A (D (A (C 3) (C (-2))) (C (-10))) (D (C 0) (D (C 2) (C 4)))) (C (-5)))
 
     *** Smart Shrinking ... 
     *** Smart-shrunk value:
-    D (D (C 52) (C 72)) (A (C (-1)) (C 1))
+    D (C 0) (D (C 2) (C 4))
 
     *** Extrapolating ...
     *** Extrapolated value:
     forall x0:
 
-    D x0 (A C (-1) (C 1))
+    D x0 (D (C 2) (C 4))
 
-We find another counterexample; this time, the divisor is an addition term.
+We find another counterexample; this time, the divisor is another divisor term.
 
 We might ask SmartCheck to find another counterexample: 
 

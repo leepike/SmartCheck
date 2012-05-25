@@ -21,6 +21,12 @@ import GHC.Generics
 import Data.Tree
 import Data.Typeable
 
+-- For instances
+import Data.Word
+import Data.Int
+import Data.Ratio
+import Data.Complex
+
 import qualified Test.QuickCheck as Q
 
 ---------------------------------------------------------------------------------
@@ -103,7 +109,6 @@ class (Q.Arbitrary a, Show a, Typeable a) => SubTypes a where
   allSubTypes = gat . from
   -----------------------------------------------------------
   baseType :: a -> Bool
-  default baseType :: (Generic a, GST (Rep a)) => a -> Bool
   baseType _ = False
   -----------------------------------------------------------
   -- | Generically replace child i in m with value s.  A total function: returns
@@ -187,6 +192,7 @@ instance (GST a, GST b) => GST (a :+: b) where
   -- gcb (L1 a) = gcb a
   -- gcb (R1 a) = gcb a
 
+-- Constructor meta-information
 instance (Constructor c, GST a) => GST (M1 C c a) where
   gst (M1 a) = gst a
   gat (M1 a) = gat a
@@ -194,6 +200,7 @@ instance (Constructor c, GST a) => GST (M1 C c a) where
   gtc m = conName m 
 --  gcb m@(M1 a) = addSpace (conName m) (gcb a) 
 
+-- All the other meta-information (selector, module, etc.)
 instance GST a => GST (M1 i k a) where
   gst (M1 a) = gst a
   gat (M1 a) = gat a
@@ -215,44 +222,127 @@ instance (Show a, Q.Arbitrary a, SubTypes a, Typeable a) => GST (K1 i a) where
       (Node Subst ls : _) -> replaceChild a ls c >>= return . K1
 
   gtc _ = ""
-
   -- gcb (K1 a) = if baseType a then show a else ""
 
 ---------------------------------------------------------------------------------
+-- We try to cover the instances supported by QuickCheck: http://hackage.haskell.org/packages/archive/QuickCheck/2.4.2/doc/html/Test-QuickCheck-Arbitrary.html
 
-instance SubTypes Bool    where 
+instance SubTypes Bool    where baseType _    = True
+instance SubTypes Char    where baseType _    = True
+instance SubTypes Double  where baseType _    = True
+instance SubTypes Float   where baseType _    = True
+instance SubTypes Int     where baseType _    = True
+instance SubTypes Int8    where 
   subTypes _    = []
   baseType _    = True
   allSubTypes _ = []
-
-instance SubTypes Int     where 
+  replaceChild  = replaceChild'
+  toConstr _    = ""
+instance SubTypes Int16   where 
   subTypes _    = []
   baseType _    = True
   allSubTypes _ = []
-
-instance SubTypes Integer where 
+  replaceChild  = replaceChild'
+  toConstr _    = ""
+instance SubTypes Int32   where 
+  subTypes _    = []
+  baseType _    = True
+  allSubTypes _ = []
+  replaceChild  = replaceChild'
+  toConstr _    = ""
+instance SubTypes Int64   where 
+  subTypes _    = []
+  baseType _    = True
+  allSubTypes _ = []
+  replaceChild  = replaceChild'
+  toConstr _    = ""
+instance SubTypes Integer where
   subTypes _    = []
   baseType _    = True
   allSubTypes _ = []
   replaceChild  = replaceChild'
   toConstr _    = ""
 --  toConstrAndBase a = show a
-
-instance SubTypes Char    where 
-  subTypes _    = []
-  baseType _    = True
-  allSubTypes _ = []
-
-instance SubTypes String  where 
+instance SubTypes Word    where
   subTypes _    = []
   baseType _    = True
   allSubTypes _ = []
   replaceChild  = replaceChild'
-
-instance (Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes [a] where 
-  subTypes   = concatMap subTypes
+  toConstr _    = ""
+instance SubTypes Word8   where
+  subTypes _    = []
+  baseType _    = True
+  allSubTypes _ = []
+  replaceChild  = replaceChild'
+  toConstr _    = ""
+instance SubTypes Word16  where
+  subTypes _    = []
+  baseType _    = True
+  allSubTypes _ = []
+  replaceChild  = replaceChild'
+  toConstr _    = ""
+instance SubTypes Word32  where
+  subTypes _    = []
+  baseType _    = True
+  allSubTypes _ = []
+  replaceChild  = replaceChild'
+  toConstr _    = ""
+instance SubTypes Word64  where
+  subTypes _    = []
+  baseType _    = True
+  allSubTypes _ = []
+  replaceChild  = replaceChild'
+  toConstr _    = ""
+instance SubTypes ()      where baseType _    = True
+-- instance (Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes [a] where 
+--   subTypes   = concatMap subTypes
+--   allSubTypes = concatMap allSubTypes
+instance (Integral a, Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes (Ratio a) where 
+  subTypes _    = []
+  baseType _    = True
+  allSubTypes _ = []
+  replaceChild  = replaceChild'
+  toConstr _    = ""
+instance (RealFloat a, Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes (Complex a) where 
+  subTypes _    = []
+  baseType _    = True
+  allSubTypes _ = []
+  replaceChild  = replaceChild'
+  toConstr _    = ""
+instance (Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes (Maybe a) where 
   baseType _ = False
-  allSubTypes = concatMap allSubTypes
+instance ( Q.Arbitrary a, SubTypes a, Typeable a
+         , Q.Arbitrary b, SubTypes b, Typeable b) 
+         => SubTypes (Either a b) where 
+  baseType _ = False
+instance ( Q.Arbitrary a, SubTypes a, Typeable a
+         , Q.Arbitrary b, SubTypes b, Typeable b) 
+         => SubTypes (a, b) where 
+  baseType _ = False
+instance ( Q.Arbitrary a, SubTypes a, Typeable a
+         , Q.Arbitrary b, SubTypes b, Typeable b
+         , Q.Arbitrary c, SubTypes c, Typeable c) 
+         => SubTypes (a, b, c) where 
+  baseType _ = False
+instance ( Q.Arbitrary a, SubTypes a, Typeable a
+         , Q.Arbitrary b, SubTypes b, Typeable b 
+         , Q.Arbitrary c, SubTypes c, Typeable c 
+         , Q.Arbitrary d, SubTypes d, Typeable d) 
+         => SubTypes (a, b, c, d) where 
+  baseType _ = False
+instance ( Q.Arbitrary a, SubTypes a, Typeable a
+         , Q.Arbitrary b, SubTypes b, Typeable b 
+         , Q.Arbitrary c, SubTypes c, Typeable c 
+         , Q.Arbitrary d, SubTypes d, Typeable d 
+         , Q.Arbitrary e, SubTypes e, Typeable e) 
+         => SubTypes (a, b, c, d, e) where 
+  baseType _ = False
+
+-- We treat String specially: we don't want to rewrite them.  (This is open for
+-- revision...)
+instance SubTypes String  where 
+  baseType _    = True
+--  replaceChild  = replaceChild'
 
 ---------------------------------------------------------------------------------
 -- Helpers
@@ -267,4 +357,3 @@ replaceChild' a (Node Keep  _ : _) _ = Just a
 replaceChild' _ (Node Subst _ : _) b = cast b
 
 ---------------------------------------------------------------------------------
-

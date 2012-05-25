@@ -5,7 +5,6 @@
 module Protocol where
 
 import Prelude hiding (last, id)
-import Data.Data
 import Data.List hiding (last)
 import Control.Monad
 import Test.QuickCheck
@@ -15,7 +14,7 @@ import Test.SmartCheck
 
 data Input = Input 
   { header :: Header }
-  deriving (Data, Typeable, Show, Eq, Read)
+  deriving (Typeable, Show, Eq, Read)
 
 data Header = Header 
   { name   :: String
@@ -37,17 +36,17 @@ data Fields = Fields
   , f8   :: Ins
   , f9   :: Ins
   , fn   :: Ins' }
-  deriving (Data, Typeable, Show, Eq, Read)
+  deriving (Typeable, Show, Eq, Read)
 
 data Ins = Strs [String] 
          | Ints [Int]
          | Else [String]
-  deriving (Data, Typeable, Show, Eq, Read)
+  deriving (Typeable, Show, Eq, Read)
 
 data Ins' = Strs' [String] 
          | Ints' [Int]
          | Else' [String]
-  deriving (Data, Typeable, Show, Eq, Read)
+  deriving (Typeable, Show, Eq, Read)
 
 -- Output format
 data Output = Output

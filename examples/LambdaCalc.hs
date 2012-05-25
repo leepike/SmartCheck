@@ -7,7 +7,8 @@ module LambdaCalc where
 
 import Data.List
 import Data.Tree
-import Data.Data
+import Data.Typeable
+
 import Control.Monad
 import GHC.Generics
 
@@ -21,7 +22,7 @@ data Expr
         = Var Sym
         | App Expr Expr
         | Lam Sym Expr
-        deriving (Eq, Read, Show, Data, Typeable, Generic)
+        deriving (Eq, Read, Show, Typeable, Generic)
 
 freeVars :: Expr -> [Sym]
 freeVars (Var s) = [s]
@@ -84,7 +85,7 @@ instance SubTypes Pr
 ---------------------------------------------------------------------------------
 
 data Pr = Pr Expr Expr
-  deriving (Read, Show, Data, Typeable, Generic)
+  deriving (Read, Show, Typeable, Generic)
 
 instance Arbitrary Expr where
   arbitrary = sized mkE

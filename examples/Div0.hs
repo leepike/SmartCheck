@@ -8,14 +8,13 @@ module Div0 where
 import Test.QuickCheck
 import Test.SmartCheck
 import Control.Monad
-import Data.Data
 
 import GHC.Generics
 
 data M = C Int
        | A M M
        | D M M
-  deriving (Read, Show, Data, Typeable, Generic)
+  deriving (Read, Show, Typeable, Generic)
 
 instance SubTypes M 
 

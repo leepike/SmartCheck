@@ -18,7 +18,6 @@ import Data.List
   )
 
 import qualified Data.Tree as T
-import Data.Data
 import GHC.Generics
 
 import qualified Test.SmartCheck as SC
@@ -31,7 +30,6 @@ import qualified Test.SmartCheck as SC
 instance Read OrdA where
   readsPrec _ i = [ (OrdA j, str) | (j, str) <- reads i ]
 
-deriving instance Data OrdA
 deriving instance Typeable OrdA
 deriving instance Generic OrdA
 
@@ -39,11 +37,11 @@ heapProgramTest :: IO ()
 heapProgramTest = SC.smartCheck SC.scStdArgs (\h -> property (prop_ToSortedList h))
 
 instance SC.SubTypes OrdA
-instance (SC.SubTypes a, Ord a, Arbitrary a, Data a, Generic a) 
+instance (SC.SubTypes a, Ord a, Arbitrary a, Generic a) 
          => SC.SubTypes (Heap a)
-instance (SC.SubTypes a, Arbitrary a, Data a, Generic a) 
+instance (SC.SubTypes a, Arbitrary a, Generic a) 
          => SC.SubTypes (HeapP a)
-instance (SC.SubTypes a, Ord a, Arbitrary a, Data a, Generic a) 
+instance (SC.SubTypes a, Ord a, Arbitrary a, Generic a) 
          => SC.SubTypes (HeapPP a)
 
 -- instance (Ord a, Arbitrary a, Data a, Show a) => SC.SubTypes (Heap a) where
@@ -85,7 +83,7 @@ instance (Ord a, Arbitrary a) => Arbitrary (Heap a) where
 data Heap a
   = Node a (Heap a) (Heap a)
   | Nil
- deriving ( Eq, Ord, Show, Read, Data, Typeable, Generic )
+ deriving ( Eq, Ord, Show, Read, Typeable, Generic )
 
 empty :: Heap a
 empty = Nil
@@ -147,7 +145,7 @@ data HeapP a
   | SafeRemoveMin (HeapP a)
   | Merge (HeapP a) (HeapP a)
   | FromList [a]
- deriving ( Show, Read, Data, Typeable, Generic )
+ deriving ( Show, Read, Typeable, Generic )
 
 heap :: Ord a => HeapP a -> Heap a
 heap Empty             = empty
@@ -197,7 +195,7 @@ instance Arbitrary a => Arbitrary (HeapP a) where
   -- shrink _                 = []
 
 data HeapPP a = HeapPP (HeapP a) (Heap a)
- deriving ( Show, Read, Data, Typeable, Generic )
+ deriving ( Show, Read, Typeable, Generic )
 
 instance (Ord a, Arbitrary a) => Arbitrary (HeapPP a) where
   arbitrary =

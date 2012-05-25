@@ -8,7 +8,6 @@ import Test.SmartCheck
 import Test.QuickCheck hiding (Result)
 
 import Data.Tree
-import Data.Data
 import Control.Monad.State 
 
 import GHC.Generics
@@ -17,12 +16,12 @@ import GHC.Generics
 
 data M = M N N Int
        | P
-  deriving (Data, Typeable, Show, Eq, Read, Generic)
+  deriving (Typeable, Show, Eq, Read, Generic)
 
 instance SubTypes M
 
 data N = N M Int String
-  deriving (Data, Typeable, Show, Eq, Read, Generic)
+  deriving (Typeable, Show, Eq, Read, Generic)
 
 instance SubTypes N
 

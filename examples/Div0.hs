@@ -10,6 +10,9 @@ import Test.SmartCheck
 import Control.Monad
 
 import GHC.Generics
+import Data.Typeable
+
+-----------------------------------------------------------------
 
 data M = C Int
        | A M M

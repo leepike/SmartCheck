@@ -294,9 +294,12 @@ instance SubTypes Word64  where
   replaceChild  = replaceChild'
   toConstr _    = ""
 instance SubTypes ()      where baseType _    = True
--- instance (Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes [a] where 
---   subTypes   = concatMap subTypes
---   allSubTypes = concatMap allSubTypes
+instance (Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes [a] where 
+  subTypes      = concatMap subTypes
+  allSubTypes   = concatMap allSubTypes
+  replaceChild  = replaceChild'
+  toConstr []   = "[]"
+  toConstr _    = ":"
 instance (Integral a, Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes (Ratio a) where 
   subTypes _    = []
   baseType _    = True

@@ -9,6 +9,7 @@ import Test.QuickCheck hiding (Result)
 
 import Data.Tree
 import Control.Monad.State 
+import Data.Typeable
 
 import GHC.Generics
 

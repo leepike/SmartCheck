@@ -16,6 +16,7 @@ import Data.List
   ( sort
   , (\\)
   )
+import Data.Typeable
 
 import qualified Data.Tree as T
 import GHC.Generics

@@ -95,7 +95,7 @@ method is superfluous), we are ready to run SmartCheck.
     divTest = smartCheck args div_prop
       where 
       args = scStdArgs { qcArgs   = stdArgs 
-                       , treeShow = PrntString }
+                       , treeShow = PrintString }
 
 In this example, we won't redefine any of QuickCheck's standard arguments, but
 it's certainly possible.  the treeShow field tells SmartCheck whether you want

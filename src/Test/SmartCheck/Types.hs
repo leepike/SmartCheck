@@ -14,6 +14,7 @@ module Test.SmartCheck.Types
   , ScArgs(..)
   , Format(..)
   , scStdArgs
+  , errorMsg
   )
     where
 
@@ -33,7 +34,7 @@ import qualified Test.QuickCheck as Q
 -- User-defined subtypes of data
 ---------------------------------------------------------------------------------
 
-data Format = PrntTree | PrntString
+data Format = PrintTree | PrintString
   deriving (Eq, Read, Show)
 
 data ScArgs = 
@@ -45,7 +46,7 @@ data ScArgs =
 
 scStdArgs :: ScArgs
 scStdArgs = ScArgs { chatty   = False
-                   , treeShow = PrntTree
+                   , treeShow = PrintTree
                    , qcArgs   = Q.stdArgs
                    }
 
@@ -129,6 +130,11 @@ class (Q.Arbitrary a, Show a, Typeable a) => SubTypes a where
   -- default toConstrAndBase :: (Generic a, GST (Rep a)) => a -> String
   -- toConstrAndBase = gcb . from
   -----------------------------------------------------------
+  showForest :: a -> Forest String
+  default showForest :: (Generic a, GST (Rep a)) 
+                     => a -> Forest String
+  showForest = gsf . from
+  -----------------------------------------------------------
 
 ---------------------------------------------------------------------------------
 -- Generic representation
@@ -141,6 +147,7 @@ class GST f where
   grp :: Typeable b => f a -> Forest Subst -> b -> Maybe (f a)
   gtc :: f a -> String
 --  gcb :: f a -> String
+  gsf :: f a -> Forest String
 
 instance GST U1 where
   gst U1 = []
@@ -148,6 +155,7 @@ instance GST U1 where
   grp _ _ _ = Nothing
   gtc U1 = ""
 --  gcb U1 = ""
+  gsf U1 = []
 
 instance (GST a, GST b) => GST (a :*: b) where
   gst (a :*: b) = gst a ++ gst b
@@ -167,14 +175,14 @@ instance (GST a, GST b) => GST (a :*: b) where
 
   gtc (a :*: b) = gtc a ++ gtc b
 
-  -- If the element is a baseType, we use it.  Can't use baseTypes directly
-  -- here, so we see if the tree's subforest is empty.
+  -- If the element is a baseType, we use it.  (Can't use baseTypes directly
+  -- here, so we see if the tree's subforest is empty).
   -- gcb (a :*: b) = if null (gst a) 
-  --                   then if null (gst b)
-  --                          then addSpace (gcb a) (gcb b)
+  --                   then if null (gst b) then addSpace (gcb a) (gcb b) 
   --                          else gcb a
-  --                   else if null (gst b) then gcb b
-  --                          else ""
+  --                   else if null (gst b) then gcb b else ""
+                           
+  gsf (a :*: b) = gsf a ++ gsf b
 
 instance (GST a, GST b) => GST (a :+: b) where
   gst (L1 a) = gst a
@@ -192,13 +200,19 @@ instance (GST a, GST b) => GST (a :+: b) where
   -- gcb (L1 a) = gcb a
   -- gcb (R1 a) = gcb a
 
+  gsf (L1 a) = gsf a
+  gsf (R1 a) = gsf a
+
 -- Constructor meta-information
 instance (Constructor c, GST a) => GST (M1 C c a) where
   gst (M1 a) = gst a
   gat (M1 a) = gat a
   grp (M1 a) forest c = grp a forest c >>= return . M1
-  gtc m = conName m 
---  gcb m@(M1 a) = addSpace (conName m) (gcb a) 
+  gtc = conName 
+--  gcb m@(M1 a) = addSpace (conName m) (gcb a)
+  gsf m@(M1 a) = [ Node (conName m) forest ]
+    where
+    forest = gsf a --if null (gst a) then [] else gsf a
 
 -- All the other meta-information (selector, module, etc.)
 instance GST a => GST (M1 i k a) where
@@ -207,6 +221,7 @@ instance GST a => GST (M1 i k a) where
   grp (M1 a) forest c = grp a forest c >>= return . M1
   gtc (M1 a) = gtc a
 --  gcb (M1 a) = gcb a
+  gsf (M1 a) = gsf a
 
 instance (Show a, Q.Arbitrary a, SubTypes a, Typeable a) => GST (K1 i a) where
   gst (K1 a) = if baseType a then []
@@ -222,7 +237,11 @@ instance (Show a, Q.Arbitrary a, SubTypes a, Typeable a) => GST (K1 i a) where
       (Node Subst ls : _) -> replaceChild a ls c >>= return . K1
 
   gtc _ = ""
-  -- gcb (K1 a) = if baseType a then show a else ""
+--  gcb (K1 a) = if baseType a then show a else ""
+  
+  gsf (K1 a) = forest
+    where 
+    forest = if baseType a then [ Node (show a) [] ] else showForest a
 
 ---------------------------------------------------------------------------------
 -- We try to cover the instances supported by QuickCheck: http://hackage.haskell.org/packages/archive/QuickCheck/2.4.2/doc/html/Test-QuickCheck-Arbitrary.html
@@ -237,81 +256,106 @@ instance SubTypes Int8    where
   baseType _    = True
   allSubTypes _ = []
   replaceChild  = replaceChild'
-  toConstr _    = ""
+  toConstr      = toConstr'
+--  toConstrAndBase = toConstrAndBase'
+  showForest    = showForest'  
 instance SubTypes Int16   where 
   subTypes _    = []
   baseType _    = True
   allSubTypes _ = []
   replaceChild  = replaceChild'
-  toConstr _    = ""
+  toConstr      = toConstr'
+--  toConstrAndBase = toConstrAndBase'
+  showForest    = showForest'  
 instance SubTypes Int32   where 
   subTypes _    = []
   baseType _    = True
   allSubTypes _ = []
   replaceChild  = replaceChild'
-  toConstr _    = ""
+  toConstr      = toConstr'
+--  toConstrAndBase = toConstrAndBase'
+  showForest    = showForest'  
 instance SubTypes Int64   where 
   subTypes _    = []
   baseType _    = True
   allSubTypes _ = []
   replaceChild  = replaceChild'
-  toConstr _    = ""
+  toConstr      = toConstr'
+--  toConstrAndBase = toConstrAndBase'
+  showForest    = showForest'  
 instance SubTypes Integer where
   subTypes _    = []
   baseType _    = True
   allSubTypes _ = []
   replaceChild  = replaceChild'
-  toConstr _    = ""
---  toConstrAndBase a = show a
+  toConstr      = toConstr'
+--  toConstrAndBase = toConstrAndBase'
+  showForest    = showForest'  
 instance SubTypes Word    where
   subTypes _    = []
   baseType _    = True
   allSubTypes _ = []
   replaceChild  = replaceChild'
-  toConstr _    = ""
+  toConstr      = toConstr'
+--  toConstrAndBase = toConstrAndBase'
+  showForest    = showForest'  
 instance SubTypes Word8   where
   subTypes _    = []
   baseType _    = True
   allSubTypes _ = []
   replaceChild  = replaceChild'
-  toConstr _    = ""
+  toConstr      = toConstr'
+--  toConstrAndBase = toConstrAndBase'
+  showForest    = showForest'  
 instance SubTypes Word16  where
   subTypes _    = []
   baseType _    = True
   allSubTypes _ = []
   replaceChild  = replaceChild'
-  toConstr _    = ""
+  toConstr      = toConstr'
+--  toConstrAndBase = toConstrAndBase'
+  showForest    = showForest'  
 instance SubTypes Word32  where
   subTypes _    = []
   baseType _    = True
   allSubTypes _ = []
   replaceChild  = replaceChild'
-  toConstr _    = ""
+  toConstr      = toConstr'
+--  toConstrAndBase = toConstrAndBase'
+  showForest    = showForest'  
 instance SubTypes Word64  where
   subTypes _    = []
   baseType _    = True
   allSubTypes _ = []
   replaceChild  = replaceChild'
-  toConstr _    = ""
+  toConstr      = toConstr'
+--  toConstrAndBase = toConstrAndBase'
+  showForest    = showForest'  
 instance SubTypes ()      where baseType _    = True
 instance (Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes [a] where 
   subTypes      = concatMap subTypes
+  baseType _    = True
   allSubTypes   = concatMap allSubTypes
   replaceChild  = replaceChild'
-  toConstr []   = "[]"
-  toConstr _    = ":"
+  toConstr      = toConstr'
+--  toConstrAndBase = toConstrAndBase'
+  showForest    = showForest'  
 instance (Integral a, Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes (Ratio a) where 
   subTypes _    = []
   baseType _    = True
   allSubTypes _ = []
   replaceChild  = replaceChild'
-  toConstr _    = ""
+  toConstr      = toConstr'
+--  toConstrAndBase = toConstrAndBase'
+  showForest    = showForest'  
 instance (RealFloat a, Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes (Complex a) where 
   subTypes _    = []
   baseType _    = True
   allSubTypes _ = []
   replaceChild  = replaceChild'
-  toConstr _    = ""
+  toConstr      = toConstr'
+--  toConstrAndBase = toConstrAndBase'
+  showForest    = showForest'  
 instance (Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes (Maybe a) where 
   baseType _ = False
 instance ( Q.Arbitrary a, SubTypes a, Typeable a
@@ -345,18 +389,40 @@ instance ( Q.Arbitrary a, SubTypes a, Typeable a
 -- revision...)
 instance SubTypes String  where 
   baseType _    = True
---  replaceChild  = replaceChild'
 
 ---------------------------------------------------------------------------------
 -- Helpers
 
+toConstr' :: a -> String
+toConstr' _ = errorMsg "toConstr method of SubTypes Class"
+
+-- toConstrAndBase' :: a -> String
+-- toConstrAndBase' _ = errorMsg "toConstrAndBase method of SubTypes Class"
+
+replaceChild' :: a -> Forest Subst -> b -> Maybe a
+replaceChild' _ _ = errorMsg "replaceChild method of SubTypes Class"
+-- replaceChild' :: (Typeable a, Typeable b) 
+--               => a -> Forest Subst -> b -> Maybe a
+-- replaceChild' a []                 _ = Just a
+-- replaceChild' a (Node Keep  _ : _) _ = Just a
+-- replaceChild' _ (Node Subst _ : _) b = cast b
+
+showForest' :: a -> Forest String
+showForest' _ = errorMsg "showForest method of SubTypes Class"
+
+---------------------------------------------------------------------------------
+
 -- addSpace :: String -> String -> String
 -- addSpace a b = if null b then a else a ++ ' ': b
 
-replaceChild' :: (Typeable a, Typeable b) 
-              => a -> Forest Subst -> b -> Maybe a
-replaceChild' a []                 _ = Just a
-replaceChild' a (Node Keep  _ : _) _ = Just a
-replaceChild' _ (Node Subst _ : _) b = cast b
+-- parens :: String -> String
+-- parens a = '(' : a ++ ")"
+
+---------------------------------------------------------------------------------
+
+errorMsg :: String -> a
+errorMsg loc = error $ "SmartCheck error: unexpected error in " ++ loc
+    ++ ".  Please file a bug report at " 
+    ++ "<https://github.com/leepike/SmartCheck/issues>."
 
 ---------------------------------------------------------------------------------

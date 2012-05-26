@@ -24,9 +24,16 @@ TODO
 
 * Performance analysis of extrapolation.
 
-* Make SubT from Forest into Tree(?)  More natural and allows to index the head.
+* Have extrapolate check whether we've run out of sub constructors and let the
+  user know.
 
-* Check all methods to baseTypes and add additional baseTypes as needed.
+* Lists are base types??
+
+* Rewrite all base methods to just call errorMsg --unneeded (except baseType).
+
+* Document SubTypes class methods!
+
+* In PrintTree, pull baseTypes up?  not sure...
 
 Won't Do / Can't Do
 -----------------------------------------------

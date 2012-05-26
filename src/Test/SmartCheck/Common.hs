@@ -28,7 +28,7 @@ samples :: Q.Arbitrary a
         -> IO [a]
 samples _ i maxSz = do
   rnd0 <- newStdGen
-  when (maxSz < 0) (error "samples: maxSize less than 0.")
+  when (maxSz < 0) (errorMsg "samples: maxSize less than 0.")
   let ls = sort $ take i $ randomRs (0, maxSz) rnd0 -- XXX better distribution.
   let rnds rnd = rnd1 : rnds rnd2 
         where (rnd1,rnd2) = split rnd
@@ -55,7 +55,7 @@ iterateArb :: SubTypes a
            -> (a -> Q.Property) -> IO (Result a)
 iterateArb d idx tries sz prop = 
   case getAtIdx d idx of
-    Nothing -> error "iterateArb 0"
+    Nothing -> errorMsg "iterateArb 0"
     Just v  -> do rnds <- mkVals v
                   forM_ rnds (\a -> if isNothing $ replace d idx a
                                       then do putStrLn (show a)
@@ -65,7 +65,7 @@ iterateArb d idx tries sz prop =
                   let res = catMaybes $ map (replace d idx) rnds
                   -- Catch errors that shouldn't ever happen: this means that
                   -- there is probably a bad idx passed in.
-                  when (length res /= length rnds) (error "iterateArb 1")
+                  when (length res /= length rnds) (errorMsg "iterateArb 1")
                   foldM (extractResult prop) FailedPreCond res
   where
                    
@@ -104,6 +104,6 @@ resultify prop a = do
   fs = Q.unProp $ f err err        :: Q.Rose Q.Result
   res = Q.protectRose . Q.reduceRose
 
-  err = error "in propify: should not evaluate."
+  err = errorMsg "propify: should not evaluate."
 
 ---------------------------------------------------------------------------------

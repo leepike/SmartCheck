@@ -102,7 +102,7 @@ mkTry args d idx prop maxSize = do
 
   where
   mv = case getAtIdx d idx of
-         Nothing -> error "unexpected failure: getAtIdx mkTry"
+         Nothing -> errorMsg "unexpected failure: getAtIdx mkTry"
          Just v  -> testHole v
 
   testHole :: SubT -> IO (Maybe a)

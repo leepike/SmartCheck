@@ -104,11 +104,6 @@ class (Q.Arbitrary a, Show a, Typeable a) => SubTypes a where
                    => a -> Forest SubT
   subTypes = gst . from
   -----------------------------------------------------------
-  allSubTypes :: a -> Forest SubT
-  default allSubTypes :: (Generic a, GST (Rep a)) 
-                      => a -> Forest SubT
-  allSubTypes = gat . from
-  -----------------------------------------------------------
   baseType :: a -> Bool
   baseType _ = False
   -----------------------------------------------------------
@@ -143,7 +138,6 @@ class (Q.Arbitrary a, Show a, Typeable a) => SubTypes a where
 class GST f where
   -- Names are abbreviations of the corresponding method names above.
   gst :: f a -> Forest SubT
-  gat :: f a -> Forest SubT
   grp :: Typeable b => f a -> Forest Subst -> b -> Maybe (f a)
   gtc :: f a -> String
 --  gcb :: f a -> String
@@ -151,7 +145,6 @@ class GST f where
 
 instance GST U1 where
   gst U1 = []
-  gat U1 = []
   grp _ _ _ = Nothing
   gtc U1 = ""
 --  gcb U1 = ""
@@ -159,7 +152,6 @@ instance GST U1 where
 
 instance (GST a, GST b) => GST (a :*: b) where
   gst (a :*: b) = gst a ++ gst b
-  gat (a :*: b) = gat a ++ gat b
 
   grp (a :*: b) forest c 
     -- If the 1st element is a baseType, we skip it.  Can't use baseTypes
@@ -188,9 +180,6 @@ instance (GST a, GST b) => GST (a :+: b) where
   gst (L1 a) = gst a
   gst (R1 b) = gst b
 
-  gat (L1 a) = gat a
-  gat (R1 b) = gat b
-
   grp (L1 a) forest c = grp a forest c >>= return . L1
   grp (R1 a) forest c = grp a forest c >>= return . R1
 
@@ -206,7 +195,6 @@ instance (GST a, GST b) => GST (a :+: b) where
 -- Constructor meta-information
 instance (Constructor c, GST a) => GST (M1 C c a) where
   gst (M1 a) = gst a
-  gat (M1 a) = gat a
   grp (M1 a) forest c = grp a forest c >>= return . M1
   gtc = conName 
 --  gcb m@(M1 a) = addSpace (conName m) (gcb a)
@@ -217,7 +205,6 @@ instance (Constructor c, GST a) => GST (M1 C c a) where
 -- All the other meta-information (selector, module, etc.)
 instance GST a => GST (M1 i k a) where
   gst (M1 a) = gst a
-  gat (M1 a) = gat a
   grp (M1 a) forest c = grp a forest c >>= return . M1
   gtc (M1 a) = gtc a
 --  gcb (M1 a) = gcb a
@@ -226,8 +213,6 @@ instance GST a => GST (M1 i k a) where
 instance (Show a, Q.Arbitrary a, SubTypes a, Typeable a) => GST (K1 i a) where
   gst (K1 a) = if baseType a then []
                  else [ Node (subT a) (subTypes a) ]
-
-  gat (K1 a) = [ Node (subT a) (subTypes a) ]
 
   grp (K1 a) forest c = 
     case forest of
@@ -254,7 +239,6 @@ instance SubTypes Int     where baseType _    = True
 instance SubTypes Int8    where 
   subTypes _    = []
   baseType _    = True
-  allSubTypes _ = []
   replaceChild  = replaceChild'
   toConstr      = toConstr'
 --  toConstrAndBase = toConstrAndBase'
@@ -262,7 +246,6 @@ instance SubTypes Int8    where
 instance SubTypes Int16   where 
   subTypes _    = []
   baseType _    = True
-  allSubTypes _ = []
   replaceChild  = replaceChild'
   toConstr      = toConstr'
 --  toConstrAndBase = toConstrAndBase'
@@ -270,7 +253,6 @@ instance SubTypes Int16   where
 instance SubTypes Int32   where 
   subTypes _    = []
   baseType _    = True
-  allSubTypes _ = []
   replaceChild  = replaceChild'
   toConstr      = toConstr'
 --  toConstrAndBase = toConstrAndBase'
@@ -278,7 +260,6 @@ instance SubTypes Int32   where
 instance SubTypes Int64   where 
   subTypes _    = []
   baseType _    = True
-  allSubTypes _ = []
   replaceChild  = replaceChild'
   toConstr      = toConstr'
 --  toConstrAndBase = toConstrAndBase'
@@ -286,7 +267,6 @@ instance SubTypes Int64   where
 instance SubTypes Integer where
   subTypes _    = []
   baseType _    = True
-  allSubTypes _ = []
   replaceChild  = replaceChild'
   toConstr      = toConstr'
 --  toConstrAndBase = toConstrAndBase'
@@ -294,7 +274,6 @@ instance SubTypes Integer where
 instance SubTypes Word    where
   subTypes _    = []
   baseType _    = True
-  allSubTypes _ = []
   replaceChild  = replaceChild'
   toConstr      = toConstr'
 --  toConstrAndBase = toConstrAndBase'
@@ -302,7 +281,6 @@ instance SubTypes Word    where
 instance SubTypes Word8   where
   subTypes _    = []
   baseType _    = True
-  allSubTypes _ = []
   replaceChild  = replaceChild'
   toConstr      = toConstr'
 --  toConstrAndBase = toConstrAndBase'
@@ -310,7 +288,6 @@ instance SubTypes Word8   where
 instance SubTypes Word16  where
   subTypes _    = []
   baseType _    = True
-  allSubTypes _ = []
   replaceChild  = replaceChild'
   toConstr      = toConstr'
 --  toConstrAndBase = toConstrAndBase'
@@ -318,7 +295,6 @@ instance SubTypes Word16  where
 instance SubTypes Word32  where
   subTypes _    = []
   baseType _    = True
-  allSubTypes _ = []
   replaceChild  = replaceChild'
   toConstr      = toConstr'
 --  toConstrAndBase = toConstrAndBase'
@@ -326,7 +302,6 @@ instance SubTypes Word32  where
 instance SubTypes Word64  where
   subTypes _    = []
   baseType _    = True
-  allSubTypes _ = []
   replaceChild  = replaceChild'
   toConstr      = toConstr'
 --  toConstrAndBase = toConstrAndBase'
@@ -335,7 +310,6 @@ instance SubTypes ()      where baseType _    = True
 instance (Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes [a] where 
   subTypes      = concatMap subTypes
   baseType _    = True
-  allSubTypes   = concatMap allSubTypes
   replaceChild  = replaceChild'
   toConstr      = toConstr'
 --  toConstrAndBase = toConstrAndBase'
@@ -343,7 +317,6 @@ instance (Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes [a] where
 instance (Integral a, Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes (Ratio a) where 
   subTypes _    = []
   baseType _    = True
-  allSubTypes _ = []
   replaceChild  = replaceChild'
   toConstr      = toConstr'
 --  toConstrAndBase = toConstrAndBase'
@@ -351,7 +324,6 @@ instance (Integral a, Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes (Ratio 
 instance (RealFloat a, Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes (Complex a) where 
   subTypes _    = []
   baseType _    = True
-  allSubTypes _ = []
   replaceChild  = replaceChild'
   toConstr      = toConstr'
 --  toConstrAndBase = toConstrAndBase'

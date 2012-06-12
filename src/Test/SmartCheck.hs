@@ -11,6 +11,7 @@ import Test.SmartCheck.Types
 import Test.SmartCheck.Reduce
 import Test.SmartCheck.Extrapolate
 import Test.SmartCheck.Render
+import Test.SmartCheck.ConstructorGen
 
 import qualified Test.QuickCheck as Q
 

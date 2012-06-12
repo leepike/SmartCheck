@@ -29,11 +29,19 @@ TODO
 
 * Lists are base types??
 
-* Rewrite all base methods to just call errorMsg --unneeded (except baseType).
-
 * Document SubTypes class methods!
 
 * In PrintTree, pull baseTypes up?  not sure...
+
+* Am I passing args to iterateArb correctly?  Document the use of size and tries
+  better.
+
+  * maxSize parameter in interateArb really depends on using a sized parameter in
+    arbitrary instances.  Anyway to ensure/control this?
+
+* We extrapolate if there exists at least one test that satisfies the
+  precondition, and for all tests that asatisfy the precondition, they fail.  Is
+  this the right thing to do?  (I think it is.)
 
 Won't Do / Can't Do
 -----------------------------------------------

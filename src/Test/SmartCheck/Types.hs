@@ -15,8 +15,8 @@ module Test.SmartCheck.Types
   , Format(..)
   , scStdArgs
   , errorMsg
-  )
-    where
+  ) where
+  
 
 import GHC.Generics
 import Data.Tree
@@ -38,16 +38,14 @@ data Format = PrintTree | PrintString
   deriving (Eq, Read, Show)
 
 data ScArgs = 
-  ScArgs { chatty   :: Bool   -- ^ Verbose output while running SmartCheck
-         , treeShow :: Format -- ^ How to show extrapolated formula
-         , qcArgs   :: Q.Args -- ^ QuickCheck arguments
+  ScArgs { treeShow  :: Format -- ^ How to show extrapolated formula
+         , qcArgs    :: Q.Args -- ^ QuickCheck arguments
          }
   deriving (Show, Read)
 
 scStdArgs :: ScArgs
-scStdArgs = ScArgs { chatty   = False
-                   , treeShow = PrintTree
-                   , qcArgs   = Q.stdArgs
+scStdArgs = ScArgs { treeShow  = PrintTree
+                   , qcArgs    = Q.stdArgs
                    }
 
 ---------------------------------------------------------------------------------

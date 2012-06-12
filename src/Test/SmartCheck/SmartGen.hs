@@ -1,9 +1,10 @@
-module Test.SmartCheck.Common
+module Test.SmartCheck.SmartGen
   ( Result(..)
   , iterateArb
   , extractResult
   , resultify
   , replace
+  , samples -- YYY
   ) where
 
 import Test.SmartCheck.Types
@@ -29,20 +30,21 @@ samples :: Q.Arbitrary a
 samples _ i maxSz = do
   rnd0 <- newStdGen
   when (maxSz < 0) (errorMsg "samples: maxSize less than 0.")
-  let ls = sort $ take i $ randomRs (0, maxSz) rnd0 -- XXX better distribution.
-  let rnds rnd = rnd1 : rnds rnd2 
-        where (rnd1,rnd2) = split rnd
+  let ls = sort . take i $ randomRs (0, maxSz) rnd0 -- XXX better distribution?
+  let rnds rnd = rnd1 : rnds rnd2 where (rnd1,rnd2) = split rnd
   let Q.MkGen m = Q.arbitrary
+  -- Remember, m is a *function*, that takes a random generator (r) and a
+  -- maxSize parameter (n).  We control size using the n parameter.  This is
+  -- morally equivalent to using the resize function in QuickCheck.Gen.
   return [ (m r n) | (r,n) <- rnds rnd0 `zip` ls ]
 
 ---------------------------------------------------------------------------------
 
--- | Possible results of iterateArb: couldn't satisfy the precondition of a
--- QuickCheck property, failed the property, or satisfied it, with the
--- satisfying value.
-data Result a = FailedPreCond
-              | FailedProp
-              | Result a
+-- | Possible results of iterateArb.
+data Result a = FailedPreCond -- ^ Couldn't satisfy the precondition of a
+                              -- QuickCheck property
+              | FailedProp    -- ^ Failed the property
+              | Result a      -- ^ Satisfied it, with the satisfying value
   deriving (Show, Read, Eq)
 
 ---------------------------------------------------------------------------------
@@ -58,8 +60,7 @@ iterateArb d idx tries sz prop =
     Nothing -> errorMsg "iterateArb 0"
     Just v  -> do rnds <- mkVals v
                   forM_ rnds (\a -> if isNothing $ replace d idx a
-                                      then do putStrLn (show a)
-                                              putStrLn (show idx)
+                                      then errorMsg "iterateArb 1"
                                       else return ())
 
                   let res = catMaybes $ map (replace d idx) rnds
@@ -75,6 +76,8 @@ iterateArb d idx tries sz prop =
 
 ---------------------------------------------------------------------------------
 
+-- | Must pass at the precondition at least once to return either FailedProp or
+-- Result.
 extractResult :: (a -> Q.Property) -> Result a -> a -> IO (Result a)
 extractResult _    r@(Result _) _ = return r
 extractResult prop r            a = do

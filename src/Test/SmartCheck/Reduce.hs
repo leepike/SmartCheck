@@ -5,7 +5,7 @@ module Test.SmartCheck.Reduce
   ) where
 
 import Test.SmartCheck.Types
-import Test.SmartCheck.Common
+import Test.SmartCheck.SmartGen
 import Test.SmartCheck.DataToTree
 import Test.SmartCheck.Render
 
@@ -91,7 +91,11 @@ mkTry args d idx prop maxSize = do
     -- it, if it's well-typed.
     Just v' -> iterReduce args v' (Idx 0 0) prop
     Nothing -> do 
-      try <- iterateArb d idx (Q.maxDiscard args) maxSize prop
+      -- We'll make Q.maxSuccess tests of maxSize.  We claim to find a failure
+      -- if some test satisfies the precondition and satisfies 
+      --
+      -- (Q.expectFailure . originalProp).
+      try <- iterateArb d idx (Q.maxSuccess args) maxSize prop
       case try of
         -- Found a try that fails prop.  We'll now test try, and start trying to
         -- reduce from the top!  

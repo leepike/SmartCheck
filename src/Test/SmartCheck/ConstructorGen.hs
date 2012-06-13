@@ -2,7 +2,7 @@
 
 module Test.SmartCheck.ConstructorGen
   ( --NewArb(..)
-    recConstrs
+    extrapolateConstrs
 --    arbSubset
   ) where
 
@@ -21,39 +21,48 @@ import qualified Test.QuickCheck as Q
 -- | For a value a (used just for typing), and a list of representations of
 -- constructors cs, arbSubset generages a new value b, if possible, such that b
 -- has the same type as a, and b's constructor is not found in cs.
+--
+-- Assumes there is some new constructor to test with.
 arbSubset :: (SubTypes a, Generic a, ConNames (Rep a)) 
           => Q.Args -> a -> Idx -> (a -> Q.Property) 
-          -> [String] -> IO (Maybe (Result a))
+          -> S.Set String -> IO (Result a)
 arbSubset args a idx prop constrs = 
-  -- Check if every possible constructor is an element of constrs passed in.
-  if S.fromList (conNames a) `S.isSubsetOf` S.fromList constrs
-    then return Nothing
-    else iterateArb a idx (Q.maxSuccess args) (Q.maxSize args) prop' >>=
-           (return . Just)
+      iterateArb a idx (Q.maxSuccess args) (Q.maxSize args) prop' 
+  >>= return
 
   where
   prop' b = newConstr b Q.==> prop b
   -- Make sure b's constructor is a new one.
-  newConstr b = not $ toConstr b `elem` constrs
+  newConstr b = not $ toConstr b `S.member` constrs
   
 ---------------------------------------------------------------------------------
 
 -- | Return True if we can generalize; False otherwise.
-recConstrs :: (SubTypes a, Generic a, ConNames (Rep a)) 
-           => Q.Args -> a -> Idx -> (a -> Q.Property) 
-           -> [String] -> IO Bool
-recConstrs args a idx prop constrs = do
-  v <- arbSubset args a idx prop constrs
-  case v of
-    Nothing            -> return True
-    Just (Result x)    -> recConstrs args a idx prop (constrs' x)
-    Just _             -> return False
+extrapolateConstrs :: (SubTypes a, Generic a, ConNames (Rep a)) 
+  => Q.Args -> a -> Idx -> (a -> Q.Property) -> IO Bool
+extrapolateConstrs args a idx prop = recConstrs (constrs' a S.empty)
 
   where
-  constrs' x = subVal x : constrs
+  notProp = Q.expectFailure . prop
 
-  subVal x = case getAtIdx x idx of
-               Nothing -> errorMsg "recConstrs"
+  recConstrs constrs =
+    -- Check if every possible constructor is an element of constrs passed
+    -- in.
+    putStrLn (show constrs) -- YYY
+    >>
+    if S.fromList (conNames a) `S.isSubsetOf` constrs
+      then return True
+      else do v <- arbSubset args a idx notProp constrs
+              case v of
+                Result x    -> if recConstrs $ constrs' x constrs
+                _           -> return False
+
+  constrs' x constrs = subVal `S.insert` constrs
+    where
+    subVal = case getAtIdx x idx of
+               Nothing -> errorMsg "constrs'"
                Just x' -> subTconstr x'
-  
-  subTconstr (SubT v) = toConstr v
+
+    subTconstr (SubT v) = toConstr v
+
+---------------------------------------------------------------------------------

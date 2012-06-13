@@ -86,9 +86,9 @@ iter args forest d prop idx idxs =
       -- None of the tries satisfy prop.  Prevent recurring down this tree,
       -- since we can generalize (we do this with sub, which replaces the
       -- subForest with []).
-      FailedProp    -> iter' (forestStop forest idx)
-                         idx { column = column idx + 1 } 
-                         (idx : idxs)
+      FailedProp -> iter' (forestStop forest idx)
+                      idx { column = column idx + 1 } 
+                      (idx : idxs)
       -- Either something satisfied it or the precondition couldn't be
       -- satisfied.  Recurse down.
       _             -> next

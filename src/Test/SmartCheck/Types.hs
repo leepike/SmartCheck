@@ -38,14 +38,16 @@ data Format = PrintTree | PrintString
   deriving (Eq, Read, Show)
 
 data ScArgs = 
-  ScArgs { treeShow  :: Format -- ^ How to show extrapolated formula
-         , qcArgs    :: Q.Args -- ^ QuickCheck arguments
+  ScArgs { treeShow    :: Format -- ^ How to show extrapolated formula
+         , qcArgs      :: Q.Args -- ^ QuickCheck arguments
+         , maxFailure  :: Int    -- ^ How hard to look for failure
          }
   deriving (Show, Read)
 
 scStdArgs :: ScArgs
-scStdArgs = ScArgs { treeShow  = PrintTree
-                   , qcArgs    = Q.stdArgs
+scStdArgs = ScArgs { treeShow   = PrintTree
+                   , maxFailure = Q.maxDiscard Q.stdArgs
+                   , qcArgs     = Q.stdArgs
                    }
 
 ---------------------------------------------------------------------------------

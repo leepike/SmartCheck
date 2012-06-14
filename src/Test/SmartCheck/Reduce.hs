@@ -20,7 +20,7 @@ import Data.Typeable
 -- increasingly larger) randomly-generated values until we find a failure, and
 -- return that result.  (We call smartShrink recursively.)
 smartRun :: SubTypes a
-         => Q.Args -> Maybe a -> (a -> Q.Property) -> IO (Maybe a)
+         => ScArgs -> Maybe a -> (a -> Q.Property) -> IO (Maybe a)
 smartRun args res prop =
   case res of 
     Just res' -> runSmart res'
@@ -41,12 +41,12 @@ smartRun args res prop =
 
 -- | Breadth-first traversal of d, trying to shrink it with *strictly* smaller
 -- children.  We replace d whenever a successful shrink is found and try again.
-smartShrink :: SubTypes a => Q.Args -> a -> (a -> Q.Property) -> IO a
+smartShrink :: SubTypes a => ScArgs -> a -> (a -> Q.Property) -> IO a
 smartShrink args d prop = iterReduce args d (Idx 0 0) notProp
   where
   notProp = Q.expectFailure . prop
 
-iterReduce :: SubTypes a => Q.Args -> a -> Idx -> (a -> Q.Property) -> IO a
+iterReduce :: SubTypes a => ScArgs -> a -> Idx -> (a -> Q.Property) -> IO a
 iterReduce args d idx prop = 
   if done then return d
     else if nextLevel 
@@ -83,7 +83,7 @@ iterReduce args d idx prop =
 ---------------------------------------------------------------------------------
 
 mkTry :: forall a. SubTypes a
-      => Q.Args -> a -> Idx -> (a -> Q.Property) -> Int -> IO a
+      => ScArgs -> a -> Idx -> (a -> Q.Property) -> Int -> IO a
 mkTry args d idx prop maxSize = do
   v <- mv
   case v of
@@ -91,11 +91,12 @@ mkTry args d idx prop maxSize = do
     -- it, if it's well-typed.
     Just v' -> iterReduce args v' (Idx 0 0) prop
     Nothing -> do 
-      -- We'll make Q.maxSuccess tests of maxSize.  We claim to find a failure
-      -- if some test satisfies the precondition and satisfies 
+      -- We'll at least maxFailure tests of maxSize, trying to pass the
+      -- precondition to find a failure.  We claim to find a failure if some
+      -- test satisfies the precondition and satisfies
       --
       -- (Q.expectFailure . originalProp).
-      try <- iterateArb d idx (Q.maxSuccess args) maxSize prop
+      try <- iterateArb d idx (maxFailure args) maxSize prop
       case try of
         -- Found a try that fails prop.  We'll now test try, and start trying to
         -- reduce from the top!  

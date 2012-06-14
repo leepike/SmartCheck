@@ -23,11 +23,9 @@ smartCheck :: (Read a, Q.Arbitrary a, SubTypes a)
 smartCheck args prop = smartCheck' prop []
 
   where
-  qc = qcArgs args
-
   smartCheck' prop' ds = do
-    res <- runQC qc prop'
-    d   <- smartRun qc res prop
+    res <- runQC (qcArgs args) prop'
+    d   <- smartRun args res prop
     case d of
       Nothing -> continue id ds
       -- Extrapolate with the original property to see if we get a

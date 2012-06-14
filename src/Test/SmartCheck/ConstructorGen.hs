@@ -24,27 +24,30 @@ import qualified Test.QuickCheck as Q
 --
 -- Assumes there is some new constructor to test with.
 arbSubset :: (SubTypes a, Generic a, ConNames (Rep a)) 
-          => Q.Args -> a -> Idx -> (a -> Q.Property) 
+          => ScArgs -> a -> Idx -> (a -> Q.Property) 
           -> S.Set String -> IO (Result a)
 arbSubset args a idx prop constrs = 
-      iterateArb a idx (Q.maxSuccess args) (Q.maxSize args) prop' 
+      -- Because we're looking for some failure that passes the precondition, we
+      -- use maxDiscard.
+      iterateArb a idx (maxFailure args) (Q.maxSize $ qcArgs args) prop' 
   >>= return
 
   where
   prop' b = newConstr b Q.==> prop b
   -- Make sure b's constructor is a new one.
-  newConstr b = not $ toConstr b `S.member` constrs
+  newConstr b = not $ subConstr b idx `S.member` constrs
   
 ---------------------------------------------------------------------------------
 
 -- | Return True if we can generalize; False otherwise.
 extrapolateConstrs :: (SubTypes a, Generic a, ConNames (Rep a)) 
-  => Q.Args -> a -> Idx -> (a -> Q.Property) -> IO Bool
-extrapolateConstrs args a idx prop = recConstrs (constrs' a S.empty)
+  => ScArgs -> a -> Idx -> (a -> Q.Property) -> IO Bool
+extrapolateConstrs args a idx prop = recConstrs (S.singleton $ subConstr a idx)
 
   where
   notProp = Q.expectFailure . prop
 
+  recConstrs :: S.Set String -> IO Bool
   recConstrs constrs =
     -- Check if every possible constructor is an element of constrs passed
     -- in.
@@ -54,15 +57,18 @@ extrapolateConstrs args a idx prop = recConstrs (constrs' a S.empty)
       then return True
       else do v <- arbSubset args a idx notProp constrs
               case v of
-                Result x    -> if recConstrs $ constrs' x constrs
+                Result x    -> recConstrs (subConstr x idx `S.insert` constrs)
                 _           -> return False
 
-  constrs' x constrs = subVal `S.insert` constrs
-    where
-    subVal = case getAtIdx x idx of
-               Nothing -> errorMsg "constrs'"
-               Just x' -> subTconstr x'
+---------------------------------------------------------------------------------
 
-    subTconstr (SubT v) = toConstr v
+subConstr :: SubTypes a => a -> Idx -> String
+subConstr x idx = 
+  case getAtIdx x idx of
+    Nothing -> errorMsg "constrs'"
+    Just x' -> subTconstr x'
+
+  where
+  subTconstr (SubT v) = toConstr v
 
 ---------------------------------------------------------------------------------

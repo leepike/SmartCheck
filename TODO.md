@@ -43,6 +43,8 @@ TODO
   precondition, and for all tests that asatisfy the precondition, they fail.  Is
   this the right thing to do?  (I think it is.)
 
+* Args to optionally extrapolate and contructor extrapolate.
+
 Won't Do / Can't Do
 -----------------------------------------------
 * Use shrink instances as default for base types.

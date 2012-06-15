@@ -3,6 +3,11 @@
 module Test.SmartCheck.Render 
   ( renderWithVars
   , smartPrtLn
+  -- * Replacement data
+  , Replace
+  , emptyRepl
+  , toVals
+  , toConstrs
   ) where
 
 import Test.SmartCheck.Types
@@ -12,6 +17,7 @@ import Data.Maybe
 import Data.Tree
 import Data.List
 import Data.Char
+import Control.Monad
 
 ---------------------------------------------------------------------------------
 
@@ -23,20 +29,47 @@ smartPrtLn = putStrLn . (smartPrefix ++)
 
 ---------------------------------------------------------------------------------
 
-renderWithVars :: SubTypes a => Format -> a -> [Idx] -> IO ()
+-- | We track indicies/strings, etc. for values (subterms) and constructors
+-- separately.
+data Replace a = Replace { unVals :: [a], unConstrs :: [a] }
+
+emptyRepl :: Replace a
+emptyRepl = Replace [] []
+
+toVals :: [a] -> Replace a -> Replace a 
+toVals a (Replace vals constrs) = Replace (a ++ vals) constrs
+
+toConstrs :: [a] -> Replace a -> Replace a 
+toConstrs a (Replace vals constrs) = Replace vals (a ++ constrs)
+
+---------------------------------------------------------------------------------
+
+-- XXX only print if variable list is non-empty.
+renderWithVars :: SubTypes a => Format -> a -> Replace Idx -> IO ()
 renderWithVars format d idxs = do
-  putStrLn $ "forall " ++ unwords (take (length idxs) vars) ++ ":"
+  prtVars valsLen  valVars
+  prtVars constrsLen constrVars
+  putStrLn $ replaceWithVars format d idxs (Replace valVars constrVars)
   putStrLn ""
-  putStrLn $ replaceWithVars format d idxs vars
-  putStrLn ""
+
   where
-  vars = map (\(x,i) -> x ++ show i) $ zip (repeat "x") [0::Int ..]
+  prtVars len vs = 
+    when (len > 0) $ do
+      putStrLn $ "forall " ++ unwords (take len vs) ++ ":"
+      putStrLn ""
+
+  vars str = map (\(x,i) -> x ++ show i) $ zip (repeat str) [0::Int ..]
+  valVars = vars "x"
+  constrVars = vars "C"
+
+  valsLen = length (unVals idxs)
+  constrsLen = length (unConstrs idxs)
 
 ---------------------------------------------------------------------------------
 
 -- | At each index into d from idxs, replace the whole with a fresh value.
 replaceWithVars :: SubTypes a
-                => Format -> a -> [Idx] -> [String] -> String
+                => Format -> a -> Replace Idx -> Replace String -> String
 replaceWithVars format d idxs vars = 
   case format of
     PrintTree   -> drawTree strTree
@@ -48,7 +81,7 @@ replaceWithVars format d idxs vars =
 
   where
   strTree :: Tree String
-  strTree = foldl' f t (zip vars idxs)
+  strTree = foldl' f t zipRepl
   
   -- A tree representation of the data turned into a tree of Strings showing the
   -- data.  Note that just like in the representation, the a parent contains its
@@ -61,6 +94,9 @@ replaceWithVars format d idxs vars =
   f :: Tree String -> (String, Idx) -> Tree String
   f tree (var, idx) = 
     Node (rootLabel tree) (forestReplaceChop (subForest tree) idx var)
+
+  zipRepl :: [(String, Idx)]
+  zipRepl = zip (unVals vars) (unVals idxs) ++ zip (unVals vars) (unVals idxs)
 
 ---------------------------------------------------------------------------------
 

@@ -41,13 +41,20 @@ data ScArgs =
   ScArgs { treeShow    :: Format -- ^ How to show extrapolated formula
          , qcArgs      :: Q.Args -- ^ QuickCheck arguments
          , maxFailure  :: Int    -- ^ How hard to look for failure
+         , extrap      :: Bool   -- ^ Should we extrapolate?
+         , constrGen   :: Bool   -- ^ Should we try to generalize constructors?
          }
   deriving (Show, Read)
 
 scStdArgs :: ScArgs
-scStdArgs = ScArgs { treeShow   = PrintTree
-                   , maxFailure = Q.maxDiscard Q.stdArgs
-                   , qcArgs     = Q.stdArgs
+scStdArgs = ScArgs { treeShow    = PrintTree
+                   -- Let's let us fail at least maxDiscard times to pass the
+                   -- precondition, then maxSuccess more to try to find a
+                   -- failure.
+                   , maxFailure  = Q.maxDiscard Q.stdArgs + Q.maxSuccess Q.stdArgs
+                   , qcArgs      = Q.stdArgs
+                   , extrap      = True
+                   , constrGen   = True
                    }
 
 ---------------------------------------------------------------------------------

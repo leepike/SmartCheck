@@ -26,12 +26,14 @@ smartCheck args prop = smartCheck' prop []
   smartCheck' prop' ds = do
     res <- runQC (qcArgs args) prop'
     d   <- smartRun args res prop
-    case d of
-      Nothing -> continue id ds
-      -- Extrapolate with the original property to see if we get a
-      -- previously-visited value back.
-      Just d' -> do prop_ <- extrapolate args d' prop ds
-                    continue prop_ (d' : ds)
+    if extrap args 
+      then case d of
+             Nothing -> continue id ds
+             -- Extrapolate with the original property to see if we get a
+             -- previously-visited value back.
+             Just d' -> do prop_ <- extrapolate args d' prop ds
+                           continue prop_ (d' : ds)
+      else continue id ds
 
   continue f ds = do 
     putStrLn $ "Attempt to find a new counterexample?" 

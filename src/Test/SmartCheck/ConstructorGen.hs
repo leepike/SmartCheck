@@ -1,9 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 
 module Test.SmartCheck.ConstructorGen
-  ( --NewArb(..)
-    extrapolateConstrs
---    arbSubset
+  ( constrGen
   ) where
 
 import Test.SmartCheck.Types
@@ -14,29 +12,13 @@ import Generics.Deriving
 import qualified Data.Set as S
 
 import qualified Test.QuickCheck as Q
---import qualified Test.QuickCheck.Gen as Q
 
 ---------------------------------------------------------------------------------
 
--- | For a value a (used just for typing), and a list of representations of
--- constructors cs, arbSubset generages a new value b, if possible, such that b
--- has the same type as a, and b's constructor is not found in cs.
---
--- Assumes there is some new constructor to test with.
-arbSubset :: (SubTypes a, Generic a, ConNames (Rep a)) 
-          => ScArgs -> a -> Idx -> (a -> Q.Property) 
-          -> S.Set String -> IO (Result a)
-arbSubset args a idx prop constrs = 
-      -- Because we're looking for some failure that passes the precondition, we
-      -- use maxDiscard.
-      iterateArb a idx (maxFailure args) (Q.maxSize $ qcArgs args) prop' 
-  >>= return
-
-  where
-  prop' b = newConstr b Q.==> prop b
-  -- Make sure b's constructor is a new one.
-  newConstr b = not $ subConstr b idx `S.member` constrs
+contsrGen :: SubTypes a => ScArgs -> a -> IO ()
+contsrGen args a = undefined
   
+
 ---------------------------------------------------------------------------------
 
 -- | Return True if we can generalize; False otherwise.
@@ -60,6 +42,27 @@ extrapolateConstrs args a idx prop = recConstrs (S.singleton $ subConstr a idx)
                 Result x    -> recConstrs (subConstr x idx `S.insert` constrs)
                 _           -> return False
 
+---------------------------------------------------------------------------------
+
+-- | For a value a (used just for typing), and a list of representations of
+-- constructors cs, arbSubset generages a new value b, if possible, such that b
+-- has the same type as a, and b's constructor is not found in cs.
+--
+-- Assumes there is some new constructor to test with.
+arbSubset :: (SubTypes a, Generic a, ConNames (Rep a)) 
+          => ScArgs -> a -> Idx -> (a -> Q.Property) 
+          -> S.Set String -> IO (Result a)
+arbSubset args a idx prop constrs = 
+      -- Because we're looking for some failure that passes the precondition, we
+      -- use maxDiscard.
+      iterateArb a idx (maxFailure args) (Q.maxSize $ qcArgs args) prop' 
+  >>= return
+
+  where
+  prop' b = newConstr b Q.==> prop b
+  -- Make sure b's constructor is a new one.
+  newConstr b = not $ subConstr b idx `S.member` constrs
+  
 ---------------------------------------------------------------------------------
 
 subConstr :: SubTypes a => a -> Idx -> String

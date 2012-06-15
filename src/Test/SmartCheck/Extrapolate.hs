@@ -7,6 +7,7 @@ module Test.SmartCheck.Extrapolate
 import Test.SmartCheck.Types
 import Test.SmartCheck.DataToTree
 import Test.SmartCheck.SmartGen
+import Test.SmartCheck.Generalize
 import Test.SmartCheck.Render
 
 import qualified Test.QuickCheck as Q
@@ -35,63 +36,45 @@ extrapolate :: SubTypes a
 extrapolate args d origProp ds = do 
   putStrLn ""
   smartPrtLn "Extrapolating ..."
-  idxs <- iter (qcArgs args) (mkSubstForest d) d origProp (Idx 0 0) []
+  idxs <- iter (qcArgs args) strategy forest d origProp (Idx 0 0) []
   if matchesShapes d ds idxs
     then do smartPrtLn "Could not extrapolate a new value; done."
             return (prop' idxs)
     else do smartPrtLn "Extrapolated value:"
-            renderWithVars (treeShow args) d idxs
+            renderWithVars (treeShow args) d (toVals idxs emptyRepl)
             return (prop' idxs)
 
   where
+
+  forest = mkSubstForest d
+
   prop' idxs newProp a = 
     (not $ matchesShapes a (d:ds) idxs) Q.==> newProp a
 
----------------------------------------------------------------------------------
-
--- Do a breadth-first traversal of the data, trying to replace holes.  When we
--- find an index we can replace, add it's index to the index list.  Recurse down
--- the structure, following subtrees that have *not* been replaced.
-iter :: SubTypes a 
-     => Q.Args -> Forest Subst -> a 
-     -> (a -> Q.Property) -> Idx -> [Idx] -> IO [Idx]
-iter args forest d prop idx idxs = 
-  if done then return idxs
-     else if nextLevel 
-            then iter' forest (idx { level  = level idx + 1  
-                                   , column = 0 })
-                       idxs
-            else case getIdxForest forest idx of
-                   Just (Node Keep _) -> runTest
-                   _                  -> next
-
-  where
-  pts       = breadthLevels forest
-  done      = length pts <= level idx
-  nextLevel = length (pts !! level idx) <= column idx
-
-  next = iter' forest 
-           idx { column = column idx + 1 }
-           idxs
-
-  iter' frst = iter args frst d prop
-
-  runTest = do 
+  strategy :: Idx        -- ^ Index to extrapolate
+           -> [Idx]      -- ^ List of generalized indices
+          -> IO [Idx]
+  strategy idx idxs = do 
     -- In this call to iterateArb, we want to claim we can extrapolate iff at
     -- least one test passes a precondition, and for every test in which the
     -- precondition is passed, it fails.  We test values of all possible sizes,
     -- up to Q.maxSize.
-    tries <- iterateArb d idx (Q.maxSuccess args) (Q.maxSize args) prop
+    tries <- iterateArb d idx (Q.maxSuccess qcargs) (Q.maxSize qcargs) origProp
+               
     case tries of
       -- None of the tries satisfy prop.  Prevent recurring down this tree,
       -- since we can generalize (we do this with sub, which replaces the
       -- subForest with []).
-      FailedProp -> iter' (forestStop forest idx)
+      FailedProp -> iter qcargs strategy (forestStop forest idx) d origProp
                       idx { column = column idx + 1 } 
                       (idx : idxs)
       -- Either something satisfied it or the precondition couldn't be
       -- satisfied.  Recurse down.
-      _             -> next
+      _          -> iter qcargs strategy forest d origProp
+                      idx { column = column idx + 1 }
+                      idxs
+
+  qcargs = qcArgs args
 
 ---------------------------------------------------------------------------------
 

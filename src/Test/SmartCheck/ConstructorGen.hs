@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 
 module Test.SmartCheck.ConstructorGen
-  ( constrGen
+  ( constrsGen
   ) where
 
 import Test.SmartCheck.Types
@@ -15,9 +15,8 @@ import qualified Test.QuickCheck as Q
 
 ---------------------------------------------------------------------------------
 
-contsrGen :: SubTypes a => ScArgs -> a -> IO ()
-contsrGen args a = undefined
-  
+constrsGen :: SubTypes a => ScArgs -> a -> IO [Idx]
+constrsGen args a = undefined
 
 ---------------------------------------------------------------------------------
 

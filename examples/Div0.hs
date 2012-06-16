@@ -63,10 +63,11 @@ divSubTerms (D m0 m1)   = divSubTerms m0 && divSubTerms m1
 divTest :: IO ()
 divTest = smartCheck args div_prop
   where 
-  args = scStdArgs { qcArgs = stdArgs 
+  args = scStdArgs { qcArgs    = stdArgs 
                                 -- { maxSuccess = 1000
                                 -- , maxSize    = 20  }
-                   , treeShow = PrintString
+                   , treeShow  = PrintString
+                   , constrGen = False
                    }
 
 ---------------------------------------------------------------------------------

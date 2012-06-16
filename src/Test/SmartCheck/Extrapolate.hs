@@ -32,19 +32,28 @@ extrapolate :: SubTypes a
             -> a                 -- ^ Current failed value
             -> (a -> Q.Property) -- ^ Original property
             -> [a]               -- ^ Previous failed values
-            -> IO ((a -> Q.Property) -> a -> Q.Property)
+            -> IO ([Idx], ((a -> Q.Property) -> a -> Q.Property))
 extrapolate args d origProp ds = do 
   putStrLn ""
-  smartPrtLn "Extrapolating ..."
+  smartPrtLn "Extrapolating values ..."
   idxs <- iter (qcArgs args) strategy forest d origProp (Idx 0 0) []
-  if matchesShapes d ds idxs
-    then do smartPrtLn "Could not extrapolate a new value; done."
-            return (prop' idxs)
-    else do smartPrtLn "Extrapolated value:"
-            renderWithVars (treeShow args) d (toVals idxs emptyRepl)
-            return (prop' idxs)
 
-  where
+  if matchesShapes d ds idxs
+    then return ([], id)
+    else return (idxs, prop' idxs)
+
+            -- renderWithVars (treeShow args) d (toVals idxs emptyRepl)
+
+  -- extrapolateConstrs :: Replace Idx -> IO ()
+  -- extrapolateConstrs idxs = 
+  --   if constrGen args 
+  --     then do putStrLn ""
+  --             smartPrtLn "Extrapolating constructors ..."
+  --             idxs' <- constrGen args d
+  --             to
+  --     else 
+
+  where              
 
   forest = mkSubstForest d
 

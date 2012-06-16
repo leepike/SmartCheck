@@ -4,10 +4,10 @@ module Test.SmartCheck.Render
   ( renderWithVars
   , smartPrtLn
   -- * Replacement data
-  , Replace
-  , emptyRepl
-  , toVals
-  , toConstrs
+  , Replace(..)
+  -- , emptyRepl
+  -- , toVals
+  -- , toConstrs
   ) where
 
 import Test.SmartCheck.Types
@@ -33,14 +33,14 @@ smartPrtLn = putStrLn . (smartPrefix ++)
 -- separately.
 data Replace a = Replace { unVals :: [a], unConstrs :: [a] }
 
-emptyRepl :: Replace a
-emptyRepl = Replace [] []
+-- emptyRepl :: Replace a
+-- emptyRepl = Replace [] []
 
-toVals :: [a] -> Replace a -> Replace a 
-toVals a (Replace vals constrs) = Replace (a ++ vals) constrs
+-- toVals :: [a] -> Replace a -> Replace a 
+-- toVals a (Replace vals constrs) = Replace (a ++ vals) constrs
 
-toConstrs :: [a] -> Replace a -> Replace a 
-toConstrs a (Replace vals constrs) = Replace vals (a ++ constrs)
+-- toConstrs :: [a] -> Replace a -> Replace a 
+-- toConstrs a (Replace vals constrs) = Replace vals (a ++ constrs)
 
 ---------------------------------------------------------------------------------
 

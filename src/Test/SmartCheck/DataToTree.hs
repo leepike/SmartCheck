@@ -4,7 +4,7 @@
 module Test.SmartCheck.DataToTree
   ( subForestPath
   , forestReplaceChop
-  , forestStop
+  , forestReplaceStop
   , getAtIdx
   , replaceAtIdx
   , getIdxForest
@@ -115,12 +115,15 @@ forestReplaceChop = sub Chop
 
 -- | Replace a tree at index Idx in a Forest.  Return the original if the
 -- index is out of range.  Replace the subforest of Idx with the Substs.
-forestStop :: Forest Subst -> Idx -> Forest Subst
-forestStop f idx = sub ReplaceSubs f idx Subst
+forestReplaceStop :: Forest Subst -> Idx -> Forest Subst
+forestReplaceStop f idx = sub ReplaceSubs f idx Subst
 
 ---------------------------------------------------------------------------------
 
-data SubStrat = Path | ReplaceSubs | Chop
+data SubStrat = Path        -- ^ Replace everything in the path from the root to
+                            -- here.
+              | ReplaceSubs -- ^ Replace the subforest with a value.
+              | Chop        -- ^ Replace a value and remove the subforest.
   deriving  (Show, Read, Eq)
 
 sub :: SubStrat -> Forest a -> Idx -> a -> Forest a

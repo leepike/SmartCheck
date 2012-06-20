@@ -38,6 +38,10 @@ smartCheck args prop = smartCheck' prop []
                      -- Extrapolate with the original property to see if we get
                      -- a previously-visited value back.
                      Just d' -> do (idxs, prop_) <- extrapolate args d' prop ds
+
+                                   putStrLn $ "ex d: " ++ show d -- YYY
+                                   putStrLn $ "ex idx " ++ show idxs -- YYY
+
                                    return $ Just (idxs, prop_, d' : ds)
                                    --continue idx prop_ (d' : ds)
 
@@ -50,8 +54,7 @@ smartCheck args prop = smartCheck' prop []
                     Just d' -> constrsGen args d' >>= return . Just
              else return Nothing
 
-    -- If either extraopolation pass yielded fruit, prettyprint it.  Otherwise,
-    -- fail.
+    -- If either extraopolation pass yielded fruit, prettyprint it.
     if (nonEmpty vs cs)
       then case d of 
              -- We shouldn't have non-empty extrapolation if there was no
@@ -66,18 +69,21 @@ smartCheck args prop = smartCheck' prop []
                  ++ " any character then 'Enter' to quit.)"
     s <- getLine
     if (s == "")
-      then smartCheck' (f vs $ prop) (newds vs)
+      then smartCheck' (f vs $ prop) (newVals vs)
       else smartPrtLn "Done."
 
     where
     
-    newds :: Maybe (Extrapolate a) -> [a]
-    newds vs = case vs of
-                 Nothing          -> ds
-                 Just (_, _, ds') -> ds' 
+    newVals :: Maybe (Extrapolate a) -> [a]
+    newVals vs = case vs of
+                   Nothing          -> ds
+                   Just (_, _, ds') -> ds' 
 
     output :: a -> Replace Idx -> IO ()
     output d repl = do
+      putStrLn $ "d: " ++ show d -- YYY
+      putStrLn $ "idx " ++ show repl -- YYY
+      
       smartPrtLn "Extrapolated value:"
       renderWithVars (treeShow args) d repl -- XXX
 
@@ -89,24 +95,20 @@ smartCheck args prop = smartCheck' prop []
     v = case vs of 
           Nothing           -> []
           Just (idxs, _, _) -> idxs
-
     c = case cs of 
           Nothing    -> []
           Just idxs  -> idxs
-    
 
   f vs = case vs of 
            Nothing            -> id
            Just (_, prop_, _) -> prop_
 
 
-  nonEmpty vs cs = 
-    vsIdxs || csIdxs
+  nonEmpty vs cs = vsIdxs || csIdxs
     where
     vsIdxs = case vs of
                Just (idxs, _, _) -> not $ null idxs
                Nothing           -> False
-
     csIdxs = case cs of
                Just idxs -> not $ null idxs
                Nothing   -> False 

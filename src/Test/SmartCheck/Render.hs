@@ -32,6 +32,7 @@ smartPrtLn = putStrLn . (smartPrefix ++)
 -- | We track indicies/strings, etc. for values (subterms) and constructors
 -- separately.
 data Replace a = Replace { unVals :: [a], unConstrs :: [a] }
+  deriving (Show, Read, Eq)
 
 -- emptyRepl :: Replace a
 -- emptyRepl = Replace [] []
@@ -96,7 +97,8 @@ replaceWithVars format d idxs vars =
     Node (rootLabel tree) (forestReplaceChop (subForest tree) idx var)
 
   zipRepl :: [(String, Idx)]
-  zipRepl = zip (unVals vars) (unVals idxs) ++ zip (unVals vars) (unVals idxs)
+  zipRepl =    zip (unVals vars) (unVals idxs) 
+            ++ zip (unConstrs vars) (unConstrs idxs)
 
 ---------------------------------------------------------------------------------
 

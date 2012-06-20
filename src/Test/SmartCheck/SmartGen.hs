@@ -5,6 +5,7 @@ module Test.SmartCheck.SmartGen
   , resultify
   , replace
   , samples -- YYY
+  , iter
   ) where
 
 import Test.SmartCheck.Types
@@ -17,6 +18,7 @@ import qualified Test.QuickCheck.Property as Q
 import System.Random
 import Data.List
 import Data.Maybe
+import Data.Tree
 import Control.Monad
 
 ---------------------------------------------------------------------------------
@@ -76,7 +78,7 @@ iterateArb d idx tries sz prop =
 
 ---------------------------------------------------------------------------------
 
--- | Must pass at the precondition at least once to return either FailedProp or
+-- | Must pass the precondition at least once to return either FailedProp or
 -- Result.
 extractResult :: (a -> Q.Property) -> Result a -> a -> IO (Result a)
 extractResult _    r@(Result _) _ = return r
@@ -107,6 +109,103 @@ resultify prop a = do
   fs = Q.unProp $ f err err        :: Q.Rose Q.Result
   res = Q.protectRose . Q.reduceRose
 
-  err = errorMsg "propify: should not evaluate."
+  err = errorMsg "resultify: should not evaluate."
+
+---------------------------------------------------------------------------------
+
+-- Do a breadth-first traversal of the data, trying to replace holes.  When we
+-- find an index we can replace, add it's index to the index list.  Recurse down
+-- the structure, following subtrees that have *not* been replaced.
+iter :: SubTypes a 
+     => Q.Args            -- ^ Arguments
+--     -> Strategy          -- ^ Our generalization strategy
+     -> Forest Subst      -- ^ Tree representation of data
+     -> a                 -- ^ Failed value
+     -> (a -> Q.Property) -- ^ Property
+     -> Idx               -- ^ Starting index to extrapolate
+     -> [Idx]             -- ^ List of generalized indices
+     -> IO [Idx]
+iter args forest d prop idx idxs = do -- YYY
+  putStrLn $ "iter-idx " ++ show idx
+  putStrLn $ "iter-idxs " ++ show idxs
+  if done then return idxs
+     else if nextLevel 
+            then iter' forest (idx { level  = level idx + 1  
+                                   , column = 0 })
+                       idxs
+            else case getIdxForest forest idx of
+                   Just (Node Keep _) -> runTest
+                   _                  -> next
+
+  where
+  pts       = breadthLevels forest
+  done      = length pts <= level idx
+  nextLevel = length (pts !! level idx) <= column idx
+
+  next = iter' forest 
+           idx { column = column idx + 1 }
+           idxs
+
+  iter' frst = iter args frst d prop
+
+  runTest = do 
+    -- In this call to iterateArb, we want to claim we can extrapolate iff at
+    -- least one test passes a precondition, and for every test in which the
+    -- precondition is passed, it fails.  We test values of all possible sizes,
+    -- up to Q.maxSize.
+    tries <- iterateArb d idx (Q.maxSuccess args) (Q.maxSize args) prop
+    case tries of
+      -- None of the tries satisfy prop.  Prevent recurring down this tree,
+      -- since we can generalize (we do this with sub, which replaces the
+      -- subForest with []).
+      FailedProp -> iter' (forestReplaceStop forest idx)
+                      idx { column = column idx + 1 } 
+                      (idx : idxs)
+      -- Either something satisfied it or the precondition couldn't be
+      -- satisfied.  Recurse down.
+      _             -> next
+
+---------------------------------------------------------------------------------
+
+-- iter :: SubTypes a 
+--      => Q.Args -> Forest Subst -> a 
+--      -> (a -> Q.Property) -> Idx -> [Idx] -> IO [Idx]
+-- iter args forest d prop idx idxs = 
+--   if done then return idxs
+--      else if nextLevel 
+--             then iter' forest (idx { level  = level idx + 1  
+--                                    , column = 0 })
+--                        idxs
+--             else case getIdxForest forest idx of
+--                    Just (Node Keep _) -> runTest
+--                    _                  -> next
+
+--   where
+--   pts       = breadthLevels forest
+--   done      = length pts <= level idx
+--   nextLevel = length (pts !! level idx) <= column idx
+
+--   next = iter' forest 
+--            idx { column = column idx + 1 }
+--            idxs
+
+--   iter' frst = iter args frst d prop
+
+--   runTest = do 
+--     -- In this call to iterateArb, we want to claim we can extrapolate iff at
+--     -- least one test passes a precondition, and for every test in which the
+--     -- precondition is passed, it fails.  We test values of all possible sizes,
+--     -- up to Q.maxSize.
+--     tries <- iterateArb d idx (Q.maxSuccess args) (Q.maxSize args) prop
+--     case tries of
+--       -- None of the tries satisfy prop.  Prevent recurring down this tree,
+--       -- since we can generalize (we do this with sub, which replaces the
+--       -- subForest with []).
+--       FailedProp -> iter' (forestStop forest idx)
+--                       idx { column = column idx + 1 } 
+--                       (idx : idxs)
+--       -- Either something satisfied it or the precondition couldn't be
+--       -- satisfied.  Recurse down.
+--       _             -> next
 
 ---------------------------------------------------------------------------------

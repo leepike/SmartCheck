@@ -7,7 +7,6 @@ module Test.SmartCheck.Extrapolate
 import Test.SmartCheck.Types
 import Test.SmartCheck.DataToTree
 import Test.SmartCheck.SmartGen
-import Test.SmartCheck.Generalize
 import Test.SmartCheck.Render
 
 import qualified Test.QuickCheck as Q
@@ -20,13 +19,13 @@ import Data.List
 -- | Test d with arbitrary values replacing its children.  For anything we get
 -- 100% failure for, we claim we can generalize it---any term in that hole
 -- fails.
-
+--
 -- We extrapolate w.r.t. the original property since extrapolation throws away
 -- any values that fail the precondition of the property (i.e., before the
 -- Q.==>).
-
+--
 -- We extrapolate if there exists at least one test that satisfies the
--- precondition, and for all tests that asatisfy the precondition, they fail.
+-- precondition, and for all tests that satisfy the precondition, they fail.
 extrapolate :: SubTypes a
             => ScArgs            -- ^ Arguments
             -> a                 -- ^ Current failed value
@@ -36,54 +35,41 @@ extrapolate :: SubTypes a
 extrapolate args d origProp ds = do 
   putStrLn ""
   smartPrtLn "Extrapolating values ..."
-  idxs <- iter (qcArgs args) strategy forest d origProp (Idx 0 0) []
-
-  if matchesShapes d ds idxs
-    then return ([], id)
-    else return (idxs, prop' idxs)
-
-            -- renderWithVars (treeShow args) d (toVals idxs emptyRepl)
-
-  -- extrapolateConstrs :: Replace Idx -> IO ()
-  -- extrapolateConstrs idxs = 
-  --   if constrGen args 
-  --     then do putStrLn ""
-  --             smartPrtLn "Extrapolating constructors ..."
-  --             idxs' <- constrGen args d
-  --             to
-  --     else 
+  idxs <- iter (qcArgs args) forest d origProp (Idx 0 0) []
+  putStrLn $ "extrap: " ++ show idxs -- YYY
+  return (idxs, prop' idxs)
 
   where              
-
   forest = mkSubstForest d
 
   prop' idxs newProp a = 
-    (not $ matchesShapes a (d:ds) idxs) Q.==> newProp a
+    (not $ matchesShapes a (d : ds) idxs) Q.==> newProp a
 
-  strategy :: Idx        -- ^ Index to extrapolate
-           -> [Idx]      -- ^ List of generalized indices
-          -> IO [Idx]
-  strategy idx idxs = do 
-    -- In this call to iterateArb, we want to claim we can extrapolate iff at
-    -- least one test passes a precondition, and for every test in which the
-    -- precondition is passed, it fails.  We test values of all possible sizes,
-    -- up to Q.maxSize.
-    tries <- iterateArb d idx (Q.maxSuccess qcargs) (Q.maxSize qcargs) origProp
+  -- strategy :: Idx        -- ^ Index to extrapolate
+  --          -> [Idx]      -- ^ List of generalized indices
+  --          -> IO [Idx]
+  -- strategy idx idxs = do 
+  --   -- In this call to iterateArb, we want to claim we can extrapolate iff at
+  --   -- least one test passes a precondition, and for every test in which the
+  --   -- precondition is passed, it fails.  We test values of all possible sizes,
+  --   -- up to Q.maxSize.
+  --   tries <- iterateArb d idx (Q.maxSuccess qcargs) (Q.maxSize qcargs) origProp
                
-    case tries of
-      -- None of the tries satisfy prop.  Prevent recurring down this tree,
-      -- since we can generalize (we do this with sub, which replaces the
-      -- subForest with []).
-      FailedProp -> iter qcargs strategy (forestStop forest idx) d origProp
-                      idx { column = column idx + 1 } 
-                      (idx : idxs)
-      -- Either something satisfied it or the precondition couldn't be
-      -- satisfied.  Recurse down.
-      _          -> iter qcargs strategy forest d origProp
-                      idx { column = column idx + 1 }
-                      idxs
+  --   case tries of
+  --     -- None of the tries satisfy prop.  Prevent recurring down this tree,
+  --     -- since we can generalize (we do this with sub, which replaces the
+  --     -- subForest with []).
+  --     FailedProp -> iter qcargs strategy (forestReplaceStop forest idx) 
+  --                     d origProp
+  --                     idx { column = column idx + 1 } 
+  --                     (idx : idxs)
+  --     -- Either something satisfied it or the precondition couldn't be
+  --     -- satisfied.  Recurse down.
+  --     _          -> iter qcargs strategy forest d origProp
+  --                     idx { column = column idx + 1 }
+  --                     idxs
 
-  qcargs = qcArgs args
+  -- qcargs = qcArgs args
 
 ---------------------------------------------------------------------------------
 

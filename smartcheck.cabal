@@ -21,8 +21,7 @@ Library
                      Test.SmartCheck.SmartGen,
                      Test.SmartCheck.DataToTree,
                      Test.SmartCheck.Render,
-                     Test.SmartCheck.ConstructorGen,
-                     Test.SmartCheck.Generalize
+                     Test.SmartCheck.ConstructorGen
   
   Build-depends:     base >= 4.0,
                      QuickCheck >= 2.4.2,

@@ -6,7 +6,8 @@
 {-# LANGUAGE OverlappingInstances #-}
 
 module Test.SmartCheck.Types
-  ( SubT(..)
+  ( PropRedux
+  , SubT(..)
   , subT
   , SubTypes(..) 
   , Idx(..)
@@ -29,6 +30,12 @@ import Data.Ratio
 import Data.Complex
 
 import qualified Test.QuickCheck as Q
+
+---------------------------------------------------------------------------------
+-- Types synonyms
+---------------------------------------------------------------------------------
+
+type PropRedux a = ((a -> Q.Property) -> a -> Q.Property)
 
 ---------------------------------------------------------------------------------
 -- User-defined subtypes of data
@@ -54,7 +61,7 @@ scStdArgs = ScArgs { treeShow    = PrintTree
                    , maxFailure  = Q.maxDiscard Q.stdArgs + Q.maxSuccess Q.stdArgs
                    , qcArgs      = Q.stdArgs
                    , extrap      = True
-                   , constrGen   = True
+                   , constrGen   = False
                    }
 
 ---------------------------------------------------------------------------------

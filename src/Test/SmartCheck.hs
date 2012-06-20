@@ -24,94 +24,66 @@ smartCheck :: forall a. (Read a, Q.Arbitrary a, SubTypes a)
 smartCheck args prop = smartCheck' prop []
 
   where
+  smartCheck' :: (a -> Q.Property) -> [a] -> IO ()
   smartCheck' prop' ds = do
-    -- Run standard QuickCheck
+    -- Run standard QuickCheck.
     res <- runQC (qcArgs args) prop'
+    case res of 
+      Nothing -> smartPrtLn "No value to smart-shrink; done." 
+      Just r  -> go r
 
-    -- Run the smart reduction algorithm
-    d   <- smartRun args res prop
-    
-    -- If we asked to extrapolate values, do so.
-    vs  <- if (extrap args) 
-              then case d of
-                     Nothing -> return Nothing --continue [] id ds
-                     -- Extrapolate with the original property to see if we get
+    where
+    go r = do
+      -- Run the smart reduction algorithm.
+      d   <- smartRun args r prop'
+      -- If we asked to extrapolate values, do so.
+      vs  <- if extrap args
+                then -- Extrapolate with the original property to see if we get
                      -- a previously-visited value back.
-                     Just d' -> do (idxs, prop_) <- extrapolate args d' prop ds
+                     do (idxs, prop_) <- extrapolate args d prop ds
+                        putStrLn $ "ex d: " ++ show d -- YYY
+                        putStrLn $ "ex idx " ++ show idxs -- YYY
+                        return $ Just (idxs, prop_)
+                else return Nothing
 
-                                   putStrLn $ "ex d: " ++ show d -- YYY
-                                   putStrLn $ "ex idx " ++ show idxs -- YYY
+      -- If we asked to extrapolate constructors, do so.
+      cs  <- if constrGen args
+               then constrsGen args d >>= return . Just
+               else return Nothing
 
-                                   return $ Just (idxs, prop_, d' : ds)
-                                   --continue idx prop_ (d' : ds)
+      -- If either kind of extrapolation pass yielded fruit, prettyprint it.
+      if nonEmpty d vs cs 
+        then output d (repls vs cs)
+        else smartPrtLn "Could not extrapolate a new value."
 
-              else return Nothing
+      -- Ask the user if she wants to try again.
+      putStrLn $ "Attempt to find a new counterexample?" 
+                   ++ " ('Enter' to continue;"
+                   ++ " any character then 'Enter' to quit.)"
+      s <- getLine
+      if (s == "")
+        -- If so, then loop, with the new prop.
+        then smartCheck' (propApp vs $ prop') (d : ds)
+        else smartPrtLn "Done."
 
-    -- If we asked to extrapolate constructors, do so.
-    cs  <- if (constrGen args)
-             then case d of
-                    Nothing -> return Nothing
-                    Just d' -> constrsGen args d' >>= return . Just
-             else return Nothing
+      where
+      output :: a -> Replace Idx -> IO ()
+      output d repl = do
+        putStrLn $ "d: " ++ show d -- YYY
+        putStrLn $ "idx " ++ show repl -- YYY
+        smartPrtLn "Extrapolated value:"
+        renderWithVars (treeShow args) d repl -- XXX
 
-    -- If either extraopolation pass yielded fruit, prettyprint it.
-    if (nonEmpty vs cs)
-      then case d of 
-             -- We shouldn't have non-empty extrapolation if there was no
-             -- successful shrink!
-             Nothing -> errorMsg "smartCheck"  
-             Just d' -> (output d' (repls vs cs))
-      else smartPrtLn "Could not extrapolate a new value; done."
-
-    -- Ask the user if she wants to try again.
-    putStrLn $ "Attempt to find a new counterexample?" 
-                 ++ " ('Enter' to continue;"
-                 ++ " any character then 'Enter' to quit.)"
-    s <- getLine
-    if (s == "")
-      then smartCheck' (f vs $ prop) (newVals vs)
-      else smartPrtLn "Done."
-
-    where
-    
-    newVals :: Maybe (Extrapolate a) -> [a]
-    newVals vs = case vs of
-                   Nothing          -> ds
-                   Just (_, _, ds') -> ds' 
-
-    output :: a -> Replace Idx -> IO ()
-    output d repl = do
-      putStrLn $ "d: " ++ show d -- YYY
-      putStrLn $ "idx " ++ show repl -- YYY
-      
-      smartPrtLn "Extrapolated value:"
-      renderWithVars (treeShow args) d repl -- XXX
-
-  --------------------------------------
-
-  repls :: Maybe (Extrapolate a) -> Maybe [Idx] -> Replace Idx
-  repls vs cs = Replace v c
-    where 
-    v = case vs of 
-          Nothing           -> []
-          Just (idxs, _, _) -> idxs
-    c = case cs of 
-          Nothing    -> []
-          Just idxs  -> idxs
-
-  f vs = case vs of 
-           Nothing            -> id
-           Just (_, prop_, _) -> prop_
-
-
-  nonEmpty vs cs = vsIdxs || csIdxs
-    where
-    vsIdxs = case vs of
-               Just (idxs, _, _) -> not $ null idxs
-               Nothing           -> False
-    csIdxs = case cs of
-               Just idxs -> not $ null idxs
-               Nothing   -> False 
+      nonEmpty :: a -> Maybe ([Idx], PropRedux a) -> Maybe [b] -> Bool
+      nonEmpty d vs cs = vsIdxs || csIdxs
+        where
+        vsIdxs = case vs of
+                   Just (idxs, _) ->    (not $ matchesShapes d ds idxs)
+                                     && (not $ null idxs)
+                   Nothing        -> False
+        csIdxs = case cs of
+                   Just idxs -> not $ null idxs
+                   Nothing   -> False 
 
 ---------------------------------------------------------------------------------
 
@@ -129,10 +101,21 @@ runQC args prop = do
     _ -> return Nothing
 
 ---------------------------------------------------------------------------------
+-- Helpers
 
-type Extrapolate a = ( [Idx]
-                     , ((a -> Q.Property) -> a -> Q.Property)
-                     , [a]
-                     )
+repls :: Maybe ([Idx], PropRedux a) -> Maybe [Idx] -> Replace Idx
+repls vs cs = Replace v c
+  where 
+  v = case vs of 
+        Nothing        -> []
+        Just (idxs, _) -> idxs
+  c = case cs of 
+        Nothing    -> []
+        Just idxs  -> idxs
+
+propApp :: Maybe ([Idx], PropRedux a) -> PropRedux a
+propApp vs = case vs of 
+               Nothing         -> id
+               Just (_, prop_) -> prop_
 
 ---------------------------------------------------------------------------------

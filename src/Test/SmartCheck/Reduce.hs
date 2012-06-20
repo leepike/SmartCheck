@@ -20,22 +20,14 @@ import Data.Typeable
 -- increasingly larger) randomly-generated values until we find a failure, and
 -- return that result.  (We call smartShrink recursively.)
 smartRun :: SubTypes a
-         => ScArgs -> Maybe a -> (a -> Q.Property) -> IO (Maybe a)
-smartRun args res prop =
-  case res of 
-    Just res' -> runSmart res'
-    Nothing   -> do putStrLn ""
-                    smartPrtLn "No value to smart-shrink; done."
-                    return Nothing
-
-  where
-  runSmart r = do
-    putStrLn ""
-    smartPrtLn "Smart Shrinking ... "
-    new <- smartShrink args r prop
-    smartPrtLn "Smart-shrunk value:"
-    print new
-    return (Just new)
+         => ScArgs -> a -> (a -> Q.Property) -> IO a
+smartRun args res prop = do
+  putStrLn ""
+  smartPrtLn "Smart Shrinking ... "
+  new <- smartShrink args res prop
+  smartPrtLn "Smart-shrunk value:"
+  print new
+  return new
 
 ---------------------------------------------------------------------------------
 

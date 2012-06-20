@@ -15,7 +15,7 @@ import qualified Test.QuickCheck.Gen as Q
 import qualified Test.QuickCheck as Q hiding (Result)
 import qualified Test.QuickCheck.Property as Q
 
-import System.Random
+import System.Random hiding (next)
 import Data.List
 import Data.Maybe
 import Data.Tree

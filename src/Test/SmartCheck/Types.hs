@@ -382,14 +382,8 @@ instance SubTypes String  where
 -- These should never be directly called.  We provide compatible instances anyway.
 
 toConstr' :: Show a => a -> String
---toConstr' _ = errorMsg "toConstr method of SubTypes Class"
 toConstr' = show
 
--- toConstrAndBase' :: a -> String
--- toConstrAndBase' _ = errorMsg "toConstrAndBase method of SubTypes Class"
-
--- replaceChild' :: a -> Forest Subst -> b -> Maybe a
--- replaceChild' _ _ = errorMsg "replaceChild method of SubTypes Class"
 replaceChild' :: (Typeable a, Typeable b) 
               => a -> Forest Subst -> b -> Maybe a
 replaceChild' a []                 _ = Just a
@@ -397,7 +391,6 @@ replaceChild' a (Node Keep  _ : _) _ = Just a
 replaceChild' _ (Node Subst _ : _) b = cast b
 
 showForest' :: Show a => a -> Forest String
---showForest' _ = errorMsg "showForest method of SubTypes Class"
 showForest' _ = []
 
 ---------------------------------------------------------------------------------

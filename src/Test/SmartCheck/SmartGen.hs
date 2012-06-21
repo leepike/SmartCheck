@@ -112,42 +112,79 @@ resultify prop a = do
 
 ---------------------------------------------------------------------------------
 
--- type Next a = Result a -> Forest Subst -> Idx -> Idxs -> IO [Idx]
+type Next a = Result a -> Forest Subst -> Idx -> [Idx] -> IO [Idx]
+
+-- Do a breadth-first traversal of the data, trying to replace holes.  When we
+-- find an index we can replace, add its index to the index list.  Recurse down
+-- the structure, following subtrees that have *not* been replaced.
+iter :: SubTypes a 
+     => a                      -- ^ Failed value
+     -> (Idx -> IO (Result a)) -- ^ Test to use
+     -> Next a                 -- ^ What to do after the test
+     -> (a -> Q.Property)      -- ^ Property
+     -> Forest Subst           -- ^ Tree representation of data
+     -> Idx                    -- ^ Starting index to extrapolate
+     -> [Idx]                  -- ^ List of generalized indices
+     -> IO [Idx]
+iter d test next prop forest idx idxs = 
+  if done then return idxs
+     else if nextLevel 
+            then iter' forest idx { level  = level idx + 1  
+                                  , column = 0 }
+                   idxs
+            else case getIdxForest forest idx of
+                   -- If we haven't seen this node, test it and continue, based
+                   -- on the results.
+                   Just (Node Keep _)  -> do
+                     tries <- test idx
+                     next tries forest idx idxs
+                   -- This is a node that we've visited, or we've visited and
+                   -- sucessfully generalized its parent node.  Skip it.
+                   -- (Actually, this can't happen, as when we generalize a
+                   -- parent, we chop its children to preven recursion.)
+                   Just (Node Subst _) -> go
+                   -- Index out of bounds.  Continue to find the next in-bounds
+                   -- index.
+                   Nothing             -> go
+
+  where
+  pts        = breadthLevels forest
+  done       = length pts <= level idx
+  nextLevel  = length (pts !! level idx) <= column idx
+  iter'      = iter d test next prop 
+  go         = iter' forest 
+                 idx { column = column idx + 1 }
+                 idxs
+
+---------------------------------------------------------------------------------
 
 -- -- Do a breadth-first traversal of the data, trying to replace holes.  When we
 -- -- find an index we can replace, add its index to the index list.  Recurse down
 -- -- the structure, following subtrees that have *not* been replaced.
 -- iter :: SubTypes a 
---      => Q.Args                 -- ^ Arguments
---      -> a                      -- ^ Failed value
---      -> (Idx -> IO (Result a)) -- ^ Test to use
---      -> Next a                 -- ^ What to do after the test
---      -> (a -> Q.Property)      -- ^ Property
---      -> Forest Subst           -- ^ Tree representation of data
---      -> Idx                    -- ^ Starting index to extrapolate
---      -> [Idx]                  -- ^ List of generalized indices
+--      => Q.Args            -- ^ Arguments
+--      -> Forest Subst      -- ^ Tree representation of data
+--      -> a                 -- ^ Failed value
+--      -> (a -> Q.Property) -- ^ Property
+--      -> Idx               -- ^ Starting index to extrapolate
+--      -> [Idx]             -- ^ List of generalized indices
 --      -> IO [Idx]
--- iter args d test next prop forest idx idxs = 
+-- iter args forest d prop idx idxs = 
 --   if done then return idxs
 --      else if nextLevel 
 --             then iter' forest (idx { level  = level idx + 1  
 --                                    , column = 0 })
 --                        idxs
 --             else case getIdxForest forest idx of
---                    -- If we haven't seen this node, test it.
---                    Just (Node Keep _)  -> do
---                      tries <- test
-                 
---                    -- If we are at a 
---                    Just (Node Subst _) -> go
---                    Nothing             -> go
+--                    Just (Node Keep _) -> runTest
+--                    _                  -> next
 
 --   where
 --   pts        = breadthLevels forest
 --   done       = length pts <= level idx
 --   nextLevel  = length (pts !! level idx) <= column idx
---   iter'      = iter args d test next prop 
---   go         = iter' forest 
+--   iter' frst = iter args frst d prop
+--   next       = iter' forest 
 --                  idx { column = column idx + 1 }
 --                  idxs
 
@@ -161,61 +198,12 @@ resultify prop a = do
 --       -- None of the tries satisfy prop.  Prevent recurring down this tree,
 --       -- since we can generalize (we do this with sub, which replaces the
 --       -- subForest with []).
---       FailedProp -> iter' (forestReplaceStop forest idx)
+--       -- FailedProp -> iter' (forestReplaceStop forest idx)
+--       --                 idx { column = column idx + 1 } 
+--       --                 (idx : idxs)
+--       FailedProp -> iter' (forestReplaceChop forest idx Subst)
 --                       idx { column = column idx + 1 } 
 --                       (idx : idxs)
 --       -- Either something satisfied it or the precondition couldn't be
 --       -- satisfied.  Recurse down.
---       _             -> go
-
----------------------------------------------------------------------------------
-
--- Do a breadth-first traversal of the data, trying to replace holes.  When we
--- find an index we can replace, add its index to the index list.  Recurse down
--- the structure, following subtrees that have *not* been replaced.
-iter :: SubTypes a 
-     => Q.Args            -- ^ Arguments
-     -> Forest Subst      -- ^ Tree representation of data
-     -> a                 -- ^ Failed value
-     -> (a -> Q.Property) -- ^ Property
-     -> Idx               -- ^ Starting index to extrapolate
-     -> [Idx]             -- ^ List of generalized indices
-     -> IO [Idx]
-iter args forest d prop idx idxs = 
-  if done then return idxs
-     else if nextLevel 
-            then iter' forest (idx { level  = level idx + 1  
-                                   , column = 0 })
-                       idxs
-            else case getIdxForest forest idx of
-                   Just (Node Keep _) -> runTest
-                   _                  -> next
-
-  where
-  pts        = breadthLevels forest
-  done       = length pts <= level idx
-  nextLevel  = length (pts !! level idx) <= column idx
-  iter' frst = iter args frst d prop
-  next       = iter' forest 
-                 idx { column = column idx + 1 }
-                 idxs
-
-  runTest = do 
-    -- In this call to iterateArb, we want to claim we can extrapolate iff at
-    -- least one test passes a precondition, and for every test in which the
-    -- precondition is passed, it fails.  We test values of all possible sizes,
-    -- up to Q.maxSize.
-    tries <- iterateArb d idx (Q.maxSuccess args) (Q.maxSize args) prop
-    case tries of
-      -- None of the tries satisfy prop.  Prevent recurring down this tree,
-      -- since we can generalize (we do this with sub, which replaces the
-      -- subForest with []).
-      -- FailedProp -> iter' (forestReplaceStop forest idx)
-      --                 idx { column = column idx + 1 } 
-      --                 (idx : idxs)
-      FailedProp -> iter' (forestReplaceChop forest idx Subst)
-                      idx { column = column idx + 1 } 
-                      (idx : idxs)
-      -- Either something satisfied it or the precondition couldn't be
-      -- satisfied.  Recurse down.
-      _             -> next
+--       _             -> next

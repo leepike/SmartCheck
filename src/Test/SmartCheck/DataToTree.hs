@@ -121,22 +121,24 @@ forestReplaceChop = sub Chop
 ---------------------------------------------------------------------------------
 
 data SubStrat = Path        -- ^ Replace everything in the path from the root to
-                            -- here.  Used as breadcrumbs to the value.
+                            -- here.  Used as breadcrumbs to the value.  Chop
+                            -- the subforest.
+
 --              | ReplaceSubs -- ^ Replace the subforest with a value.
               | Chop        -- ^ Replace a value and remove the subforest.
   deriving  (Show, Read, Eq)
 
 sub :: SubStrat -> Forest a -> Idx -> a -> Forest a
 -- on right level, and we'll assume correct subtree.
-sub args forest (Idx (0::Int) n) a = 
+sub strat forest (Idx (0::Int) n) a = 
   snd $ mapAccumL f 0 forest
   where
-  f i node | i == n = ( i+1, Node a $ subf (subForest node) )
+  f i node | i == n = ( i+1, Node a [] )  -- $ subf (subForest node) )
            | True   = ( i+1, node )
-  subf frst = case args of
+--  subf frst = case strat of
 --                ReplaceSubs -> map (fmap $ \_ -> a) frst -- Replace subforests
-                _           -> [] -- Chop the subforest
-sub args forest idx a = 
+--                _           -> [] -- Chop the subforest
+sub strat forest idx a = 
   snd $ mapAccumL findTree (column idx) forest
   where
   l = level idx - 1
@@ -149,10 +151,10 @@ sub args forest idx a =
              else (n-len, t)
     where
     len = levelLength l t
-    newRootLabel = case args of 
+    newTree = Node newRootLabel (sub strat (subForest t) (Idx l n) a)
+    newRootLabel = case strat of 
                      Path -> a 
                      _    -> rootLabel t
-    newTree = Node newRootLabel (sub args (subForest t) (Idx l n) a)
 
 ---------------------------------------------------------------------------------
 -- Operations on SubTypes.

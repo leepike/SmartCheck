@@ -36,11 +36,33 @@ extrapolate :: SubTypes a
 extrapolate args d origProp ds = do 
   putStrLn ""
   smartPrtLn "Extrapolating values ..."
-  idxs <- iter (qcArgs args) (mkSubstForest d) d origProp (Idx 0 0) []
-  return (idxs, prop' idxs)
+  idxs <- iter' (mkSubstForest d) (Idx 0 0) []
+  return (idxs, prop idxs)
 
-  where              
-  prop' idxs newProp a = 
+  where
+  iter' = iter d test next origProp
+      
+  -- In this call to iterateArb, we want to claim we can extrapolate iff at
+  -- least one test passes a precondition, and for every test in which the
+  -- precondition is passed, it fails.  We test values of all possible sizes, up
+  -- to Q.maxSize.
+  test idx = iterateArb d idx 
+               (Q.maxSuccess $ qcArgs args) 
+               (Q.maxSize $ qcArgs args) 
+               origProp
+  next res forest idx idxs =
+    case res of
+      -- None of the tries satisfy prop.  Prevent recurring down this tree,
+      -- since we can generalize (we do this with sub, which replaces the
+      -- subForest with []).
+      FailedProp -> iter' (forestReplaceChop forest idx Subst)
+                      idx { column = column idx + 1 }
+                      (idx : idxs)
+      _          -> iter' forest
+                      idx { column = column idx + 1 }
+                      idxs
+
+  prop idxs newProp a = 
     (not $ matchesShapes a (d : ds) idxs) Q.==> newProp a
 
 ---------------------------------------------------------------------------------

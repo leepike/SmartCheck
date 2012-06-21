@@ -4,7 +4,7 @@
 module Test.SmartCheck.DataToTree
   ( subForestPath
   , forestReplaceChop
-  , forestReplaceStop
+--  , forestReplaceStop
   , getAtIdx
   , replaceAtIdx
   , getIdxForest
@@ -113,16 +113,16 @@ forestReplaceChop = sub Chop
 
 ---------------------------------------------------------------------------------
 
--- | Replace a tree at index Idx in a Forest.  Return the original if the
--- index is out of range.  Replace the subforest of Idx with the Substs.
-forestReplaceStop :: Forest Subst -> Idx -> Forest Subst
-forestReplaceStop f idx = sub ReplaceSubs f idx Subst
+-- -- | Replace a tree at index Idx in a Forest.  Return the original if the
+-- -- index is out of range.  Replace the subforest of Idx with the Substs.
+-- forestReplaceStop :: Forest Subst -> Idx -> Forest Subst
+-- forestReplaceStop f idx = sub ReplaceSubs f idx Subst
 
 ---------------------------------------------------------------------------------
 
 data SubStrat = Path        -- ^ Replace everything in the path from the root to
-                            -- here.
-              | ReplaceSubs -- ^ Replace the subforest with a value.
+                            -- here.  Used as breadcrumbs to the value.
+--              | ReplaceSubs -- ^ Replace the subforest with a value.
               | Chop        -- ^ Replace a value and remove the subforest.
   deriving  (Show, Read, Eq)
 
@@ -134,7 +134,7 @@ sub args forest (Idx (0::Int) n) a =
   f i node | i == n = ( i+1, Node a $ subf (subForest node) )
            | True   = ( i+1, node )
   subf frst = case args of
-                ReplaceSubs -> map (fmap $ \_ -> a) frst -- Replace subforests
+--                ReplaceSubs -> map (fmap $ \_ -> a) frst -- Replace subforests
                 _           -> [] -- Chop the subforest
 sub args forest idx a = 
   snd $ mapAccumL findTree (column idx) forest

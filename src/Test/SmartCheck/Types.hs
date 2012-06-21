@@ -127,7 +127,7 @@ class (Q.Arbitrary a, Show a, Typeable a) => SubTypes a where
   replaceChild :: Typeable b => a -> Forest Subst -> b -> Maybe a
   default replaceChild :: (Generic a, GST (Rep a), Typeable b) 
                        => a -> Forest Subst -> b -> Maybe a
-  replaceChild a forest b = fmap to $ grp (from a) forest b
+  replaceChild a forest b = fmap to $ grc (from a) forest b
   -----------------------------------------------------------
   -- Grab the top contructor.
   toConstr :: a -> String
@@ -152,14 +152,14 @@ class (Q.Arbitrary a, Show a, Typeable a) => SubTypes a where
 class GST f where
   -- Names are abbreviations of the corresponding method names above.
   gst :: f a -> Forest SubT
-  grp :: Typeable b => f a -> Forest Subst -> b -> Maybe (f a)
+  grc :: Typeable b => f a -> Forest Subst -> b -> Maybe (f a)
   gtc :: f a -> String
 --  gcb :: f a -> String
   gsf :: f a -> Forest String
 
 instance GST U1 where
   gst U1 = []
-  grp _ _ _ = Nothing
+  grc _ _ _ = Nothing
   gtc U1 = ""
 --  gcb U1 = ""
   gsf U1 = []
@@ -167,16 +167,16 @@ instance GST U1 where
 instance (GST a, GST b) => GST (a :*: b) where
   gst (a :*: b) = gst a ++ gst b
 
-  grp (a :*: b) forest c 
+  grc (a :*: b) forest c 
     -- If the 1st element is a baseType, we skip it.  Can't use baseTypes
     -- directly here, so we see if the tree's subforest is empty.
-    | null (gst a) = grp b forest c >>= \x -> return (a :*: x)
+    | null (gst a) = grc b forest c >>= \x -> return (a :*: x)
     | otherwise       = 
         case forest of
           []                       -> Just (a :*: b)
-          (n@(Node Subst _) : _)   -> do left  <- grp a [n] c 
+          (n@(Node Subst _) : _)   -> do left  <- grc a [n] c 
                                          return $ left :*: b
-          (Node Keep _ : rst)      -> do right <- grp b rst c
+          (Node Keep _ : rst)      -> do right <- grc b rst c
                                          return $ a :*: right
 
   gtc (a :*: b) = gtc a ++ gtc b
@@ -194,8 +194,8 @@ instance (GST a, GST b) => GST (a :+: b) where
   gst (L1 a) = gst a
   gst (R1 b) = gst b
 
-  grp (L1 a) forest c = grp a forest c >>= return . L1
-  grp (R1 a) forest c = grp a forest c >>= return . R1
+  grc (L1 a) forest c = grc a forest c >>= return . L1
+  grc (R1 a) forest c = grc a forest c >>= return . R1
 
   gtc (L1 a) = gtc a
   gtc (R1 a) = gtc a
@@ -209,7 +209,7 @@ instance (GST a, GST b) => GST (a :+: b) where
 -- Constructor meta-information
 instance (Constructor c, GST a) => GST (M1 C c a) where
   gst (M1 a) = gst a
-  grp (M1 a) forest c = grp a forest c >>= return . M1
+  grc (M1 a) forest c = grc a forest c >>= return . M1
   gtc = conName 
 --  gcb m@(M1 a) = addSpace (conName m) (gcb a)
   gsf m@(M1 a) = [ Node (conName m) forest ]
@@ -219,7 +219,7 @@ instance (Constructor c, GST a) => GST (M1 C c a) where
 -- All the other meta-information (selector, module, etc.)
 instance GST a => GST (M1 i k a) where
   gst (M1 a) = gst a
-  grp (M1 a) forest c = grp a forest c >>= return . M1
+  grc (M1 a) forest c = grc a forest c >>= return . M1
   gtc (M1 a) = gtc a
 --  gcb (M1 a) = gcb a
   gsf (M1 a) = gsf a
@@ -228,7 +228,7 @@ instance (Show a, Q.Arbitrary a, SubTypes a, Typeable a) => GST (K1 i a) where
   gst (K1 a) = if baseType a then []
                  else [ Node (subT a) (subTypes a) ]
 
-  grp (K1 a) forest c = 
+  grc (K1 a) forest c = 
     case forest of
       []                  -> Just (K1 a)
       (Node Keep  _  : _) -> Just (K1 a)

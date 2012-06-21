@@ -4,7 +4,6 @@ module Test.SmartCheck.SmartGen
   , extractResult
   , resultify
   , replace
-  , samples -- YYY
   , iter
   ) where
 
@@ -118,16 +117,13 @@ resultify prop a = do
 -- the structure, following subtrees that have *not* been replaced.
 iter :: SubTypes a 
      => Q.Args            -- ^ Arguments
---     -> Strategy          -- ^ Our generalization strategy
      -> Forest Subst      -- ^ Tree representation of data
      -> a                 -- ^ Failed value
      -> (a -> Q.Property) -- ^ Property
      -> Idx               -- ^ Starting index to extrapolate
      -> [Idx]             -- ^ List of generalized indices
      -> IO [Idx]
-iter args forest d prop idx idxs = do -- YYY
-  putStrLn $ "iter-idx " ++ show idx
-  putStrLn $ "iter-idxs " ++ show idxs
+iter args forest d prop idx idxs = 
   if done then return idxs
      else if nextLevel 
             then iter' forest (idx { level  = level idx + 1  

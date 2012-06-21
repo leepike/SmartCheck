@@ -41,8 +41,6 @@ smartCheck args prop = smartCheck' prop []
                 then -- Extrapolate with the original property to see if we get
                      -- a previously-visited value back.
                      do (idxs, prop_) <- extrapolate args d prop ds
-                        putStrLn $ "ex d: " ++ show d -- YYY
-                        putStrLn $ "ex idx " ++ show idxs -- YYY
                         return $ Just (idxs, prop_)
                 else return Nothing
 
@@ -69,8 +67,6 @@ smartCheck args prop = smartCheck' prop []
       where
       output :: a -> Replace Idx -> IO ()
       output d repl = do
-        putStrLn $ "d: " ++ show d -- YYY
-        putStrLn $ "idx " ++ show repl -- YYY
         smartPrtLn "Extrapolated value:"
         renderWithVars (treeShow args) d repl -- XXX
 

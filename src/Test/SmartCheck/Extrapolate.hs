@@ -37,7 +37,6 @@ extrapolate args d origProp ds = do
   putStrLn ""
   smartPrtLn "Extrapolating values ..."
   idxs <- iter (qcArgs args) (mkSubstForest d) d origProp (Idx 0 0) []
-  putStrLn $ "extrap: " ++ show idxs -- YYY
   return (idxs, prop' idxs)
 
   where              

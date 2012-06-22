@@ -36,10 +36,12 @@ extrapolate :: SubTypes a
 extrapolate args d origProp ds = do 
   putStrLn ""
   smartPrtLn "Extrapolating values ..."
-  idxs <- iter' (mkSubstForest d) (Idx 0 0) []
+  idxs <- iter' forest (Idx 0 0) []
   return (idxs, prop idxs)
 
   where
+  forest = mkSubstForest d ()
+
   iter' = iter d test next origProp
       
   -- In this call to iterateArb, we want to claim we can extrapolate iff at
@@ -55,7 +57,7 @@ extrapolate args d origProp ds = do
       -- None of the tries satisfy prop.  Prevent recurring down this tree,
       -- since we can generalize (we do this with sub, which replaces the
       -- subForest with []).
-      FailedProp -> iter' (forestReplaceChop forest idx Subst)
+      FailedProp -> iter' (forestReplaceChop forest idx ())
                       idx { column = column idx + 1 }
                       (idx : idxs)
       _          -> iter' forest

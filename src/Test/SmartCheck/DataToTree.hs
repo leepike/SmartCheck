@@ -9,7 +9,7 @@ module Test.SmartCheck.DataToTree
   , replaceAtIdx
   , getIdxForest
   , breadthLevels
-  , mkSubstForest
+  , mkSubstForest -- YYY remove when taken out of reduce
   , depth
   ) where
 
@@ -162,9 +162,9 @@ sub strat forest idx a =
 
 -- | Make a substitution Forest (all proper children).  Initially we don't
 -- replace anything.
-mkSubstForest :: SubTypes a => a -> Forest Subst
-mkSubstForest a = map tMap (subTypes a)
-  where tMap = fmap (\_ -> Keep)
+mkSubstForest :: SubTypes a => a -> b -> Forest b
+mkSubstForest a b = map tMap (subTypes a)
+  where tMap = fmap (\_ -> b)
 
 ---------------------------------------------------------------------------------
 
@@ -174,6 +174,8 @@ replaceAtIdx :: (SubTypes a, Typeable b)
              -> Idx   -- ^ Index of hole to replace
              -> b     -- ^ Value to replace with
              -> Maybe a
-replaceAtIdx m idx = replaceChild m (subForestPath (mkSubstForest m) idx Subst)
+replaceAtIdx m idx = replaceChild m (subForestPath subF idx Subst)
+  where 
+  subF = mkSubstForest m Keep
 
 ---------------------------------------------------------------------------------

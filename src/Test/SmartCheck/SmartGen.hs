@@ -112,7 +112,7 @@ resultify prop a = do
 
 ---------------------------------------------------------------------------------
 
-type Next a = Result a -> Forest Subst -> Idx -> [Idx] -> IO [Idx]
+type Next a = Result a -> Forest () -> Idx -> [Idx] -> IO [Idx]
 
 -- Do a breadth-first traversal of the data, trying to replace holes.  When we
 -- find an index we can replace, add its index to the index list.  Recurse down
@@ -122,7 +122,7 @@ iter :: SubTypes a
      -> (Idx -> IO (Result a)) -- ^ Test to use
      -> Next a                 -- ^ What to do after the test
      -> (a -> Q.Property)      -- ^ Property
-     -> Forest Subst           -- ^ Tree representation of data
+     -> Forest ()              -- ^ Just care about structure (size), not values
      -> Idx                    -- ^ Starting index to extrapolate
      -> [Idx]                  -- ^ List of generalized indices
      -> IO [Idx]
@@ -132,29 +132,15 @@ iter d test next prop forest idx idxs =
             then iter' forest idx { level  = level idx + 1  
                                   , column = 0 }
                    idxs
-            else case getIdxForest forest idx of
-                   -- If we haven't seen this node, test it and continue, based
-                   -- on the results.
-                   Just (Node Keep _)  -> do
-                     tries <- test idx
-                     next tries forest idx idxs
-                   -- This is a node that we've visited, or we've visited and
-                   -- sucessfully generalized its parent node.  Skip it.
-                   -- (Actually, this can't happen, as when we generalize a
-                   -- parent, we chop its children to preven recursion.)
-                   Just (Node Subst _) -> go
-                   -- Index out of bounds.  Continue to find the next in-bounds
-                   -- index.
-                   Nothing             -> go
+            else do tries <- test idx
+                    next tries forest idx idxs
 
   where
+  -- Location is w.r.t. the forest, not the original data value.
   pts        = breadthLevels forest
   done       = length pts <= level idx
   nextLevel  = length (pts !! level idx) <= column idx
   iter'      = iter d test next prop 
-  go         = iter' forest 
-                 idx { column = column idx + 1 }
-                 idxs
 
 ---------------------------------------------------------------------------------
 

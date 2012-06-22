@@ -101,16 +101,13 @@ instance Show SubT where
 -- subTypes is the main method, placing values into trees.  For types can can't
 -- be put into a *structural* order (e.g., Int), we don't want SmartCheck to
 -- touch them, so that aren't placed in the tree (the baseType method tells
--- subTypes which types have this property).  allSubTypes is a method that puts
--- everything into the tree, and this is used only to render the value.
+-- subTypes which types have this property).
 --
 -- for a datatype with constructors A and C, 
 -- 
 -- > subTypes (A (C 0) 1)
 -- > [Node {rootLabel = C 0, subForest = []}]
 --
--- > allSubTypes (A (C 0) 1)
--- > [Node {rootLabel = C 0, subForest = []},Node {rootLabel = 1, subForest = []}]
 class (Q.Arbitrary a, Show a, Typeable a) => SubTypes a where
   -----------------------------------------------------------
   subTypes :: a -> Forest SubT

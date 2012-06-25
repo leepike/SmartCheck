@@ -61,7 +61,7 @@ scStdArgs = ScArgs { treeShow    = PrintTree
                    , maxFailure  = Q.maxDiscard Q.stdArgs + Q.maxSuccess Q.stdArgs
                    , qcArgs      = Q.stdArgs
                    , extrap      = True
-                   , constrGen   = False
+                   , constrGen   = True
                    }
 
 ---------------------------------------------------------------------------------

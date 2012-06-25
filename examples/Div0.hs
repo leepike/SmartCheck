@@ -67,7 +67,6 @@ divTest = smartCheck args div_prop
                                 -- { maxSuccess = 1000
                                 -- , maxSize    = 20  }
                    , treeShow  = PrintString
-                   , constrGen = False
                    }
 
 ---------------------------------------------------------------------------------

@@ -44,12 +44,11 @@ smartShrink args d prop = iter' d (mkForest d) (Idx 0 0) >>= return . fst
     iter y test next notProp forest_ idx' (errorMsg "next-idxs")
 
   --------------------------------------
-  test :: a -> Idx -> IO (Result a)
+  test :: a -> Idx -> IO (Maybe a)
   test x idx = 
     case maxSize of
-      -- Not really failed precondition, but we aren't testing this value.
       -- We'll continue down the tree.
-      Nothing     -> return FailedPreCond 
+      Nothing     -> return Nothing
       Just maxVal -> go maxVal
 
     where
@@ -68,13 +67,16 @@ smartShrink args d prop = iter' d (mkForest d) (Idx 0 0) >>= return . fst
       case v of
         -- This sees if some subterm directly fails the property.  If so, we'll
         -- take it, if it's well-typed.
-        Just v' -> return (Result v')
+        Just v' -> return (Just v')
         -- Otherwise, we'll do maxFailure tests of max, trying to pass the
         -- precondition to find a failure.  We claim to find a failure if some
         -- test satisfies the precondition and satisfies
         --
         -- (Q.expectFailure . originalProp).
-        Nothing -> iterateArb x idx (maxFailure args) maxVal notProp
+        Nothing -> do r <- iterateArb x idx (maxFailure args) maxVal notProp
+                      return $ case r of
+                                 Result a -> Just a
+                                 _        -> Nothing
 
     testHole :: SubT -> IO (Maybe a)
     testHole SubT { unSubT = v } = 
@@ -91,17 +93,14 @@ smartShrink args d prop = iter' d (mkForest d) (Idx 0 0) >>= return . fst
 
   --------------------------------------
 
-  next :: a -> Result a -> Forest () -> Idx -> [Idx] -> IO (a, [Idx])
+  next :: a -> Maybe a -> Forest () -> Idx -> [Idx] -> IO (a, [Idx])
   next x res forest idx _ = 
     case res of
       -- Found a try that fails prop.  We'll now test try, and start trying to
       -- reduce from the top!
-      Result y      -> iter' y (mkForest y) (Idx 0 0)
+      Just y  -> iter' y (mkForest y) (Idx 0 0)
       -- Either couldn't satisfy the precondition or nothing satisfied the
       -- property.  Either way, we can't shrink it.
-      FailedPreCond -> cont
-      FailedProp    -> cont
-    where
-    cont = iter' x forest idx { column = column idx + 1 }
+      Nothing -> iter' x forest idx { column = column idx + 1 }
  
-  --------------------------------------
+---------------------------------------------------------------------------------

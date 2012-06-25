@@ -41,7 +41,6 @@ extrapolate args d origProp ds = do
 
   where
   forest = mkSubstForest d ()
-
   iter' = iter d test next origProp
       
   -- In this call to iterateArb, we want to claim we can extrapolate iff at
@@ -54,19 +53,17 @@ extrapolate args d origProp ds = do
                  origProp
 
   -- Control-flow.
-  next _ res forest' idx idxs = result
-    where 
-    result = 
-      case res of
-        -- None of the tries satisfy prop.  Prevent recurring down this tree,
-        -- since we can generalize (we do this with sub, which replaces the
-        -- subForest with []).
-        FailedProp -> iter' (forestReplaceChop forest' idx ())
-                        idx { column = column idx + 1 }
-                        (idx : idxs)
-        _          -> iter' forest'
-                        idx { column = column idx + 1 }
-                        idxs
+  next _ res forest' idx idxs = 
+    case res of
+      -- None of the tries satisfy prop.  Prevent recurring down this tree,
+      -- since we can generalize (we do this with sub, which replaces the
+      -- subForest with []).
+      FailedProp -> iter' (forestReplaceChop forest' idx ())
+                      idx { column = column idx + 1 }
+                      (idx : idxs)
+      _          -> iter' forest'
+                      idx { column = column idx + 1 }
+                      idxs
 
   prop idxs newProp a = 
     (not $ matchesShapes a (d : ds) idxs) Q.==> newProp a

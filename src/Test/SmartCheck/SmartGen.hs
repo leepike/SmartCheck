@@ -112,16 +112,16 @@ resultify prop a = do
 
 ---------------------------------------------------------------------------------
 
-type Next a = a -> Result a -> Forest () -> Idx -> [Idx] -> IO (a, [Idx])
-type Test a = a -> Idx -> IO (Result a)
+type Next a b = a -> b -> Forest () -> Idx -> [Idx] -> IO (a, [Idx])
+type Test a b = a -> Idx -> IO b
 
 -- Do a breadth-first traversal of the data, trying to replace holes.  When we
 -- find an index we can replace, add its index to the index list.  Recurse down
 -- the structure, following subtrees that have *not* been replaced.
 iter :: SubTypes a 
      => a                 -- ^ Failed value
-     -> Test a            -- ^ Test to use
-     -> Next a            -- ^ What to do after the test
+     -> Test a b          -- ^ Test to use
+     -> Next a b          -- ^ What to do after the test
      -> (a -> Q.Property) -- ^ Property
      -> Forest ()         -- ^ Just care about structure (size), not values
      -> Idx               -- ^ Starting index to extrapolate

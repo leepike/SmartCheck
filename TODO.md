@@ -45,6 +45,18 @@ TODO
 
 * Args to optionally extrapolate and contructor extrapolate.
 
+* Generalize extrapolate/Replace --- same iter function used in both.
+
+* I don't think I need ReplaceSubs --- Chop will work.  I just want to prevent
+  recurring in a substs tree.
+
+* Make sure that foldM (extractResult prop) FailedPreCond res in SmartGen fails
+  eagerly.
+
+* Add option to bound depth of reducing.
+
+* BUGs: too many variable names for constructors.  Also, change forall order.
+
 Won't Do / Can't Do
 -----------------------------------------------
 * Use shrink instances as default for base types.

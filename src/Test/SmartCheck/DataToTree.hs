@@ -130,7 +130,7 @@ data SubStrat = Path        -- ^ Replace everything in the path from the root to
 
 sub :: SubStrat -> Forest a -> Idx -> a -> Forest a
 -- on right level, and we'll assume correct subtree.
-sub strat forest (Idx (0::Int) n) a = 
+sub _ forest (Idx (0::Int) n) a = 
   snd $ mapAccumL f 0 forest
   where
   f i node | i == n = ( i+1, Node a [] )  -- $ subf (subForest node) )

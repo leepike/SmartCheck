@@ -36,7 +36,7 @@ extrapolate :: SubTypes a
 extrapolate args d origProp ds = do 
   putStrLn ""
   smartPrtLn "Extrapolating values ..."
-  idxs <- iter' forest (Idx 0 0) []
+  (_, idxs) <- iter' forest (Idx 0 0) []
   return (idxs, prop idxs)
 
   where
@@ -48,21 +48,25 @@ extrapolate args d origProp ds = do
   -- least one test passes a precondition, and for every test in which the
   -- precondition is passed, it fails.  We test values of all possible sizes, up
   -- to Q.maxSize.
-  test idx = iterateArb d idx 
-               (Q.maxSuccess $ qcArgs args) 
-               (Q.maxSize $ qcArgs args) 
-               origProp
-  next res forest idx idxs =
-    case res of
-      -- None of the tries satisfy prop.  Prevent recurring down this tree,
-      -- since we can generalize (we do this with sub, which replaces the
-      -- subForest with []).
-      FailedProp -> iter' (forestReplaceChop forest idx ())
-                      idx { column = column idx + 1 }
-                      (idx : idxs)
-      _          -> iter' forest
-                      idx { column = column idx + 1 }
-                      idxs
+  test _ idx = iterateArb d idx 
+                 (Q.maxSuccess $ qcArgs args) 
+                 (Q.maxSize $ qcArgs args) 
+                 origProp
+
+  -- Control-flow.
+  next _ res forest' idx idxs = result
+    where 
+    result = 
+      case res of
+        -- None of the tries satisfy prop.  Prevent recurring down this tree,
+        -- since we can generalize (we do this with sub, which replaces the
+        -- subForest with []).
+        FailedProp -> iter' (forestReplaceChop forest' idx ())
+                        idx { column = column idx + 1 }
+                        (idx : idxs)
+        _          -> iter' forest'
+                        idx { column = column idx + 1 }
+                        idxs
 
   prop idxs newProp a = 
     (not $ matchesShapes a (d : ds) idxs) Q.==> newProp a

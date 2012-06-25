@@ -7,6 +7,7 @@ module Test.SmartCheck.ConstructorGen
 import Test.SmartCheck.Types
 import Test.SmartCheck.DataToTree
 import Test.SmartCheck.SmartGen
+import Test.SmartCheck.Render
 
 import Generics.Deriving
 import qualified Data.Set as S
@@ -15,8 +16,24 @@ import qualified Test.QuickCheck as Q
 
 ---------------------------------------------------------------------------------
 
-constrsGen :: SubTypes a => ScArgs -> a -> IO [Idx]
-constrsGen args a = undefined
+constrsGen :: (SubTypes a, Generic a, ConNames (Rep a)) 
+           => ScArgs -> a -> (a -> Q.Property) -> IO [Idx]
+constrsGen args d prop = do
+  putStrLn ""
+  smartPrtLn "Extrapolating Constructors ..."
+  (_, idxs) <- iter' forest (Idx 0 0) []
+  return idxs
+
+  where
+  forest = mkSubstForest d ()
+  iter'  = iter d test next prop
+
+  test x idx = extrapolateConstrs args x idx prop 
+  next _ res _ idx idxs = 
+    iter' forest idx { column = column idx + 1 } idxs'
+
+    where
+    idxs' = if res then idx : idxs else idxs
 
 ---------------------------------------------------------------------------------
 
@@ -32,13 +49,16 @@ extrapolateConstrs args a idx prop = recConstrs (S.singleton $ subConstr a idx)
   recConstrs constrs =
     -- Check if every possible constructor is an element of constrs passed
     -- in.
-    putStrLn (show constrs) -- YYY
-    >>
+    -- putStrLn (show constrs) -- YYY
+    -- >>
     if S.fromList (conNames a) `S.isSubsetOf` constrs
       then return True
       else do v <- arbSubset args a idx notProp constrs
               case v of
-                Result x    -> recConstrs (subConstr x idx `S.insert` constrs)
+                Result x    -> do -- YYY
+                                  putStr $ show idx ++ " "
+                                  putStrLn (show x)
+                                  recConstrs (subConstr x idx `S.insert` constrs)
                 _           -> return False
 
 ---------------------------------------------------------------------------------

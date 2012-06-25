@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-} 
 {-# LANGUAGE Rank2Types #-} 
 
@@ -16,11 +17,14 @@ import Test.SmartCheck.ConstructorGen
 
 import qualified Test.QuickCheck as Q
 
+import Generics.Deriving
+
 ---------------------------------------------------------------------------------
 
 -- | Main interface function.
-smartCheck :: forall a. (Read a, Q.Arbitrary a, SubTypes a)
-           => ScArgs -> (a -> Q.Property) -> IO ()
+smartCheck :: 
+  forall a. (Read a, Q.Arbitrary a, SubTypes a, Generic a, ConNames (Rep a))
+    => ScArgs -> (a -> Q.Property) -> IO ()
 smartCheck args prop = smartCheck' prop []
 
   where
@@ -46,7 +50,7 @@ smartCheck args prop = smartCheck' prop []
 
       -- If we asked to extrapolate constructors, do so.
       cs  <- if constrGen args
-               then constrsGen args d >>= return . Just
+               then constrsGen args d prop >>= return . Just
                else return Nothing
 
       -- If either kind of extrapolation pass yielded fruit, prettyprint it.

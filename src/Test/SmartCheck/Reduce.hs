@@ -5,7 +5,7 @@ module Test.SmartCheck.Reduce
   ) where
 
 import Test.SmartCheck.Types
-import Test.SmartCheck.SmartGen
+import Test.SmartCheck.SmartGen 
 import Test.SmartCheck.DataToTree
 import Test.SmartCheck.Render
 
@@ -34,182 +34,74 @@ smartRun args res prop = do
 
 -- | Breadth-first traversal of d, trying to shrink it with *strictly* smaller
 -- children.  We replace d whenever a successful shrink is found and try again.
-smartShrink :: SubTypes a => ScArgs -> a -> (a -> Q.Property) -> IO a
-smartShrink args d prop = 
-  iterReduce args d (Idx 0 0) notProp
+smartShrink :: forall a. SubTypes a => ScArgs -> a -> (a -> Q.Property) -> IO a
+smartShrink args d prop = iter' d (mkForest d) (Idx 0 0) >>= return . fst
 
   where
-  notProp = Q.expectFailure . prop
+  notProp    = Q.expectFailure . prop
+  mkForest x = mkSubstForest x ()
+  iter' y forest_ idx' = 
+    iter y test next notProp forest_ idx' (errorMsg "next-idxs")
 
--- smartShrink :: SubTypes a => ScArgs -> a -> (a -> Q.Property) -> IO a
--- smartShrink args d prop = iterReduce args d (Idx 0 0) notProp
+  --------------------------------------
+  test :: a -> Idx -> IO (Result a)
+  test x idx = 
+    case maxSize of
+      -- Not really failed precondition, but we aren't testing this value.
+      -- We'll continue down the tree.
+      Nothing     -> return FailedPreCond 
+      Just maxVal -> go maxVal
 
---   where
---   notProp = Q.expectFailure . prop
+    where
+    maxSize :: Maybe Int
+    maxSize = let dep = fmap depth forestIdx in
+              case dep of 
+                Nothing -> Nothing
+                Just d'  -> if d' <= 1 then Nothing else Just (d' - 1)
+      where
+      forestIdx = fmap subForest $ getIdxForest (mkForest x) idx
 
-iterReduce :: SubTypes a => ScArgs -> a -> Idx -> (a -> Q.Property) -> IO a
-iterReduce args d idx prop = 
-  if done then return d
-    else if nextLevel 
-           then iterReduce args d idx { level  = level idx + 1
-                                      , column = 0 }
-                           prop
-           else mkTry args d idx prop
-
-                  -- XXX We could shrink base values, but I'm not sure if
-                  -- it's worth it.  Doesn't affect extrapolation or make
-                  -- counter-examples more readable.
-                  -- then case getAtIdx d idx of
-                  --        Nothing -> iterReduce args d 
-                  --                     (idx { column = column idx + 1 }) 
-                  --                     prop
-                  --        Just v  -> mkVals v
-
-                  -- Invariant: ms should be => 1.                
-
-  where
-  -- Extract a tree from a forest and make sure it's big enough to test.
-  -- maxSize   = case getIdxForest forest idx of
-  --               Nothing -> Nothing
-  --               Just t  -> let dep = depth (subForest t) in
-  --                          if dep <= 1 then Nothing
-  --                            else Just (dep-1)
-
-  pts       = breadthLevels forest
-  done      = length pts <= level idx
-  nextLevel = length (pts !! level idx) <= column idx
-  forest    = mkSubstForest d ()
-
-mkTry :: forall a. SubTypes a
-      => ScArgs -> a -> Idx -> (a -> Q.Property) -> IO a
-mkTry args d idx prop = 
-  case maxSize of
-    Nothing     -> iterReduce args d (idx { column = column idx + 1 }) 
-                     prop
-    Just maxVal -> test maxVal
-
-  where
-  test maxVal = do 
-    v <- mv
-    case v of
-      -- This sees if some subterm directly fails the property.  If so, we'll take
-      -- it, if it's well-typed.
-      Just v' -> iterReduce args v' (Idx 0 0) prop
-      Nothing -> do 
-        -- We'll at least maxFailure tests of max, trying to pass the
+    go maxVal = do 
+      v <- case getAtIdx x idx of
+             Nothing  -> return Nothing
+             Just v'  -> testHole v'
+      case v of
+        -- This sees if some subterm directly fails the property.  If so, we'll
+        -- take it, if it's well-typed.
+        Just v' -> return (Result v')
+        -- Otherwise, we'll do maxFailure tests of max, trying to pass the
         -- precondition to find a failure.  We claim to find a failure if some
         -- test satisfies the precondition and satisfies
         --
         -- (Q.expectFailure . originalProp).
-        try <- iterateArb d idx (maxFailure args) maxVal prop
-        case try of
-          -- Found a try that fails prop.  We'll now test try, and start trying
-          -- to reduce from the top!
-          Result x -> iterReduce args x (Idx 0 0) prop
-          -- Either couldn't satisfy the precondition or nothing satisfied the
-          -- property.  Either way, we can't shrink it.
-          _        -> iterReduce args d (idx { column = column idx + 1 }) prop
+        Nothing -> iterateArb x idx (maxFailure args) maxVal notProp
 
-  maxSize :: Maybe Int
-  maxSize = let dep = fmap depth forest in
-            case dep of 
-              Nothing -> Nothing
-              Just d'  -> if d' <= 1 then Nothing else Just (d' - 1)
+    testHole :: SubT -> IO (Maybe a)
+    testHole SubT { unSubT = v } = 
+      case cast v :: Maybe a of
+        Nothing -> return Nothing
+        -- FailedPreCond is just seeding extractResult, a folding operator.
+        Just y  -> do res <- extractResult notProp FailedPreCond y
+                      case res of
+                        -- This is a failed value strictly smaller.  Let's test
+                        -- starting from here.
+                        Result z      -> return (Just z)
+                        FailedPreCond -> return Nothing
+                        FailedProp    -> return Nothing
+
+  --------------------------------------
+
+  next :: a -> Result a -> Forest () -> Idx -> [Idx] -> IO (a, [Idx])
+  next x res forest idx _ = 
+    case res of
+      -- Found a try that fails prop.  We'll now test try, and start trying to
+      -- reduce from the top!
+      Result y      -> iter' y (mkForest y) (Idx 0 0)
+      -- Either couldn't satisfy the precondition or nothing satisfied the
+      -- property.  Either way, we can't shrink it.
+      FailedPreCond -> cont
+      FailedProp    -> cont
     where
-    forest = fmap subForest $ getIdxForest (mkSubstForest d ()) idx
-
-  mv = case getAtIdx d idx of
-         Nothing -> errorMsg "unexpected failure: getAtIdx mkTry"
-         Just v  -> testHole v
-
-  testHole :: SubT -> IO (Maybe a)
-  testHole SubT { unSubT = v } = 
-    case cast v :: Maybe a of
-      Nothing -> return Nothing
-      -- FailedPreCond is just seeding extractResult, a folding operator.
-      Just x  -> do res <- extractResult prop FailedPreCond x 
-                    case res of
-                      -- This is a failed value strictly smaller.  Let's test
-                      -- starting from here.
-                      Result y -> return (Just y)
-                      _        -> return Nothing
-
-
-
--- iterReduce :: SubTypes a => ScArgs -> a -> Idx -> (a -> Q.Property) -> IO a
--- iterReduce args d idx prop = 
---   if done then return d
---     else if nextLevel 
---            then iterReduce args d idx { column = 0
---                                       , level  = level idx + 1 }
---                            prop
---            else case maxSize of
---                   Nothing -> iterReduce args d (idx { column = column idx + 1 })
---                                prop
---                   -- XXX We could shrink base values, but I'm not sure if
---                   -- it's worth it.  Doesn't affect extrapolation or make
---                   -- counter-examples more readable.
---                   -- then case getAtIdx d idx of
---                   --        Nothing -> iterReduce args d 
---                   --                     (idx { column = column idx + 1 }) 
---                   --                     prop
---                   --        Just v  -> mkVals v
-
---                   -- Invariant: ms should be => 1.                
---                   Just ms -> mkTry args d idx prop ms
---   where
---   -- Extract a tree from a forest and make sure it's big enough to test.
---   maxSize   = case getIdxForest forest idx of
---                 Nothing -> Nothing
---                 Just t  -> let dep = depth (subForest t) in
---                            if dep <= 1 then Nothing
---                              else Just (dep-1)
-
---   forest    = mkSubstForest d Keep
---   pts       = breadthLevels forest
---   done      = length pts <= level idx
---   nextLevel = length (pts !! level idx) <= column idx
-
-
-
--- mkTry :: forall a. SubTypes a
---       => ScArgs -> a -> Idx -> (a -> Q.Property) -> Int -> IO a
--- mkTry args d idx prop maxSize = do
---   v <- mv
---   case v of
---     -- This sees if some subterm directly fails the property.  If so, we'll take
---     -- it, if it's well-typed.
---     Just v' -> iterReduce args v' (Idx 0 0) prop
---     Nothing -> do 
---       -- We'll at least maxFailure tests of maxSize, trying to pass the
---       -- precondition to find a failure.  We claim to find a failure if some
---       -- test satisfies the precondition and satisfies
---       --
---       -- (Q.expectFailure . originalProp).
---       try <- iterateArb d idx (maxFailure args) maxSize prop
---       case try of
---         -- Found a try that fails prop.  We'll now test try, and start trying to
---         -- reduce from the top!  
---         Result x -> iterReduce args x (Idx 0 0) prop
---         -- Either couldn't satisfy the precondition or nothing satisfied the
---         -- property.  Either way, we can't shrink it.
---         _        -> iterReduce args d (idx { column = column idx + 1 }) prop
-
---   where
---   mv = case getAtIdx d idx of
---          Nothing -> errorMsg "unexpected failure: getAtIdx mkTry"
---          Just v  -> testHole v
-
---   testHole :: SubT -> IO (Maybe a)
---   testHole SubT { unSubT = v } = 
---     case cast v :: Maybe a of
---       Nothing -> return Nothing
---       -- FailedPreCond is just seeding extractResult, a folding operator.
---       Just x  -> do res <- extractResult prop FailedPreCond x 
---                     case res of
---                       -- This is a failed value strictly smaller.  Let's test
---                       -- starting from here.
---                       Result y -> return (Just y)
---                       _        -> return Nothing
-  
-
+    cont = iter' x forest idx { column = column idx + 1 }
+ 
+  --------------------------------------

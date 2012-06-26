@@ -11,26 +11,33 @@ import Test.SmartCheck.Render
 
 import Generics.Deriving
 import qualified Data.Set as S
+import Data.List
 
 import qualified Test.QuickCheck as Q
 
 ---------------------------------------------------------------------------------
 
+-- | Entry point to generalize constructors.  We pass in a list of indexes from
+-- value generalizations so we don't try to generalize those constructors (or
+-- anything below).
 constrsGen :: (SubTypes a, Generic a, ConNames (Rep a)) 
-           => ScArgs -> a -> (a -> Q.Property) -> IO [Idx]
-constrsGen args d prop = do
+           => ScArgs -> a -> (a -> Q.Property) -> [Idx] -> IO [Idx]
+constrsGen args d prop vs = do
   putStrLn ""
   smartPrtLn "Extrapolating Constructors ..."
+
+  putStrLn $ "extrap idxs: " ++ show vs -- YYY
   (_, idxs) <- iter' forest (Idx 0 0) []
   return idxs
 
   where
-  forest = mkSubstForest d ()
-  iter'  = iter d test next prop
-
+  forest     = let forest' = mkSubstForest d () in
+               foldl' (\f idx -> forestReplaceChop f idx ()) forest' vs
+  iter'      = iter d test next prop
   test x idx = extrapolateConstrs args x idx prop 
-  next _ res _ idx idxs = 
-    iter' forest idx { column = column idx + 1 } idxs'
+  next _ res forest' idx idxs = 
+    iter' (if res then forestReplaceChop forest' idx () else forest') 
+      idx { column = column idx + 1 } idxs'
 
     where
     idxs' = if res then idx : idxs else idxs

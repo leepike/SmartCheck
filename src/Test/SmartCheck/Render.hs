@@ -48,23 +48,31 @@ data Replace a = Replace { unVals :: [a], unConstrs :: [a] }
 -- XXX only print if variable list is non-empty.
 renderWithVars :: SubTypes a => Format -> a -> Replace Idx -> IO ()
 renderWithVars format d idxs = do
-  prtVars valsLen  valVars
-  prtVars constrsLen constrVars
-  putStrLn $ replaceWithVars format d idxs (Replace valVars constrVars)
+  prtVars "values" valsLen  valVars
+  prtVars "constructors" constrsLen constrVars
+  constrArgs
+  putStrLn ""
+  putStrLn $ replaceWithVars format d idxs' (Replace valVars constrVars)
   putStrLn ""
 
   where
-  prtVars len vs = 
-    when (len > 0) $ do
-      putStrLn $ "forall " ++ unwords (take len vs) ++ ":"
-      putStrLn ""
+  idxs' = let cs = unConstrs idxs \\ unVals idxs in
+          idxs { unConstrs = cs }
 
-  vars str = map (\(x,i) -> x ++ show i) $ zip (repeat str) [0::Int ..]
-  valVars = vars "x"
+  constrArgs = 
+    unless (constrsLen == 0) $ putStrLn "  there exist arguments s.t."
+
+  prtVars kind len vs = 
+    when (len > 0) $ 
+         (putStrLn $ "forall " ++ kind ++ " "
+      ++ unwords (take len vs) ++ ":")
+
+  vars str   = map (\(x,i) -> x ++ show i) (zip (repeat str) [0::Int ..])
+  valVars    = vars "x"
   constrVars = vars "C"
 
-  valsLen = length (unVals idxs)
-  constrsLen = length (unConstrs idxs)
+  valsLen    = length (unVals idxs')
+  constrsLen = length (unConstrs idxs')
 
 ---------------------------------------------------------------------------------
 

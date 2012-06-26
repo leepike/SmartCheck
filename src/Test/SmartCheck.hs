@@ -15,6 +15,8 @@ import Test.SmartCheck.Extrapolate
 import Test.SmartCheck.Render
 import Test.SmartCheck.ConstructorGen
 
+import Data.Maybe
+
 import qualified Test.QuickCheck as Q
 
 import Generics.Deriving
@@ -50,7 +52,8 @@ smartCheck args prop = smartCheck' prop []
 
       -- If we asked to extrapolate constructors, do so.
       cs  <- if constrGen args
-               then constrsGen args d prop >>= return . Just
+               then     constrsGen args d prop (concat . maybeToList $ fmap fst vs) 
+                    >>= return . Just
                else return Nothing
 
       -- If either kind of extrapolation pass yielded fruit, prettyprint it.

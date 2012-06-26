@@ -56,8 +56,8 @@ extrapolate args d origProp ds = do
   next _ res forest' idx idxs = 
     case res of
       -- None of the tries satisfy prop.  Prevent recurring down this tree,
-      -- since we can generalize (we do this with sub, which replaces the
-      -- subForest with []).
+      -- since we can generalize (we do this with forestReplaceChop, which
+      -- replaces the subForest with []).
       FailedProp -> iter' (forestReplaceChop forest' idx ())
                       idx { column = column idx + 1 }
                       (idx : idxs)

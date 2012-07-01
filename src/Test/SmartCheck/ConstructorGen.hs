@@ -32,9 +32,16 @@ constrsGen args d prop vs = do
 
   where
   forest     = let forest' = mkSubstForest d () in
+               -- This ensures we don't try to replace anything below the indexs
+               -- from vs.  It does NOT ensure we don't replace equal indexes.
                foldl' (\f idx -> forestReplaceChop f idx ()) forest' vs
+
   iter'      = iter d test next prop
-  test x idx = extrapolateConstrs args x idx prop 
+
+  -- Check if this has been generalized already during extrapolating values.
+  test x idx = do res <- extrapolateConstrs args x idx prop
+                  return $ (not $ idx `elem` vs) && res
+                    
   next _ res forest' idx idxs = 
     iter' (if res then forestReplaceChop forest' idx () else forest') 
       idx { column = column idx + 1 } idxs'

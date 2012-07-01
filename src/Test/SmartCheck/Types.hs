@@ -81,7 +81,7 @@ instance Show Idx where
 data Subst = Keep | Subst
   deriving (Show, Eq, Read)
 
--- | Sort in order of depth then left to right.
+-- | Sort in order of depth first then left to right.
 instance Ord Idx where
   compare (Idx l0 c0) (Idx l1 c1) =
     if l0 < l1 then LT

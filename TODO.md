@@ -55,7 +55,8 @@ TODO
 
 * Add option to bound depth of reducing.
 
-* BUGs: too many variable names for constructors.  Also, change forall order.
+* Need to do constructor gen for *all* previously-found counterexamples, so we
+get their constructors, too.
 
 Won't Do / Can't Do
 -----------------------------------------------

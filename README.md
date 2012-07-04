@@ -106,48 +106,74 @@ Ok, let's try it.  First, SmartCheck just runs QuickCheck:
 
     *Div0> divTest 
     *** Failed! Falsifiable (after 7 tests):
-    D (D (A (A (C (-1)) (C (-1))) (D (C (-5)) (C (-4)))) (D (C (-3)) (D (C 6) (C (-1))))) (A (D (A (C (-1)) (C (-2))) (D (C 4) (C (-2)))) (D (C (-5)) (C (-5))))
+    D (D (D (A (C (-20)) (D (D (C 2) (C (-19))) (C (-8)))) (D (D (C (-23)) (C 32)) (C (-7)))) (A (A (C 2) (C 10)) (A (C (-2)) (C 13)))) (D (A (C 12) (C (-7))) (D (A (C (-29)) (C 19)) (C 30)))
 
-SmartCheck takes the output from QuickCheck and tries systematic shrinking:
+Oh, that's confusing, and for such a simple property and small datatype!
+SmartCheck takes the output from QuickCheck and tries systematic shrinking for
+the one failed test-case, kind of like SmallCheck might.  We get the following
+reduced counterexample:
 
     *** Smart Shrinking ... 
     *** Smart-shrunk value:
-    D (C (-1)) (A (C 1) (C (-1)))
+    D (C 0) (D (C 0) (C (-1)))
 
-Ok, that's some progress!  Now SmartCheck attempt to generalize this minimal counterexample:
+Ok, that's some progress!  Now SmartCheck attempt to generalize this minimal
+counterexample.  SmartCheck has two generalization steps that we'll explain
+separately although SmartCheck combines their results in practice.  First,
+SmartCheck tries to generalize values in the shrunk counterexample.  SmartCheck
+returns 
 
-    *** Extrapolating ...
+    *** Extrapolating values ...
     *** Extrapolated value:
     forall x0:
 
-    D x0 (A (C 1) (C (-1)))
+    D x0 (D (C 0) (C (-1)))
 
 Ahah!  We see that for any possible subvalues x0, the above value fails.  Our
 precondition divSubTerms did not account for the possibility of a non-terminal
 divisor evaluating to 0; we only pattern-matched on constants.
+
+In addition, SmartCheck tries to do something called constructor generalization.
+For a datatype with a finite number of constructors, the idea is to see if for
+each subvalue in the counterexample, there is are subvalues that also fail the
+property, using every possible constructor in the datatype.  So for example, for
+our counterexample above
+
+    *** Extrapolating constructors ...
+    *** Extrapolated value:
+    forall C0:
+      there exist arguments s.t.
+
+    D (C 0) (D C0 (C (-1)))
+
+So in the hole `C0`, SmartCheck was able to build a value using each of the
+constructors `C`, `A`, and `D` (well, it already knew there was a value using
+`C`---`C 0`.  
 
 SmartCheck asks us if we want to continue:
 
     Attempt to find a new counterexample? ('Enter' to continue; any character
     then 'Enter' to quit.)
 
-SmartCheck will omit any term that has the "same shape" as `D x0 (A (C 1) (C
-(-1)))` and try to find a new counterexample.
+SmartCheck will omit any term that has the "same shape" as `D (C 0) (D (C 0) (C (-1)))` and try to find a new counterexample.
 
-    *** Failed! Falsifiable (after 13 tests):  
-    A (A (D (C (-15)) (D (D (C 11) (C 3)) (A (A (C (-3)) (C (-8))) (D (C 2) (C 12))))) (C (-2))) (D (A (D (A (C 3) (C (-2))) (C (-10))) (D (C 0) (D (C 2) (C 4)))) (C (-5)))
+    *** Failed! Falsifiable (after 9 tests):  
+    A (A (D (C (-20)) (A (C (-5)) (C (-32)))) (D (A (C 6) (C 19)) (A (C (-3)) (A (C (-16)) (C (-13)))))) (D (C 29) (D (C (-11)) (D (C 11) (C 23))))
 
     *** Smart Shrinking ... 
     *** Smart-shrunk value:
-    D (C 0) (D (C 2) (C 4))
+    A (C (-1)) (D (A (C 1) (C 1)) (D (C 1) (C 2)))
 
-    *** Extrapolating ...
+    *** Extrapolating values ...
+
+    *** Extrapolating Constructors ...
+
     *** Extrapolated value:
-    forall x0:
+    forall values x0 x1:
 
-    D x0 (D (C 2) (C 4))
+    A x1 (D x0 (D (C 1) (C 2)))
 
-We find another counterexample; this time, the divisor is another divisor term.
+We find another counterexample; this time, the main constructor is addition.
 
 We might ask SmartCheck to find another counterexample: 
 

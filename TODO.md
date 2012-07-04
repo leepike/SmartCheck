@@ -58,6 +58,13 @@ TODO
 * Need to do constructor gen for *all* previously-found counterexamples, so we
 get their constructors, too.
 
+* Unicode for x bar: x&#772;
+  http://tlt.its.psu.edu/suggestions/international/bylanguage/mathchart.html
+
+* Web view for large data (like Yav's thing for type nats)?
+
+* Update README for construtor generalization.
+
 Won't Do / Can't Do
 -----------------------------------------------
 * Use shrink instances as default for base types.

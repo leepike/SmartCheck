@@ -39,7 +39,7 @@ smartShrink args d prop = iter' d (mkForest d) (Idx 0 0) >>= return . fst
 
   where
   notProp    = Q.expectFailure . prop
-  mkForest x = mkSubstForest x ()
+  mkForest x = mkSubstForest x True
   iter' y forest_ idx' = 
     iter y test next notProp forest_ idx' (errorMsg "next-idxs")
 
@@ -93,7 +93,7 @@ smartShrink args d prop = iter' d (mkForest d) (Idx 0 0) >>= return . fst
 
   --------------------------------------
 
-  next :: a -> Maybe a -> Forest () -> Idx -> [Idx] -> IO (a, [Idx])
+  next :: a -> Maybe a -> Forest Bool -> Idx -> [Idx] -> IO (a, [Idx])
   next x res forest idx _ = 
     case res of
       -- Found a try that fails prop.  We'll now test try, and start trying to

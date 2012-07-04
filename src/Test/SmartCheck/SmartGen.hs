@@ -17,7 +17,7 @@ import qualified Test.QuickCheck.Property as Q
 import System.Random hiding (next)
 import Data.List
 import Data.Maybe
-import Data.Tree
+import Data.Tree hiding (levels)
 import Control.Monad
 
 ---------------------------------------------------------------------------------
@@ -105,14 +105,14 @@ resultify prop a = do
 
   where
   Q.MkGen { Q.unGen = f } = prop a :: Q.Gen Q.Prop
-  fs = Q.unProp $ f err err        :: Q.Rose Q.Result
+  fs  = Q.unProp $ f err err       :: Q.Rose Q.Result
   res = Q.protectRose . Q.reduceRose
 
   err = errorMsg "resultify: should not evaluate."
 
 ---------------------------------------------------------------------------------
 
-type Next a b = a -> b -> Forest () -> Idx -> [Idx] -> IO (a, [Idx])
+type Next a b = a -> b -> Forest Bool -> Idx -> [Idx] -> IO (a, [Idx])
 type Test a b = a -> Idx -> IO b
 
 -- Do a breadth-first traversal of the data, trying to replace holes.  When we
@@ -123,22 +123,25 @@ iter :: SubTypes a
      -> Test a b          -- ^ Test to use
      -> Next a b          -- ^ What to do after the test
      -> (a -> Q.Property) -- ^ Property
-     -> Forest ()         -- ^ Just care about structure (size), not values
+     -> Forest Bool       -- ^ Only evaluate at True indexes.
      -> Idx               -- ^ Starting index to extrapolate
      -> [Idx]             -- ^ List of generalized indices
      -> IO (a, [Idx])
-iter d test next prop forest idx idxs = 
-  if done then return (d, idxs)
-     else if nextLevel 
-            then iter' forest idx { level  = level idx + 1, column = 0 } idxs
-            else do tries <- test d idx
-                    next d tries forest idx idxs
+iter d test next prop forest idx idxs 
+  | done      = return (d, idxs)
+  | nextLevel = iter'
+  | atFalse   = iter' -- Must be last check or !! index below may be out of
+                      -- bounds!
+  | otherwise = do tries <- test d idx
+                   next d tries forest idx idxs
 
   where
   -- Location is w.r.t. the forest, not the original data value.
-  pts        = breadthLevels forest
-  done       = length pts <= level idx
-  nextLevel  = length (pts !! level idx) <= column idx
-  iter'      = iter d test next prop 
+  levels     = breadthLevels forest
+  done       = length levels <= level idx
+  nextLevel  = length (levels !! level idx) <= column idx
+  atFalse    = not $ (levels !! level idx) !! column idx
+  iter'      = iter d test next prop forest 
+                 idx { level = level idx + 1, column = 0 } idxs
 
 ---------------------------------------------------------------------------------

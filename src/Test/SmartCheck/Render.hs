@@ -3,11 +3,7 @@
 module Test.SmartCheck.Render 
   ( renderWithVars
   , smartPrtLn
-  -- * Replacement data
   , Replace(..)
-  -- , emptyRepl
-  -- , toVals
-  -- , toConstrs
   ) where
 
 import Test.SmartCheck.Types
@@ -34,21 +30,12 @@ smartPrtLn = putStrLn . (smartPrefix ++)
 data Replace a = Replace { unVals :: [a], unConstrs :: [a] }
   deriving (Show, Read, Eq)
 
--- emptyRepl :: Replace a
--- emptyRepl = Replace [] []
-
--- toVals :: [a] -> Replace a -> Replace a 
--- toVals a (Replace vals constrs) = Replace (a ++ vals) constrs
-
--- toConstrs :: [a] -> Replace a -> Replace a 
--- toConstrs a (Replace vals constrs) = Replace vals (a ++ constrs)
-
 ---------------------------------------------------------------------------------
 
 -- XXX only print if variable list is non-empty.
 renderWithVars :: SubTypes a => Format -> a -> Replace Idx -> IO ()
 renderWithVars format d idxs = do
-  prtVars "values" valsLen  valVars
+  prtVars "values" valsLen valVars
   prtVars "constructors" constrsLen constrVars
   constrArgs
   putStrLn ""
@@ -76,6 +63,8 @@ renderWithVars format d idxs = do
 
 ---------------------------------------------------------------------------------
 
+type VarRepl = Either String String
+
 -- | At each index into d from idxs, replace the whole with a fresh value.
 replaceWithVars :: SubTypes a
                 => Format -> a -> Replace Idx -> Replace String -> String
@@ -90,22 +79,34 @@ replaceWithVars format d idxs vars =
 
   where
   strTree :: Tree String
-  strTree = foldl' f t zipRepl
+  strTree = remSubVars (foldl' f t zipRepl)
+
+    where
+    -- Now we'll remove everything after the initial Rights, which are below
+    -- variables.
+    remSubVars (Node (Left s ) sf) = Node s (map remSubVars sf)
+    remSubVars (Node (Right s) _ ) = Node s []
+
+  f :: Tree VarRepl -> (String, Idx) -> Tree VarRepl
+  f tree (var, idx) = Node (rootLabel tree) $
+    case getIdxForest sf idx of
+      Nothing                 -> errorMsg "replaceWithVars"
+      Just (Node (Right _) _) -> sf -- Don't replace anything
+      Just (Node (Left  _) _) -> forestReplaceChildren sf idx (Right var)
+
+    where
+    sf = subForest tree
   
   -- A tree representation of the data turned into a tree of Strings showing the
-  -- data.  Note that just like in the representation, the a parent contains its
-  -- children as substrings.
-  t :: Tree String
-  t = let forest = showForest d in
+  -- data.  showForest is one of our generic methods.
+  t :: Tree VarRepl
+  t = let forest = showForest d in 
       if null forest then errorMsg "replaceWithVars" 
-         else head forest
+         else fmap Left (head forest) -- Should be a singleton
 
-  f :: Tree String -> (String, Idx) -> Tree String
-  f tree (var, idx) = 
-    Node (rootLabel tree) (forestReplaceChop (subForest tree) idx var)
-
+  -- Note: we put value idxs before constrs, since they take precedence.
   zipRepl :: [(String, Idx)]
-  zipRepl =    zip (unVals vars) (unVals idxs) 
+  zipRepl =    zip (unVals vars)    (unVals idxs) 
             ++ zip (unConstrs vars) (unConstrs idxs)
 
 ---------------------------------------------------------------------------------

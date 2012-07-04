@@ -25,25 +25,24 @@ constrsGen :: (SubTypes a, Generic a, ConNames (Rep a))
 constrsGen args d prop vs = do
   putStrLn ""
   smartPrtLn "Extrapolating Constructors ..."
-
-  putStrLn $ "extrap idxs: " ++ show vs -- YYY
   (_, idxs) <- iter' forest (Idx 0 0) []
   return idxs
 
   where
-  forest     = let forest' = mkSubstForest d () in
+  forest     = let forest' = mkSubstForest d True in
                -- This ensures we don't try to replace anything below the indexs
                -- from vs.  It does NOT ensure we don't replace equal indexes.
-               foldl' (\f idx -> forestReplaceChop f idx ()) forest' vs
+               foldl' (\f idx -> forestReplaceChildren f idx False) forest' vs
 
   iter'      = iter d test next prop
 
   -- Check if this has been generalized already during extrapolating values.
   test x idx = do res <- extrapolateConstrs args x idx prop
                   return $ (not $ idx `elem` vs) && res
-                    
+                  
+  -- Control-flow.  
   next _ res forest' idx idxs = 
-    iter' (if res then forestReplaceChop forest' idx () else forest') 
+    iter' (if res then forestReplaceChildren forest' idx False else forest') 
       idx { column = column idx + 1 } idxs'
 
     where
@@ -63,17 +62,13 @@ extrapolateConstrs args a idx prop = recConstrs (S.singleton $ subConstr a idx)
   recConstrs constrs =
     -- Check if every possible constructor is an element of constrs passed
     -- in.
-    -- putStrLn (show constrs) -- YYY
-    -- >>
     if S.fromList (conNames a) `S.isSubsetOf` constrs
       then return True
       else do v <- arbSubset args a idx notProp constrs
               case v of
-                Result x    -> do -- YYY
-                                  putStr $ show idx ++ " "
-                                  putStrLn (show x)
-                                  recConstrs (subConstr x idx `S.insert` constrs)
-                _           -> return False
+                Result x      -> recConstrs (subConstr x idx `S.insert` constrs)
+                FailedPreCond -> return False
+                FailedProp    -> return False
 
 ---------------------------------------------------------------------------------
 

@@ -40,33 +40,29 @@ extrapolate args d origProp ds = do
   return (idxs, prop idxs)
 
   where
-  forest = mkSubstForest d ()
-  iter' = iter d test next origProp
+  forest = mkSubstForest d True
+  iter'  = iter d test next origProp
+  prop idxs newProp a = 
+    (not $ matchesShapes a (d : ds) idxs) Q.==> newProp a
       
   -- In this call to iterateArb, we want to claim we can extrapolate iff at
   -- least one test passes a precondition, and for every test in which the
   -- precondition is passed, it fails.  We test values of all possible sizes, up
   -- to Q.maxSize.
-  test _ idx = iterateArb d idx 
-                 (Q.maxSuccess $ qcArgs args) 
-                 (Q.maxSize $ qcArgs args) 
-                 origProp
+  test _ idx = iterateArb d idx (Q.maxSuccess $ qcArgs args) 
+                 (Q.maxSize $ qcArgs args) origProp
 
   -- Control-flow.
   next _ res forest' idx idxs = 
     case res of
-      -- None of the tries satisfy prop.  Prevent recurring down this tree,
-      -- since we can generalize (we do this with forestReplaceChop, which
-      -- replaces the subForest with []).
-      FailedProp -> iter' (forestReplaceChop forest' idx ())
-                      idx { column = column idx + 1 }
-                      (idx : idxs)
-      _          -> iter' forest'
-                      idx { column = column idx + 1 }
-                      idxs
-
-  prop idxs newProp a = 
-    (not $ matchesShapes a (d : ds) idxs) Q.==> newProp a
+      -- None of the tries satisfy prop (but something passed the precondition).
+      -- Prevent recurring down this tree, since we can generalize.
+      FailedProp    -> nextIter (forestReplaceChildren forest' idx False)
+                         (idx : idxs)
+      FailedPreCond -> nextIter forest' idxs
+      Result _      -> nextIter forest' idxs
+    where
+    nextIter f s = iter' f idx { column = column idx + 1 } s
 
 ---------------------------------------------------------------------------------
 

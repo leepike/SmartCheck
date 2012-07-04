@@ -2,14 +2,14 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Test.SmartCheck.DataToTree
-  ( subForestPath
-  , forestReplaceChop
---  , forestReplaceStop
+  ( --subForestPath
+--    forestReplaceChop
+    forestReplaceChildren
   , getAtIdx
   , replaceAtIdx
   , getIdxForest
   , breadthLevels
-  , mkSubstForest -- YYY remove when taken out of reduce
+  , mkSubstForest 
   , depth
   ) where
 
@@ -98,46 +98,37 @@ getAtIdx d Idx { level  = l
 
 ---------------------------------------------------------------------------------
 
--- | Replace a tree at index Idx in a Forest.  Return the original if the index
--- is out of range.  All subforests are removed.  Additionally, every rootLabel
--- in the path to Index is replaced with a.
-subForestPath :: Forest a -> Idx -> a -> Forest a
-subForestPath = sub Path
-
----------------------------------------------------------------------------------
-
--- | Replace a tree at index Idx in a Forest.  Return the original if the index
--- is out of range.  All subforests are removed.
-forestReplaceChop :: Forest a -> Idx -> a -> Forest a
-forestReplaceChop = sub Chop
-
----------------------------------------------------------------------------------
-
--- -- | Replace a tree at index Idx in a Forest.  Return the original if the
--- -- index is out of range.  Replace the subforest of Idx with the Substs.
--- forestReplaceStop :: Forest Subst -> Idx -> Forest Subst
--- forestReplaceStop f idx = sub ReplaceSubs f idx Subst
-
----------------------------------------------------------------------------------
-
-data SubStrat = Path        -- ^ Replace everything in the path from the root to
-                            -- here.  Used as breadcrumbs to the value.  Chop
-                            -- the subforest.
-
---              | ReplaceSubs -- ^ Replace the subforest with a value.
-              | Chop        -- ^ Replace a value and remove the subforest.
+data SubStrat = Parent   -- ^ Replace everything in the path from the root to
+                         -- here.  Used as breadcrumbs to the value.  Chop the
+                         -- subforest.
+--              | Chop     -- ^ Replace a value and remove the subforest.
+              | Children -- ^ Replace a value and all of its subchildren.
   deriving  (Show, Read, Eq)
+
+---------------------------------------------------------------------------------
+
+forestReplaceParent, forestReplaceChildren :: Forest a -> Idx -> a -> Forest a
+--forestReplaceChop, 
+forestReplaceParent   = sub Parent
+--forestReplaceChop     = sub Chop
+forestReplaceChildren = sub Children
+
+---------------------------------------------------------------------------------
 
 sub :: SubStrat -> Forest a -> Idx -> a -> Forest a
 -- on right level, and we'll assume correct subtree.
-sub _ forest (Idx (0::Int) n) a = 
+sub strat forest (Idx (0::Int) n) a = 
   snd $ mapAccumL f 0 forest
   where
-  f i node | i == n = ( i+1, Node a [] )  -- $ subf (subForest node) )
+  f i node | i == n = ( i+1, news )  
            | True   = ( i+1, node )
---  subf frst = case strat of
---                ReplaceSubs -> map (fmap $ \_ -> a) frst -- Replace subforests
---                _           -> [] -- Chop the subforest
+
+    where  
+    news = case strat of
+             Parent   -> Node a []
+--             Chop     -> Node a []
+             Children -> fmap (\_ -> a) (forest !! n)
+                         
 sub strat forest idx a = 
   snd $ mapAccumL findTree (column idx) forest
   where
@@ -153,8 +144,9 @@ sub strat forest idx a =
     len = levelLength l t
     newTree = Node newRootLabel (sub strat (subForest t) (Idx l n) a)
     newRootLabel = case strat of 
-                     Path -> a 
-                     _    -> rootLabel t
+                     Parent   -> a 
+--                     Chop     -> rootLabel t
+                     Children -> rootLabel t
 
 ---------------------------------------------------------------------------------
 -- Operations on SubTypes.
@@ -174,7 +166,7 @@ replaceAtIdx :: (SubTypes a, Typeable b)
              -> Idx   -- ^ Index of hole to replace
              -> b     -- ^ Value to replace with
              -> Maybe a
-replaceAtIdx m idx = replaceChild m (subForestPath subF idx Subst)
+replaceAtIdx m idx = replaceChild m (forestReplaceParent subF idx Subst)
   where 
   subF = mkSubstForest m Keep
 

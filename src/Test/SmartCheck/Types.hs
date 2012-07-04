@@ -83,11 +83,11 @@ data Subst = Keep | Subst
 
 -- | Sort in order of depth first then left to right.
 instance Ord Idx where
-  compare (Idx l0 c0) (Idx l1 c1) =
-    if l0 < l1 then LT
-      else if l0 > l1 then GT
-             else if c0 < c1 then LT
-                    else if c0 > c1 then GT else EQ
+  compare (Idx l0 c0) (Idx l1 c1) | l0 < l1 = LT
+                                  | l0 > l1 = GT
+                                  | c0 < c1 = LT
+                                  | c0 > c1 = GT
+                                  | True    = EQ
 
 ---------------------------------------------------------------------------------
 -- User-defined subtypes of data
@@ -139,11 +139,6 @@ class (Q.Arbitrary a, Show a, Typeable a) => SubTypes a where
   default toConstr :: (Generic a, GST (Rep a)) => a -> String
   toConstr = gtc . from
   -----------------------------------------------------------
-  -- Grab the contructor and any baseType values that follow.
-  -- toConstrAndBase :: a -> String
-  -- default toConstrAndBase :: (Generic a, GST (Rep a)) => a -> String
-  -- toConstrAndBase = gcb . from
-  -----------------------------------------------------------
   showForest :: a -> Forest String
   default showForest :: (Generic a, GST (Rep a)) 
                      => a -> Forest String
@@ -159,14 +154,12 @@ class GST f where
   gst :: f a -> Forest SubT
   grc :: Typeable b => f a -> Forest Subst -> b -> Maybe (f a)
   gtc :: f a -> String
---  gcb :: f a -> String
   gsf :: f a -> Forest String
 
 instance GST U1 where
   gst U1 = []
   grc _ _ _ = Nothing
   gtc U1 = ""
---  gcb U1 = ""
   gsf U1 = []
 
 instance (GST a, GST b) => GST (a :*: b) where
@@ -186,13 +179,6 @@ instance (GST a, GST b) => GST (a :*: b) where
 
   gtc (a :*: b) = gtc a ++ gtc b
 
-  -- If the element is a baseType, we use it.  (Can't use baseTypes directly
-  -- here, so we see if the tree's subforest is empty).
-  -- gcb (a :*: b) = if null (gst a) 
-  --                   then if null (gst b) then addSpace (gcb a) (gcb b) 
-  --                          else gcb a
-  --                   else if null (gst b) then gcb b else ""
-                           
   gsf (a :*: b) = gsf a ++ gsf b
 
 instance (GST a, GST b) => GST (a :+: b) where
@@ -205,9 +191,6 @@ instance (GST a, GST b) => GST (a :+: b) where
   gtc (L1 a) = gtc a
   gtc (R1 a) = gtc a
 
-  -- gcb (L1 a) = gcb a
-  -- gcb (R1 a) = gcb a
-
   gsf (L1 a) = gsf a
   gsf (R1 a) = gsf a
 
@@ -216,17 +199,23 @@ instance (Constructor c, GST a) => GST (M1 C c a) where
   gst (M1 a) = gst a
   grc (M1 a) forest c = grc a forest c >>= return . M1
   gtc = conName 
---  gcb m@(M1 a) = addSpace (conName m) (gcb a)
-  gsf m@(M1 a) = [ Node (conName m) forest ]
+  -- gsf m@(M1 a) = [ Node (conName m) forest ]
+  --   where
+  --   forest = gsf a 
+  gsf m@(M1 a) = [ tree ]
     where
-    forest = gsf a --if null (gst a) then [] else gsf a
+    -- This must *exactly* match what happens with subtypes, since we assume the
+    -- same indexing.  If the rest of a value is a baseType (null (gst a)), then
+    -- we put it's name in root label.
+    tree | null (gst a) = Node root []
+         | otherwise    = Node (conName m) (gsf a)
+    root = conName m ++ " " ++ (rootLabel . head) (gsf a)
 
 -- All the other meta-information (selector, module, etc.)
 instance GST a => GST (M1 i k a) where
   gst (M1 a) = gst a
   grc (M1 a) forest c = grc a forest c >>= return . M1
   gtc (M1 a) = gtc a
---  gcb (M1 a) = gcb a
   gsf (M1 a) = gsf a
 
 instance (Show a, Q.Arbitrary a, SubTypes a, Typeable a) => GST (K1 i a) where
@@ -241,7 +230,6 @@ instance (Show a, Q.Arbitrary a, SubTypes a, Typeable a) => GST (K1 i a) where
       (Node Subst ls : _) -> replaceChild a ls c >>= return . K1
 
   gtc _ = ""
---  gcb (K1 a) = if baseType a then show a else ""
   
   gsf (K1 a) = forest
     where 

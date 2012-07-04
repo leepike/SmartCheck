@@ -74,6 +74,7 @@ smartCheck args prop = smartCheck' prop []
       where
       output :: a -> Replace Idx -> IO ()
       output d repl = do
+        putStrLn ""
         smartPrtLn "Extrapolated value:"
         renderWithVars (treeShow args) d repl -- XXX
 

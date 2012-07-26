@@ -20,8 +20,8 @@ robust, systematic way.  (You do not need to define any custom shrink instances,
 like with QuickCheck, but if you do, those are used.  SmartCheck usually can do
 much better than even custom shrink instances.)  Second, once a minimal
 counterexample is found, SmartCheck then attempts to generalize the failed value
-d by replacing d's substructures with new values to make d', and QuickChecking
-each new d'.  If for each new d' generated, the property also fails, we claim
+d by replacing `d`'s substructures with new values to make `d'`, and QuickChecking
+each new `d'`.  If for each new `d'` generated, the property also fails, we claim
 the property fails for any substructure replaced here (of course, this is true
 modulo the coverage of the tests).
 
@@ -48,8 +48,8 @@ Div0 defines a toy language containing constants (C), addition (A), and division
            | D M M
       deriving (Read, Show, Typeable, Generic)
 
-Because SmartCheck performs data-generic operations using Data.Data and
-GHC.Generics we have to derive Typeable, and Generic.  To use GHC.Generics, you
+Because SmartCheck performs data-generic operations using GHC.Generics we have
+to derive Typeable and Generic.  To use GHC.Generics, you
 also need the following pragmas: and the single automatically-derived instance:
 
     {-# LANGUAGE DeriveDataTypeable #-}
@@ -110,17 +110,18 @@ Ok, let's try it.  First, SmartCheck just runs QuickCheck:
 
 Oh, that's confusing, and for such a simple property and small datatype!
 SmartCheck takes the output from QuickCheck and tries systematic shrinking for
-the one failed test-case, kind of like SmallCheck might.  We get the following
+the one failed test-case, kind of like [SmallCheck](http://www.cs.york.ac.uk/fp/smallcheck/) might.  We get the following
 reduced counterexample:
 
     *** Smart Shrinking ... 
     *** Smart-shrunk value:
     D (C 0) (D (C 0) (C (-1)))
 
-Ok, that's some progress!  Now SmartCheck attempt to generalize this minimal
+Ok, that's some progress!  Now SmartCheck attempt to generalize this (local) minimal
 counterexample.  SmartCheck has two generalization steps that we'll explain
-separately although SmartCheck combines their results in practice.  First,
-SmartCheck tries to generalize values in the shrunk counterexample.  SmartCheck
+separately although SmartCheck combines their results in practice (you can turn
+off each kind of generalization in the flags).  First,
+SmartCheck tries to generalize *values* in the shrunk counterexample.  SmartCheck
 returns 
 
     *** Extrapolating values ...
@@ -133,7 +134,7 @@ Ahah!  We see that for any possible subvalues x0, the above value fails.  Our
 precondition divSubTerms did not account for the possibility of a non-terminal
 divisor evaluating to 0; we only pattern-matched on constants.
 
-In addition, SmartCheck tries to do something called constructor generalization.
+In addition, SmartCheck tries to do something I call *constructor generalization*.
 For a datatype with a finite number of constructors, the idea is to see if for
 each subvalue in the counterexample, there is are subvalues that also fail the
 property, using every possible constructor in the datatype.  So for example, for

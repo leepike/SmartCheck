@@ -55,10 +55,10 @@ data ScArgs =
 
 scStdArgs :: ScArgs
 scStdArgs = ScArgs { treeShow    = PrintTree
-                   -- Let's let us fail at least maxDiscard times to pass the
+                   -- Let's let us fail at least 100 times to pass the
                    -- precondition, then maxSuccess more to try to find a
                    -- failure.
-                   , maxFailure  = Q.maxDiscard Q.stdArgs + Q.maxSuccess Q.stdArgs
+                   , maxFailure  = 100 + Q.maxSuccess Q.stdArgs
                    , qcArgs      = Q.stdArgs
                    , extrap      = True
                    , constrGen   = True

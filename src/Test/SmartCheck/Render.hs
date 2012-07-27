@@ -47,7 +47,7 @@ renderWithVars format d idxs = do
           idxs { unConstrs = cs }
 
   constrArgs = 
-    unless (constrsLen == 0) $ putStrLn "  there exist arguments s.t."
+    unless (constrsLen == 0) $ putStrLn "  there exist arguments x̅ s.t."
 
   prtVars kind len vs = 
     when (len > 0) $ 

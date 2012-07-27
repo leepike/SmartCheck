@@ -1,12 +1,6 @@
 TODO
 -----------------------------------------------
 
-* Use [GHC generics](http://www.haskell.org/ghc/docs/latest/html/users_guide/generic-programming.html)
-  instead of SubTypes class.
-
-* Use instances so I can pass anything that can be turned into a property to
-  reduce, like in QuickCheck.
-
 * Make sure I can use extrapolation on its own, without reduce.
 
 * Testing with arguments to value constructors omitted in the SubTypes
@@ -16,10 +10,7 @@ TODO
   you give them an index that is out of bounds.  Perhaps I should return a
   Maybe?  
 
-* Check that the SubTypes class works with tuples, lists.
-
 * Options:
-  * Chatty option for reducing/extrapolating.
   * Option for controlling depth into structure we recurse.
 
 * Performance analysis of extrapolation.
@@ -31,24 +22,11 @@ TODO
 
 * Document SubTypes class methods!
 
-* In PrintTree, pull baseTypes up?  not sure...
-
-* Am I passing args to iterateArb correctly?  Document the use of size and tries
-  better.
-
-  * maxSize parameter in interateArb really depends on using a sized parameter in
-    arbitrary instances.  Anyway to ensure/control this?
-
 * We extrapolate if there exists at least one test that satisfies the
   precondition, and for all tests that asatisfy the precondition, they fail.  Is
   this the right thing to do?  (I think it is.)
 
 * Args to optionally extrapolate and contructor extrapolate.
-
-* Generalize extrapolate/Replace --- same iter function used in both.
-
-* I don't think I need ReplaceSubs --- Chop will work.  I just want to prevent
-  recurring in a substs tree.
 
 * Make sure that foldM (extractResult prop) FailedPreCond res in SmartGen fails
   eagerly.
@@ -79,6 +57,11 @@ Won't Do / Can't Do
   independently of SubT.
 
   * I think I need something like this.
+
+* I don't think I can make a generic instance for the arbitrary method.  This is
+  because I don't take a value and apply a function to it.  Rather, I want to
+  generate a new value.  But Generics expects to have some sort of
+  representation of the data you're manipulating.
 
 Done
 -----------------------------------------------

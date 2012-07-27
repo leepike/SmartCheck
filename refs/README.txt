@@ -1,5 +1,7 @@
 -- Refs ------------------------------------------------------------------------
 
+* Feat in Haskell '12: http://wiki.portal.chalmers.se/cse/pmwiki.php/FP/Testing-Feat
+
 * The SYB paper:
   http://research.microsoft.com/en-us/um/people/simonpj/Papers/hmap/index.htm
   Has shrink example

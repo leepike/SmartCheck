@@ -25,11 +25,13 @@ import Generics.Deriving
 
 -- | Main interface function.
 smartCheck :: 
-  forall a. (Read a, Q.Arbitrary a, SubTypes a, Generic a, ConNames (Rep a))
-    => ScArgs -> (a -> Q.Property) -> IO ()
-smartCheck args prop = smartCheck' prop []
+  forall a b. (Read a, Q.Arbitrary a, SubTypes a, Generic a, ConNames (Rep a), Q.Testable b)
+    => ScArgs -> (a -> b) -> IO ()
+smartCheck args propT = smartCheck' prop []
 
   where
+  prop a = Q.property $ propT a
+
   smartCheck' :: (a -> Q.Property) -> [a] -> IO ()
   smartCheck' prop' ds = do
     -- Run standard QuickCheck.
@@ -78,7 +80,7 @@ smartCheck args prop = smartCheck' prop []
         smartPrtLn "Extrapolated value:"
         renderWithVars (treeShow args) d repl -- XXX
 
-      nonEmpty :: a -> Maybe ([Idx], PropRedux a) -> Maybe [b] -> Bool
+      nonEmpty :: a -> Maybe ([Idx], PropRedux a) -> Maybe [c] -> Bool
       nonEmpty d vs cs = vsIdxs || csIdxs
         where
         vsIdxs = case vs of

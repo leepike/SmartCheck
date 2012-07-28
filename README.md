@@ -61,15 +61,25 @@ So our property (tries) to state that so long as a value satisfies divSubTerms, 
     div_prop :: M -> Property
     div_prop m = divSubTerms m ==> eval m /= Nothing
 
-Assuming we've defined an Arbitrary instance for M (just like in QuickCheck---however, we just have to implement the arbitrary method; the shrink method is superfluous), we are ready to run SmartCheck.
+Assuming we've defined an Arbitrary instance for M (just like in
+QuickCheck---however, we just have to implement the arbitrary method; the shrink
+method is superfluous), we are ready to run SmartCheck.  (The property you want
+to check must be an instance of the type 
+
+    prop :: Testable a => a -> b
+
+where `Testable` is defined by QuickCheck, and `a` is the datatype you want to
+reduce (I've left off some class constraints for `a` taken care of above).  So
+while we can test properties with an arbitrary number of arguments, the *first*
+argument is the one we assume you want to reduce (remember your friend, `flip`!).  
+
+In this example, we won't redefine any of QuickCheck's standard arguments, but it's certainly possible.  the treeShow field tells SmartCheck whether you want generalized counterexamples shown in a tree format or printed as a long string (the default is the tree format).
 
     divTest :: IO ()
     divTest = smartCheck args div_prop
       where 
       args = scStdArgs { qcArgs   = stdArgs 
                        , treeShow = PrintString }
-
-In this example, we won't redefine any of QuickCheck's standard arguments, but it's certainly possible.  the treeShow field tells SmartCheck whether you want generalized counterexamples shown in a tree format or printed as a long string (the default is the tree format).
 
 Ok, let's try it.  First, SmartCheck just runs QuickCheck:
 

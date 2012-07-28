@@ -36,12 +36,10 @@ TODO
 * Need to do constructor gen for *all* previously-found counterexamples, so we
 get their constructors, too.
 
-* Unicode for x bar: x&#772;
-  http://tlt.its.psu.edu/suggestions/international/bylanguage/mathchart.html
-
 * Web view for large data (like Yav's thing for type nats)?
 
-* Update README for construtor generalization.
+* Would I benefit from using a zipper for traversal?  I suspect not since I am
+  really don't a fold. (Oleg Kiselyov, 27 Apr 2005, haskell\@, "Zipper as a delimited continuation")
 
 Won't Do / Can't Do
 -----------------------------------------------

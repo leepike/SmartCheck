@@ -20,6 +20,34 @@
 
 * GenCheck https://github.com/JacquesCarette/GenCheck
 
+-- xmonad ----------------------------------------------------------------------
+
+* internals overview:
+  http://xmonad.org/xmonad-docs/xmonad-contrib/XMonad-Doc-Developing.html
+
+* hackage: http://hackage.haskell.org/package/xmonad
+
+* properties are inside 0.10/xmonad-0.10/tests/
+
+INSTRUCTIONS
+
+Make smartcheck available: from xmonad-0.10/
+> cabal-dev add-source ../../../../
+
+Turn on testing:
+> cabal-dev install -ftesting
+
+From xmonad-0.10/
+> cabal-dev ghci -Wall 
+
+> Properties.main 
+
+or to test individual props:
+
+> Properties.mytest Properties.prop_findIndex 1000
+
+* Mark changed properties or functions in StackSet.hs with -- BAD
+* Changes for SmartCheck marked with -- SC
 
 -- TODOs -----------------------------------------------------------------------
 

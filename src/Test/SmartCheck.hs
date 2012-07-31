@@ -1,6 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ScopedTypeVariables #-} 
-{-# LANGUAGE Rank2Types #-} 
 
 -- | Interface module.
 
@@ -15,17 +14,16 @@ import Test.SmartCheck.Extrapolate
 import Test.SmartCheck.Render
 import Test.SmartCheck.ConstructorGen
 
-import Data.Maybe
-
 import qualified Test.QuickCheck as Q
 
+import Data.Maybe
 import Generics.Deriving
 
 ---------------------------------------------------------------------------------
 
 -- | Main interface function.
-smartCheck :: 
-  forall a b. (Read a, Q.Arbitrary a, SubTypes a, Generic a, ConNames (Rep a), Q.Testable b)
+smartCheck :: forall a b. ( Read a, Q.Arbitrary a, SubTypes a
+                          , Generic a, ConNames (Rep a), Q.Testable b )
     => ScArgs -> (a -> b) -> IO ()
 smartCheck args propT = smartCheck' prop []
 

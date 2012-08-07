@@ -8,9 +8,9 @@ Synopsis
 
 SmartCheck is a smarter [QuickCheck](http://hackage.haskell.org/package/QuickCheck), a powerful testing library for Haskell.  The purpose of SmartCheck is to help you more quickly get to the heart of a bug and to quickly discover _each_ possible way that a property may fail.
 
-SmartCheck is useful for debugging programs operating on algebraic datatypes.  When a property is true, SmartCheck is just like QuickCheck (SmartCheck uses QuickCheck as a backend).  When a property fails, SmartCheck kicks into gear.  First, it attempts to find a _minimal_ counterexample to the property is a robust, systematic way.  (You do not need to define any custom shrink instances, like with QuickCheck, but if you do, those are used.  SmartCheck usually can do much better than even custom shrink instances.)  Second, once a minimal counterexample is found, SmartCheck then attempts to generalize the failed value d by replacing `d`'s substructures with new values to make `d'`, and QuickChecking each new `d'`.  If for each new `d'` generated, the property also fails, we claim the property fails for any substructure replaced here (of course, this is true modulo the coverage of the tests).
+SmartCheck is useful for debugging programs operating on algebraic datatypes.  When a property is true, SmartCheck is just like QuickCheck (SmartCheck uses QuickCheck as a backend).  When a property fails, SmartCheck kicks into gear.  First, it attempts to find a _minimal_ counterexample to the property is a robust, systematic way.  (You do not need to define any custom shrink instances, like with QuickCheck, but if you do, those are used.  SmartCheck usually can do much better than even custom shrink instances.)  Second, once a minimal counterexample is found, SmartCheck then attempts to generalize the failed value `d` by replacing `d`'s substructures with new values to make `d'`, and QuickChecking each new `d'`.  If for each new `d'` generated, the property also fails, we claim the property fails for any substructure replaced here (of course, this is true modulo the coverage of the tests).
 
-SmartCheck executes in a real-eval-print loop.  In each iteration, all values that have the "same shape" as the generalized value is removed from possible created tests.  The loop can be iterated until a fixed-point is reached, and SmartCheck is not able to create any new values that fail the property.
+SmartCheck executes in a real-eval-print loop.  In each iteration, all values that have the "same shape" as the generalized value are removed from possible created tests.  The loop can be iterated until a fixed-point is reached, and SmartCheck is not able to create any new values that fail the property.
 
 A typical example
 --------------------------------
@@ -93,7 +93,7 @@ Oh, that's confusing, and for such a simple property and small datatype!  SmartC
     *** Smart-shrunk value:
     D (C 0) (D (C 0) (C (-1)))
 
-Ok, that's some progress!  Now SmartCheck attempt to generalize this (local) minimal counterexample.  SmartCheck has two generalization steps that we'll explain separately although SmartCheck combines their results in practice (you can turn off each kind of generalization in the flags).  First, SmartCheck tries to generalize *values* in the shrunk counterexample.  SmartCheck returns
+Ok, that's some progress!  Now SmartCheck attempts to generalize this (local) minimal counterexample.  SmartCheck has two generalization steps that we'll explain separately although SmartCheck combines their results in practice (you can turn off each kind of generalization in the flags).  First, SmartCheck tries to generalize *values* in the shrunk counterexample.  SmartCheck returns
 
     *** Extrapolating values ...
     *** Extrapolated value:
@@ -103,7 +103,7 @@ Ok, that's some progress!  Now SmartCheck attempt to generalize this (local) min
 
 Ahah!  We see that for any possible subvalues x0, the above value fails.  Our precondition divSubTerms did not account for the possibility of a non-terminal divisor evaluating to 0; we only pattern-matched on constants.
 
-In addition, SmartCheck tries to do something I call *constructor generalization*.  For a datatype with a finite number of constructors, the idea is to see if for each subvalue in the counterexample, there is are subvalues that also fail the property, using every possible constructor in the datatype.  So for example, for our counterexample above
+In addition, SmartCheck tries to do something I call *constructor generalization*.  For a datatype with a finite number of constructors, the idea is to see if for each subvalue in the counterexample, there are subvalues that also fail the property using every possible constructor in the datatype.  So for example, for our counterexample above
 
     *** Extrapolating constructors ...
     *** Extrapolated value:

@@ -4,6 +4,7 @@
 {-# LANGUAGE ExistentialQuantification #-} 
 {-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE OverlappingInstances #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Test.SmartCheck.Types
   ( PropRedux
@@ -28,6 +29,7 @@ import Data.Word
 import Data.Int
 import Data.Ratio
 import Data.Complex
+--import qualified Data.Map as M
 
 import qualified Test.QuickCheck as Q
 
@@ -106,7 +108,7 @@ instance Show SubT where
   show (SubT t) = show t
 
 -- | This class covers algebraic datatypes that can be transformed into Trees.
--- subTypes is the main method, placing values into trees.  For types can can't
+-- subTypes is the main method, placing values into trees.  For types that can't
 -- be put into a *structural* order (e.g., Int), we don't want SmartCheck to
 -- touch them, so that aren't placed in the tree (the baseType method tells
 -- subTypes which types have this property).
@@ -139,6 +141,20 @@ class (Q.Arbitrary a, Show a, Typeable a) => SubTypes a where
   default toConstr :: (Generic a, GST (Rep a)) => a -> String
   toConstr = gtc . from
   -----------------------------------------------------------
+  -- | showForest generically shows a value while preserving its structure (in a
+  -- Tree).  You should always end up with either a singleton list containing
+  -- the tree or an empty list for baseTypes.  Also, it must be the case that
+  -- for a value v,
+  --
+  -- null (subTypes v) iff null (showForest v)
+  -- and
+  -- if not . null (subTypes v), then subForest . head (showForest v) 
+  -- has the same structure as subTypes v.
+  --
+  -- We can't just return a Tree String or Maybe (Tree String).  The reason is
+  -- that in generically constructing the value, we have to deal with product
+  -- types.  There is no sane way to join them other than list-like
+  -- concatenation (i.e., gsf (a :*: b) = gsf a ++ gsf b).
   showForest :: a -> Forest String
   default showForest :: (Generic a, GST (Rep a)) 
                      => a -> Forest String
@@ -199,17 +215,26 @@ instance (Constructor c, GST a) => GST (M1 C c a) where
   gst (M1 a) = gst a
   grc (M1 a) forest c = grc a forest c >>= return . M1
   gtc = conName 
-  -- gsf m@(M1 a) = [ Node (conName m) forest ]
-  --   where
-  --   forest = gsf a 
-  gsf m@(M1 a) = [ tree ]
+
+  gsf m@(M1 a) = [ tree ] 
     where
+    tree = Node root (gsf a)
+         -- This value is a baseType.
+    root | null (gsf a) = conName m 
+         -- Not a base type.  So we want the constructor name, then 
+         | otherwise    = conName m ++ " " ++ (rootLabel . head) (gsf a)
+
     -- This must *exactly* match what happens with subtypes, since we assume the
     -- same indexing.  If the rest of a value is a baseType (null (gst a)), then
     -- we put it's name in root label.
-    tree | null (gst a) = Node root []
-         | otherwise    = Node (conName m) (gsf a)
-    root = conName m ++ " " ++ (rootLabel . head) (gsf a)
+  -- gsf m@(M1 a) = [ tree ]
+  --   where
+  --   -- This must *exactly* match what happens with subtypes, since we assume the
+  --   -- same indexing.  If the rest of a value is a baseType (null (gst a)), then
+  --   -- we put it's name in root label.
+  --   tree | null (gst a) = Node root []
+  --        | otherwise    = Node (conName m) (gsf a)
+  --   root = conName m ++ " " ++ (rootLabel . head) (gsf a)
 
 -- All the other meta-information (selector, module, etc.)
 instance GST a => GST (M1 i k a) where
@@ -233,7 +258,7 @@ instance (Show a, Q.Arbitrary a, SubTypes a, Typeable a) => GST (K1 i a) where
   
   gsf (K1 a) = forest
     where 
-    forest = if baseType a then [ Node (show a) [] ] else showForest a
+    forest = if baseType a then [] else showForest a
 
 ---------------------------------------------------------------------------------
 -- We try to cover the instances supported by QuickCheck: http://hackage.haskell.org/packages/archive/QuickCheck/2.4.2/doc/html/Test-QuickCheck-Arbitrary.html
@@ -248,132 +273,156 @@ instance SubTypes Int8    where
   baseType _    = True
   replaceChild  = replaceChild'
   toConstr      = toConstr'
---  toConstrAndBase = toConstrAndBase'
   showForest    = showForest'  
 instance SubTypes Int16   where 
   subTypes _    = []
   baseType _    = True
   replaceChild  = replaceChild'
   toConstr      = toConstr'
---  toConstrAndBase = toConstrAndBase'
   showForest    = showForest'  
 instance SubTypes Int32   where 
   subTypes _    = []
   baseType _    = True
   replaceChild  = replaceChild'
   toConstr      = toConstr'
---  toConstrAndBase = toConstrAndBase'
   showForest    = showForest'  
 instance SubTypes Int64   where 
   subTypes _    = []
   baseType _    = True
   replaceChild  = replaceChild'
   toConstr      = toConstr'
---  toConstrAndBase = toConstrAndBase'
   showForest    = showForest'  
 instance SubTypes Integer where
   subTypes _    = []
   baseType _    = True
   replaceChild  = replaceChild'
   toConstr      = toConstr'
---  toConstrAndBase = toConstrAndBase'
   showForest    = showForest'  
 instance SubTypes Word    where
   subTypes _    = []
   baseType _    = True
   replaceChild  = replaceChild'
   toConstr      = toConstr'
---  toConstrAndBase = toConstrAndBase'
   showForest    = showForest'  
 instance SubTypes Word8   where
   subTypes _    = []
   baseType _    = True
   replaceChild  = replaceChild'
   toConstr      = toConstr'
---  toConstrAndBase = toConstrAndBase'
   showForest    = showForest'  
 instance SubTypes Word16  where
   subTypes _    = []
   baseType _    = True
   replaceChild  = replaceChild'
   toConstr      = toConstr'
---  toConstrAndBase = toConstrAndBase'
   showForest    = showForest'  
 instance SubTypes Word32  where
   subTypes _    = []
   baseType _    = True
   replaceChild  = replaceChild'
   toConstr      = toConstr'
---  toConstrAndBase = toConstrAndBase'
   showForest    = showForest'  
 instance SubTypes Word64  where
   subTypes _    = []
   baseType _    = True
   replaceChild  = replaceChild'
   toConstr      = toConstr'
---  toConstrAndBase = toConstrAndBase'
   showForest    = showForest'  
 instance SubTypes ()      where baseType _    = True
+
+--instance (Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes [a] 
+--   subTypes      = concatMap subTypes
+--   baseType _    = True
+--   replaceChild  = replaceChild'
+--   toConstr      = toConstr'
+-- --  toConstrAndBase = toConstrAndBase'
+--  showForest    = showForest'
+
+-- For container types like list, if it's over a baseType, we don't want to
+-- evaluate the container either.  The intuition is that, e.g., for [Int], it'll
+-- be shrunk enough by QuickCheck and doesn't really have "interesting
+-- structure".
+
+-- For example, this makes String a baseType automatically.
 instance (Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes [a] where 
-  subTypes      = concatMap subTypes
-  baseType _    = True
-  replaceChild  = replaceChild'
-  toConstr      = toConstr'
---  toConstrAndBase = toConstrAndBase'
-  showForest    = showForest'  
+  subTypes      = if baseType (undefined :: a) then \_ -> [] 
+                    else gst . from
+  baseType _    = baseType (undefined :: a)
+  replaceChild x forest y = if baseType (undefined :: a) 
+                              then replaceChild' x forest y
+                              else fmap to $ grc (from x) forest y
+  toConstr      = if baseType (undefined :: a) then toConstr' 
+                    else gtc . from
+  showForest    = if baseType (undefined :: a) then showForest' 
+                    else gsf . from
+
+-- -- We treat String specially: we don't want to rewrite them.  (This is open for
+-- -- revision...)
+-- instance SubTypes String  where 
+--   baseType _    = True
+
+-- -- original
+-- instance (Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes [a] where 
+--   subTypes      = concatMap subTypes
+--   baseType _    = True
+--   replaceChild  = replaceChild'
+--   toConstr      = toConstr'
+-- --  toConstrAndBase = toConstrAndBase'
+--   showForest    = showForest'
+
+-- instance (Ord a, Q.Arbitrary a, Q.Arbitrary b) => Q.Arbitrary (M.Map a b) where
+--   arbitrary = do
+--     ls <- Q.arbitrary :: Q.Gen [(a, b)]
+--     return $ M.fromList ls
+
+-- instance (Ord a, Q.Arbitrary a, SubTypes a, Typeable a, Q.Arbitrary b, SubTypes b, Typeable b) 
+--            => SubTypes (M.Map a b) where 
+--   subTypes      = concatMap subTypes . M.toList 
+--   baseType _    = True
+--   replaceChild  = replaceChild'
+--   toConstr      = toConstr'
+-- --  toConstrAndBase = toConstrAndBase'
+--   showForest    = showForest'  
+
 instance (Integral a, Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes (Ratio a) where 
   subTypes _    = []
   baseType _    = True
   replaceChild  = replaceChild'
   toConstr      = toConstr'
---  toConstrAndBase = toConstrAndBase'
   showForest    = showForest'  
 instance (RealFloat a, Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes (Complex a) where 
   subTypes _    = []
   baseType _    = True
   replaceChild  = replaceChild'
   toConstr      = toConstr'
---  toConstrAndBase = toConstrAndBase'
   showForest    = showForest'  
-instance (Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes (Maybe a) where 
-  baseType _ = False
+instance (Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes (Maybe a)
 instance ( Q.Arbitrary a, SubTypes a, Typeable a
          , Q.Arbitrary b, SubTypes b, Typeable b) 
-         => SubTypes (Either a b) where 
-  baseType _ = False
+         => SubTypes (Either a b)
 instance ( Q.Arbitrary a, SubTypes a, Typeable a
          , Q.Arbitrary b, SubTypes b, Typeable b) 
-         => SubTypes (a, b) where 
-  baseType _ = False
+         => SubTypes (a, b)
 instance ( Q.Arbitrary a, SubTypes a, Typeable a
          , Q.Arbitrary b, SubTypes b, Typeable b
          , Q.Arbitrary c, SubTypes c, Typeable c) 
-         => SubTypes (a, b, c) where 
-  baseType _ = False
+         => SubTypes (a, b, c)
 instance ( Q.Arbitrary a, SubTypes a, Typeable a
          , Q.Arbitrary b, SubTypes b, Typeable b 
          , Q.Arbitrary c, SubTypes c, Typeable c 
          , Q.Arbitrary d, SubTypes d, Typeable d) 
-         => SubTypes (a, b, c, d) where 
-  baseType _ = False
+         => SubTypes (a, b, c, d)
 instance ( Q.Arbitrary a, SubTypes a, Typeable a
          , Q.Arbitrary b, SubTypes b, Typeable b 
          , Q.Arbitrary c, SubTypes c, Typeable c 
          , Q.Arbitrary d, SubTypes d, Typeable d 
          , Q.Arbitrary e, SubTypes e, Typeable e) 
-         => SubTypes (a, b, c, d, e) where 
-  baseType _ = False
-
--- We treat String specially: we don't want to rewrite them.  (This is open for
--- revision...)
-instance SubTypes String  where 
-  baseType _    = True
+         => SubTypes (a, b, c, d, e)
 
 ---------------------------------------------------------------------------------
 -- Helpers
 
 -- These should never be directly called.  We provide compatible instances anyway.
-
 toConstr' :: Show a => a -> String
 toConstr' = show
 

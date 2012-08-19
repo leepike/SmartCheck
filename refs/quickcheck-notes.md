@@ -1,16 +1,15 @@
-# QuickCheck implementation notes for my own use.  (The design is rather
-  clever. :) I *think* this is how things work...)
+# QuickCheck implementation notes for my own use.  (The design is rather clever. :) I *think* this is how things work...)
 
 ---------------------------------------
 
-The main entry point `quickCheckWithResult`.  There, a property (something that
+The main entry point is `quickCheckWithResult`.  There, a property (something that
 belongs to the `Testable` class) is turned into a `Property`: 
 
     type Property = Gen Prop
     newtype Prop = MkProp{ unProp :: Rose Result }
     data Rose a = MkRose a [Rose a] | IORose (IO (Rose a))
     
-More on that in a bit by using `Testable`'s `property` method.  At
+(more on that in a bit) by using `Testable`'s `property` method.  At
 this point, it's important to know that we have everything we need to test some
 function: we've generated random values for the function's inputs, and we have a
 tree of results based on shrinking the values in the Rose tree.  
@@ -24,7 +23,7 @@ failure.  If we do get a failure, we start shrinking in the call
 `foundFailure` starts a loop of looking through the Rose Tree to find smaller
 failing values (`localMin'` calls `foundFailure` to complete the loop).
 
-The real magic is in the `Testable` class an in the Rose data structure, both
+The real magic is in the `Testable` class in the Rose data structure, both
 defined in the `Property` module.  Starting with `Testable`: basically, you're
 going to have some function `f :: X -> Y -> ... -> Bool` that you want to test.
 QuickCheck knows how to make arbitrary values for `X`, `Y`, etc.  So the first

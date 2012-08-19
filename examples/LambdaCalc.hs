@@ -116,7 +116,6 @@ prop1 (Pr e0 e1) = -- Timeout due to possible non-termination
 lambdaTest :: IO ()
 lambdaTest = smartCheck args prop1
   where args = scStdArgs { qcArgs = stdArgs { maxSuccess = 100
-                                            , maxDiscard = 100
                                             , maxSize    = 100
                                             }
                          }

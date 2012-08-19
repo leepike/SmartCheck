@@ -31,6 +31,11 @@
 
 INSTRUCTIONS
 
+* Blow away your cabal-dev directories to do a fresh install.
+
+Make latest smartcheck: from SmartCheck:
+> cabal-dev install
+
 Make smartcheck available: from xmonad-0.10/
 > cabal-dev add-source ../../../../
 

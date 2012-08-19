@@ -218,23 +218,16 @@ instance (Constructor c, GST a) => GST (M1 C c a) where
 
   gsf m@(M1 a) = [ tree ] 
     where
-    tree = Node root (gsf a)
-         -- This value is a baseType.
-    root | null (gsf a) = conName m 
-         -- Not a base type.  So we want the constructor name, then 
+    -- When a tree has reached a constructor with a baseType value (e.g., A 3
+    -- for some constructor A), we want to show the constructor and the value,
+    -- but not have a subForest.  So we check if the rest is a baseType (gst a
+    -- tells us that), and if so, we show the conName, and extract (rootLabel
+    -- . head) (gsf a), which is basically just showing the rest (look at gsf
+    -- (K1 a) below).  Otherwise, we just want the constructor.
+    tree | null (gst a) = Node root []
+         | otherwise    = Node (conName m) (gsf a)
+    root | null (gsf a) = conName m
          | otherwise    = conName m ++ " " ++ (rootLabel . head) (gsf a)
-
-    -- This must *exactly* match what happens with subtypes, since we assume the
-    -- same indexing.  If the rest of a value is a baseType (null (gst a)), then
-    -- we put it's name in root label.
-  -- gsf m@(M1 a) = [ tree ]
-  --   where
-  --   -- This must *exactly* match what happens with subtypes, since we assume the
-  --   -- same indexing.  If the rest of a value is a baseType (null (gst a)), then
-  --   -- we put it's name in root label.
-  --   tree | null (gst a) = Node root []
-  --        | otherwise    = Node (conName m) (gsf a)
-  --   root = conName m ++ " " ++ (rootLabel . head) (gsf a)
 
 -- All the other meta-information (selector, module, etc.)
 instance GST a => GST (M1 i k a) where
@@ -255,10 +248,12 @@ instance (Show a, Q.Arbitrary a, SubTypes a, Typeable a) => GST (K1 i a) where
       (Node Subst ls : _) -> replaceChild a ls c >>= return . K1
 
   gtc _ = ""
-  
-  gsf (K1 a) = forest
-    where 
-    forest = if baseType a then [] else showForest a
+
+  -- Yes, this is right.  For a baseType value v, showForest v will just yield
+  -- [] using showForest'.  But to make the tree using generics, when we get
+  -- down to baseTypes, we need to actually show them, returing a Forest.  We
+  -- extract the value in the rootLabel above.
+  gsf (K1 a) = if baseType a then [Node (show a) []] else showForest a
 
 ---------------------------------------------------------------------------------
 -- We try to cover the instances supported by QuickCheck: http://hackage.haskell.org/packages/archive/QuickCheck/2.4.2/doc/html/Test-QuickCheck-Arbitrary.html

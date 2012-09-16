@@ -60,6 +60,11 @@ divSubTerms (D m0 m1)   = divSubTerms m0 && divSubTerms m1
 -- div0 (A _ _) = property False
 -- div0 _       = property True
 
+-- test_prop m = case eval m of
+--                 Nothing -> True
+--                 Just i -> i < 5
+              
+
 divTest :: IO ()
 divTest = smartCheck args div_prop
   where 

@@ -38,8 +38,29 @@ get their constructors, too.
 
 * Web view for large data (like Yav's thing for type nats)?
 
-* Would I benefit from using a zipper for traversal?  I suspect not since I am
-  really don't a fold. (Oleg Kiselyov, 27 Apr 2005, haskell\@, "Zipper as a delimited continuation")
+* Would I benefit from using a zipper for traversal?  I suspect not since I 
+  really don't fold. (Oleg Kiselyov, 27 Apr 2005, haskell\@, "Zipper as a delimited continuation")
+
+* Try out SubTypes instances for Map a b and try an algebric type inside of
+  lists (maybe Forest Foo).
+
+* Go through Reddit comments: (in refs/)
+
+* Why do things crap out with HeapPP sometimes in shrinking?  Profile.
+
+* Try to fix/simplify definition of showForest.
+
+* Probably, list/map [a] should be a baseType if a is a baseType and not
+  otherwise.
+
+* Include instance for Data.Map in SubType instances?  Argument for not:
+  QuickCheck doesn't include them as basic instances...
+
+* Test () SubType method.
+
+* Refactor so we only getAtIdx (which is expensive!) once per pass.
+
+* Pass around stdGen so that more code is pure.
 
 Won't Do / Can't Do
 -----------------------------------------------
@@ -50,16 +71,24 @@ Won't Do / Can't Do
     seems like wasted time.  In any event, there's commented out code in
     smartShrink (in Reduce) that will do this.
 
-* Make sure that printing, etc. doesn't depend on subTypes.  Just want that to
-  do with replacing values during testing.  I'm not sure I can do this
-  independently of SubT.
-
-  * I think I need something like this.
-
 * I don't think I can make a generic instance for the arbitrary method.  This is
   because I don't take a value and apply a function to it.  Rather, I want to
   generate a new value.  But Generics expects to have some sort of
   representation of the data you're manipulating.
+
+* QuickCheck uses a clever trick with typeclasses that allows them to generate
+  and test functions in the [Property
+  module](http://hackage.haskell.org/packages/archive/QuickCheck/2.5/doc/html/src/Test-QuickCheck-Property.html#exhaustive).
+  I was thinking it might be nice to follow their approach with SmartCheck, but
+  there are a few problems/lack of motivation:
+
+  * SmartCheck addresses the problem of getting complex counterexamples.
+    Usually, we imagine there's one complex datatype, and maybe some Ints,
+    Chars, etc. that we also want to randomly generate and test.  In this case,
+    it makes sense to focus on the one.
+
+  * With QuickCheck, there are essentially two passes: (1) make some arbitrary
+    values and test them, and (2) shrink the values.
 
 Done
 -----------------------------------------------

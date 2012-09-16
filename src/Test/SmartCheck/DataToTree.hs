@@ -60,8 +60,9 @@ levelLength n t = sum $ map (levelLength (n-1)) (subForest t)
 
 -- | Get the tree at idx in a forest.  Nothing if the index is out-of-bounds.
 getIdxForest :: Forest a -> Idx -> Maybe (Tree a)
-getIdxForest forest (Idx (0::Int) n) =
-  if length forest > n then Just (forest !! n) else Nothing
+getIdxForest forest (Idx (0 :: Int) n) =
+  if length forest > n then Just (forest !! n) 
+    else Nothing
 getIdxForest forest idx              =
   -- Should be a single Just x in the list, holding the value.
   listToMaybe . catMaybes . snd $ acc
@@ -117,7 +118,7 @@ forestReplaceChildren = sub Children
 
 sub :: SubStrat -> Forest a -> Idx -> a -> Forest a
 -- on right level, and we'll assume correct subtree.
-sub strat forest (Idx (0::Int) n) a = 
+sub strat forest (Idx (0 :: Int) n) a = 
   snd $ mapAccumL f 0 forest
   where
   f i node | i == n = ( i+1, news )  

@@ -58,7 +58,7 @@ extrapolate args d origProp ds = do
       -- None of the tries satisfy prop (but something passed the precondition).
       -- Prevent recurring down this tree, since we can generalize.
       FailedProp    -> nextIter (forestReplaceChildren forest' idx False)
-                         (idx : idxs)
+                                (idx : idxs)
       FailedPreCond -> nextIter forest' idxs
       Result _      -> nextIter forest' idxs
     where

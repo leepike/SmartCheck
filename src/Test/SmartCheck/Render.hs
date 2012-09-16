@@ -54,7 +54,7 @@ renderWithVars format d idxs = do
          (putStrLn $ "forall " ++ kind ++ " "
       ++ unwords (take len vs) ++ ":")
 
-  vars str   = map (\(x,i) -> x ++ show i) (zip (repeat str) [0::Int ..])
+  vars str   = map (\(x,i) -> x ++ show i) (zip (repeat str) [0::Integer ..])
   valVars    = vars "x"
   constrVars = vars "C"
 

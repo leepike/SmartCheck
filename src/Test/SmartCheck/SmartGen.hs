@@ -1,7 +1,7 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+
 module Test.SmartCheck.SmartGen
-  ( Result(..)
-  , iterateArb
-  , extractResult
+  ( iterateArb
   , resultify
   , replace
   , iter
@@ -14,95 +14,95 @@ import qualified Test.QuickCheck.Gen as Q
 import qualified Test.QuickCheck as Q hiding (Result)
 import qualified Test.QuickCheck.Property as Q
 
-import System.Random hiding (next)
-import Data.List
-import Data.Maybe
+import System.Random 
 import Data.Tree hiding (levels)
-import Control.Monad
-
----------------------------------------------------------------------------------
-
--- | Possible results of iterateArb.
-data Result a = FailedPreCond -- ^ Couldn't satisfy the precondition of a
-                              -- QuickCheck property
-              | FailedProp    -- ^ Failed the property
-              | Result a      -- ^ Satisfied it, with the satisfying value
-  deriving (Show, Read, Eq)
-
----------------------------------------------------------------------------------
-
--- | Make some samples no larger than maxSz of the same type as value a.
-samples :: Q.Arbitrary a 
-        => a   -- ^ unused; just to type arbitrary.
-        -> Int -- ^ Number of tries.
-        -> Int -- ^ Maximum size of the structure generated.
-        -> IO [a]
-samples _ i maxSz = do
-  rnd0 <- newStdGen
-  when (maxSz < 0) (errorMsg "samples: maxSize less than 0.")
-  let ls = sort . take i $ randomRs (0, maxSz) rnd0 -- XXX better distribution?
-  let rnds rnd = rnd1 : rnds rnd2 where (rnd1,rnd2) = split rnd
-  let Q.MkGen m = Q.arbitrary
-  -- Remember, m is a *function*, that takes a random generator (r) and a
-  -- maxSize parameter (n).  We control size using the n parameter.  This is
-  -- morally equivalent to using the resize function in QuickCheck.Gen.
-  return [ (m r n) | (r,n) <- rnds rnd0 `zip` ls ]
 
 ---------------------------------------------------------------------------------
 
 -- | Replace the hole in d indexed by idx with a bunch of random values, and
 -- test the new d against the property.  Returns the first new d (the full d but
--- with the hole replaced) that succeeds.
-iterateArb :: SubTypes a
-           => a -> Idx -> Int -> Int
-           -> (a -> Q.Property) -> IO (Result a)
-iterateArb d idx tries sz prop = 
-  case getAtIdx d idx of
-    Nothing -> errorMsg "iterateArb 0"
-    Just v  -> do rnds <- mkVals v
-                  forM_ rnds (\a -> if isNothing $ replace d idx a
-                                      then errorMsg "iterateArb 1"
-                                      else return ())
+-- with the hole replaced) that succeeds.  "Succeeds" is determined by the call
+-- to resultify---if we're expecting failure, then we succeed by getting a value
+-- that passes the precondition but fails the property; otherwise we succeed by
+-- getting a value that passes the precondition and satisfies the property.  If
+-- no value ever satisfies the precondition, then we return FailedPreCond.
+-- (Thus, there's an implied linear order on the Result type: FailedPreCond <
+-- FailedProp < Result a.)
+iterateArb :: forall a. SubTypes a
+           => a -> Idx -> Int -> Int -> (a -> Q.Property) -> IO (Result a)
+iterateArb d idx tries maxSize prop = do
+  g <- newStdGen
+  iterateArb' FailedPreCond g 0 0
 
-                  let res = catMaybes $ map (replace d idx) rnds
-                  -- Catch errors that shouldn't ever happen: this means that
-                  -- there is probably a bad idx passed in.
-                  when (length res /= length rnds) (errorMsg "iterateArb 1")
-                  foldM (extractResult prop) FailedPreCond res
   where
-                   
-  mkVals SubT { unSubT = v } = do
-    rnds <- samples v tries sz
-    return $ map subT rnds
+  ext :: SubT
+  ext = case getAtIdx d idx of
+          Just v  -> v
+          Nothing -> errorMsg "iterateArb 0"
+
+  newMax SubT { unSubT = v } = maxDepth v
+
+  -- Main loop.  We break out if we ever satisfy the property.  Otherwise, we
+  -- return the latest value.
+  iterateArb' :: Result a -> StdGen -> Int -> Int -> IO (Result a)
+  iterateArb' res g try currMax
+    -- We've exhausted the number of iterations.
+    | try >= tries = return res
+    -- Values are now too big.  Start again with size at 0.
+    | newMax s >= maxSize = iterateArb' res g0 (try + 1) 0
+    | otherwise = 
+        case replace d idx s of
+          Nothing -> errorMsg "iterateArb 1"
+          Just d' -> do 
+            res' <- resultify prop d'
+            case res' of
+              FailedPreCond -> rec FailedPreCond
+              FailedProp    -> rec FailedProp
+              Result x      -> return (Result x)
+
+    where 
+    (size, g0) = randomR (0, currMax) g
+    s = sample ext g size
+    sample SubT { unSubT = v } = newVal v 
+    rec res' = iterateArb' res' g0 (try + 1) 
+                 (currMax * 2) -- XXX what ratio is right to increase size of
+                               -- values?  This gives us exponentail growth, but
+                               -- remember we're randomly chosing within the
+                               -- range of [0, max], so many values are
+                               -- significantly smaller than the max.  Plus we
+                               -- reset the size whenever we get a value that's
+                               -- too big.
 
 ---------------------------------------------------------------------------------
 
--- | Must pass the precondition at least once to return either FailedProp or
--- Result.
-extractResult :: (a -> Q.Property) -> Result a -> a -> IO (Result a)
-extractResult _    r@(Result _) _ = return r
-extractResult prop r            a = do
-  res <- resultify prop a 
-  let go = case Q.ok res of
-             Nothing -> r -- Failed the precondition
-             Just b  -> if Q.expect res 
-                          then if b then Result a else FailedProp
-                          else if b then FailedProp else Result a
-  return go
+-- | Make a new random value given a generator and a max size.  Based on the
+-- value's type's arbitrary instance.
+newVal :: forall a. (SubTypes a, Q.Arbitrary a) 
+       => a -> StdGen -> Int -> SubT
+newVal _ g size = 
+  let Q.MkGen m = Q.resize size (Q.arbitrary :: Q.Gen a) in
+  let v = m g size in
+  subT v
 
 ---------------------------------------------------------------------------------
 
+-- | Put a value v into a another value d at a hole idx, if v is well-typed.
+-- Return Nothing if dynamic typing fails.
 replace :: SubTypes a => a -> Idx -> SubT -> Maybe a
 replace d idx SubT { unSubT = v } = replaceAtIdx d idx v
 
 ---------------------------------------------------------------------------------
 
--- | Make a QuickCheck Result by applying a property function to a value.
-resultify :: (a -> Q.Property) -> a -> IO Q.Result
+-- | Make a QuickCheck Result by applying a property function to a value and
+-- then get out the Result using our result type.
+resultify :: (a -> Q.Property) -> a -> IO (Result a)
 resultify prop a = do 
   Q.MkRose r _ <- res fs
-  return r
-
+  return $ case Q.ok r of -- result of test case (True ==> passed)
+             Nothing -> FailedPreCond -- Failed precondition (discard)
+             Just b  -> if b && Q.expect r then Result a
+                          else if not b && not (Q.expect r) then Result a
+                                 else FailedProp
   where
   Q.MkGen { Q.unGen = f } = prop a :: Q.Gen Q.Prop
   fs  = Q.unProp $ f err err       :: Q.Rose Q.Result
@@ -115,9 +115,9 @@ resultify prop a = do
 type Next a b = a -> b -> Forest Bool -> Idx -> [Idx] -> IO (a, [Idx])
 type Test a b = a -> Idx -> IO b
 
--- Do a breadth-first traversal of the data, trying to replace holes.  When we
--- find an index we can replace, add its index to the index list.  Recurse down
--- the structure, following subtrees that have *not* been replaced.
+-- Do a breadth-first traversal of the data.  First, we find the next valid
+-- index we can use.  Then we apply our test function, passing the result to our
+-- next function.
 iter :: SubTypes a 
      => a                 -- ^ Failed value
      -> Test a b          -- ^ Test to use
@@ -127,13 +127,13 @@ iter :: SubTypes a
      -> Idx               -- ^ Starting index to extrapolate
      -> [Idx]             -- ^ List of generalized indices
      -> IO (a, [Idx])
-iter d test next prop forest idx idxs 
+iter d test nxt prop forest idx idxs 
   | done      = return (d, idxs)
   | nextLevel = iter'
   | atFalse   = iter' -- Must be last check or !! index below may be out of
                       -- bounds!
   | otherwise = do tries <- test d idx
-                   next d tries forest idx idxs
+                   nxt d tries forest idx idxs
 
   where
   -- Location is w.r.t. the forest, not the original data value.
@@ -141,7 +141,15 @@ iter d test next prop forest idx idxs
   done       = length levels <= level idx
   nextLevel  = length (levels !! level idx) <= column idx
   atFalse    = not $ (levels !! level idx) !! column idx
-  iter'      = iter d test next prop forest 
+  iter'      = iter d test nxt prop forest 
                  idx { level = level idx + 1, column = 0 } idxs
+
+---------------------------------------------------------------------------------
+
+-- | Get the maximum depth of a value, where depth is measured in the maximum
+-- depth of the tree representation, not counting base types (defined in
+-- Types.hs).
+maxDepth :: SubTypes a => a -> Int
+maxDepth d = depth (mkSubstForest d True) 
 
 ---------------------------------------------------------------------------------

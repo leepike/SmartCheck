@@ -10,6 +10,7 @@ module Test.SmartCheck.Types
   ( PropRedux
   , SubT(..)
   , subT
+  , Result(..)
   , SubTypes(..) 
   , Idx(..)
   , Subst(..)
@@ -65,6 +66,19 @@ scStdArgs = ScArgs { treeShow    = PrintTree
                    , extrap      = True
                    , constrGen   = True
                    }
+
+---------------------------------------------------------------------------------
+-- Result type
+---------------------------------------------------------------------------------
+
+-- | Possible results of iterateArb.
+data Result a = FailedPreCond -- ^ Couldn't satisfy the precondition of a
+                              -- QuickCheck property
+              | FailedProp    -- ^ Failed the property---either we expect
+                              -- failure and it passes or we expect to pass it
+                              -- and we fail.
+              | Result a      -- ^ Satisfied it, with the satisfying value
+  deriving (Show, Read, Eq)
 
 ---------------------------------------------------------------------------------
 -- Indexing
@@ -263,6 +277,12 @@ instance SubTypes Char    where baseType _    = True
 instance SubTypes Double  where baseType _    = True
 instance SubTypes Float   where baseType _    = True
 instance SubTypes Int     where baseType _    = True
+instance SubTypes Integer where
+  subTypes _    = []
+  baseType _    = True
+  replaceChild  = replaceChild'
+  toConstr      = toConstr'
+  showForest    = showForest'  
 instance SubTypes Int8    where 
   subTypes _    = []
   baseType _    = True
@@ -282,12 +302,6 @@ instance SubTypes Int32   where
   toConstr      = toConstr'
   showForest    = showForest'  
 instance SubTypes Int64   where 
-  subTypes _    = []
-  baseType _    = True
-  replaceChild  = replaceChild'
-  toConstr      = toConstr'
-  showForest    = showForest'  
-instance SubTypes Integer where
   subTypes _    = []
   baseType _    = True
   replaceChild  = replaceChild'

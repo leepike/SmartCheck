@@ -50,21 +50,39 @@ data Format = PrintTree | PrintString
 data ScArgs = 
   ScArgs { treeShow    :: Format -- ^ How to show extrapolated formula
          , qcArgs      :: Q.Args -- ^ QuickCheck arguments
-         , maxFailure  :: Int    -- ^ How hard to look for failure
+         --------------
+         , qc          :: Bool   -- ^ Should we run QuickCheck?  (If not, you
+                                 --   are expected to pass in data to analyze.)
          , extrap      :: Bool   -- ^ Should we extrapolate?
          , constrGen   :: Bool   -- ^ Should we try to generalize constructors?
+         --------------
+         , maxSuccess  :: Int    -- ^ How hard (number of rounds) to look for
+                                 --   failures durbing the extrapolation and
+                                 --   constructor generalization stages.
+         , maxFailure  :: Int    -- ^ How hard (number of rounds) to look for
+                                 --   failure in the reduction stage.
+         , maxSize     :: Int    -- ^ Maximum size of data to generate, in terms
+                                 --   of the size parameter of QuickCheck's
+                                 --   Arbitrary instance for your data.
+         , maxDepth    :: Maybe Int -- ^ How levels into the structure of the
+                                    --   failed value should we descend when
+                                    --   reducing or generalizing?  Nothing
+                                    --   means we go down to base types.
          }
   deriving (Show, Read)
 
 scStdArgs :: ScArgs
 scStdArgs = ScArgs { treeShow    = PrintTree
-                   -- Let's let us fail at least 100 times to pass the
-                   -- precondition, then maxSuccess more to try to find a
-                   -- failure.
-                   , maxFailure  = 100 + Q.maxSuccess Q.stdArgs
                    , qcArgs      = Q.stdArgs
+                   --------------
+                   , qc          = True
                    , extrap      = True
                    , constrGen   = True
+                   --------------
+                   , maxSuccess  = 100
+                   , maxFailure  = 100
+                   , maxSize     = 10
+                   , maxDepth    = Nothing
                    }
 
 ---------------------------------------------------------------------------------
@@ -73,10 +91,10 @@ scStdArgs = ScArgs { treeShow    = PrintTree
 
 -- | Possible results of iterateArb.
 data Result a = FailedPreCond -- ^ Couldn't satisfy the precondition of a
-                              -- QuickCheck property
+                              --   QuickCheck property
               | FailedProp    -- ^ Failed the property---either we expect
-                              -- failure and it passes or we expect to pass it
-                              -- and we fail.
+                              --   failure and it passes or we expect to pass it
+                              --   and we fail.
               | Result a      -- ^ Satisfied it, with the satisfying value
   deriving (Show, Read, Eq)
 

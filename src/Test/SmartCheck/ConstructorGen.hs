@@ -9,6 +9,7 @@ import Test.SmartCheck.DataToTree
 import Test.SmartCheck.SmartGen
 import Test.SmartCheck.Render
 
+import Prelude hiding (max)
 import Generics.Deriving
 import qualified Data.Set as S
 import Data.List
@@ -53,7 +54,8 @@ constrsGen args d prop vs = do
 -- | Return True if we can generalize; False otherwise.
 extrapolateConstrs :: (SubTypes a, Generic a, ConNames (Rep a)) 
   => ScArgs -> a -> Idx -> (a -> Q.Property) -> IO Bool
-extrapolateConstrs args a idx prop = recConstrs (S.singleton $ subConstr a idx)
+extrapolateConstrs args a idx prop = 
+  recConstrs (S.singleton $ subConstr a idx (maxDepth args))
 
   where
   notProp = Q.expectFailure . prop
@@ -66,9 +68,11 @@ extrapolateConstrs args a idx prop = recConstrs (S.singleton $ subConstr a idx)
       then return True
       else do v <- arbSubset args a idx notProp constrs
               case v of
-                Result x      -> recConstrs (subConstr x idx `S.insert` constrs)
+                Result x      -> recConstrs (newConstr x)
                 FailedPreCond -> return False
                 FailedProp    -> return False
+      where
+        newConstr x = subConstr x idx (maxDepth args) `S.insert` constrs
 
 ---------------------------------------------------------------------------------
 
@@ -83,19 +87,20 @@ arbSubset :: (SubTypes a, Generic a, ConNames (Rep a))
 arbSubset args a idx prop constrs = 
       -- Because we're looking for some failure that passes the precondition, we
       -- use maxDiscard.
-      iterateArb a idx (maxFailure args) (Q.maxSize $ qcArgs args) prop' 
+      iterateArbIdx a (idx, maxDepth args) 
+                      (maxSuccess args) (maxSize args) prop' 
   >>= return
 
   where
   prop' b = newConstr b Q.==> prop b
   -- Make sure b's constructor is a new one.
-  newConstr b = not $ subConstr b idx `S.member` constrs
+  newConstr b = not $ subConstr b idx (maxDepth args) `S.member` constrs
   
 ---------------------------------------------------------------------------------
 
-subConstr :: SubTypes a => a -> Idx -> String
-subConstr x idx = 
-  case getAtIdx x idx of
+subConstr :: SubTypes a => a -> Idx -> Maybe Int -> String
+subConstr x idx max = 
+  case getAtIdx x idx max of
     Nothing -> errorMsg "constrs'"
     Just x' -> subTconstr x'
 

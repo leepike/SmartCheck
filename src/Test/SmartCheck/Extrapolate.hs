@@ -43,14 +43,14 @@ extrapolate args d origProp ds = do
   forest = mkSubstForest d True
   iter'  = iter d test next origProp
   prop idxs newProp a = 
-    (not $ matchesShapes a (d : ds) idxs) Q.==> newProp a
+    (not $ matchesShapes args a (d : ds) idxs) Q.==> newProp a
       
   -- In this call to iterateArb, we want to claim we can extrapolate iff at
   -- least one test passes a precondition, and for every test in which the
   -- precondition is passed, it fails.  We test values of all possible sizes, up
   -- to Q.maxSize.
-  test _ idx = iterateArb d idx (Q.maxSuccess $ qcArgs args) 
-                 (Q.maxSize $ qcArgs args) origProp
+  test _ idx = iterateArbIdx d (idx, maxDepth args) (maxSuccess args)
+                 (maxSize args) origProp 
 
   -- Control-flow.
   next _ res forest' idx idxs = 
@@ -68,18 +68,18 @@ extrapolate args d origProp ds = do
 
 -- | Finds any two distinct values that match.  INVARIANT: the ds are all
 -- unequal, and d /= any ds.
-matchesShapes :: SubTypes a => a -> [a] -> [Idx] -> Bool
-matchesShapes d ds idxs = foldl' f False ds
+matchesShapes :: SubTypes a => ScArgs -> a -> [a] -> [Idx] -> Bool
+matchesShapes args d ds idxs = foldl' f False ds
   where
   f True _   = True
-  f False d' = matchesShape d d' idxs
+  f False d' = matchesShape args d d' idxs
 
 -- | Are the value's constructors the same (for algebraic constructors only
 -- (e.g., omits Int)), and all the direct children constructors the same (for
 -- algebraic constructors only, while ignoring differences in all values at
 -- holes indexed by the indexes.
-matchesShape :: SubTypes a => a -> a -> [Idx] -> Bool
-matchesShape a b idxs = test (subT a, subT b) && repIdxs 
+matchesShape :: SubTypes a => ScArgs -> a -> a -> [Idx] -> Bool
+matchesShape args a b idxs = test (subT a, subT b) && repIdxs 
   where
   repIdxs = case foldl' f (Just b) idxs of
               Nothing -> False
@@ -87,7 +87,7 @@ matchesShape a b idxs = test (subT a, subT b) && repIdxs
 
   f mb idx = do
     b' <- mb
-    v  <- getAtIdx a idx
+    v  <- getAtIdx a idx (maxDepth args)
     replace b' idx v
 
   nextLevel x = map rootLabel (subTypes x)

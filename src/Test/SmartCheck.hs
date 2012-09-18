@@ -25,15 +25,20 @@ import Generics.Deriving
 smartCheck :: forall a b. ( Read a, Q.Arbitrary a, SubTypes a
                           , Generic a, ConNames (Rep a), Q.Testable b )
     => ScArgs -> (a -> b) -> IO ()
-smartCheck args propT = smartCheck' prop []
+smartCheck args propT = do
+  smartPrtLn ("If any stage takes too long to reduce, try reducing the standard\n"
+                ++ "arguments (see Types.hs).")
+  smartCheck' prop []
 
   where
   prop a = Q.property $ propT a
 
   smartCheck' :: (a -> Q.Property) -> [a] -> IO ()
   smartCheck' prop' ds = do
-    -- Run standard QuickCheck.
-    res <- runQC (qcArgs args) prop'
+    -- Run standard QuickCheck or read in value.
+    res <- if qc args then runQC (qcArgs args) prop'
+             else do smartPrtLn "Input value to SmartCheck:"
+                     getLine >>= return . read
     case res of 
       Nothing -> smartPrtLn "No value to smart-shrink; done." 
       Just r  -> go r
@@ -62,8 +67,8 @@ smartCheck args propT = smartCheck' prop []
         else smartPrtLn "Could not extrapolate a new value."
 
       -- Ask the user if she wants to try again.
-      putStrLn $ "Attempt to find a new counterexample?" 
-                   ++ " ('Enter' to continue;"
+      putStrLn $ "Attempt to find a new counterexample?\n" 
+                   ++ "  ('Enter' to continue;"
                    ++ " any character then 'Enter' to quit.)"
       s <- getLine
       if (s == "")
@@ -82,7 +87,7 @@ smartCheck args propT = smartCheck' prop []
       nonEmpty d vs cs = vsIdxs || csIdxs
         where
         vsIdxs = case vs of
-                   Just (idxs, _) ->    (not $ matchesShapes d ds idxs)
+                   Just (idxs, _) ->    (not $ matchesShapes args d ds idxs)
                                      && (not $ null idxs)
                    Nothing        -> False
         csIdxs = case cs of

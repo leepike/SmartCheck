@@ -1,7 +1,8 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Test.SmartCheck.SmartGen
-  ( iterateArb
+  ( iterateArbIdx
+  , iterateArb
   , resultify
   , replace
   , iter
@@ -14,10 +15,20 @@ import qualified Test.QuickCheck.Gen as Q
 import qualified Test.QuickCheck as Q hiding (Result)
 import qualified Test.QuickCheck.Property as Q
 
+import Prelude hiding (max)
 import System.Random 
 import Data.Tree hiding (levels)
 
 ---------------------------------------------------------------------------------
+
+-- | Driver for iterateArb.
+iterateArbIdx :: SubTypes a
+              => a -> (Idx, Maybe Int) -> Int -> Int
+              -> (a -> Q.Property) -> IO (Result a)
+iterateArbIdx d (idx, max) tries sz prop = 
+  case getAtIdx d idx max of
+    Nothing  -> errorMsg "iterateArb 0"
+    Just ext -> iterateArb d ext idx tries sz prop
 
 -- | Replace the hole in d indexed by idx with a bunch of random values, and
 -- test the new d against the property.  Returns the first new d (the full d but
@@ -29,18 +40,14 @@ import Data.Tree hiding (levels)
 -- (Thus, there's an implied linear order on the Result type: FailedPreCond <
 -- FailedProp < Result a.)
 iterateArb :: forall a. SubTypes a
-           => a -> Idx -> Int -> Int -> (a -> Q.Property) -> IO (Result a)
-iterateArb d idx tries maxSize prop = do
+           => a -> SubT -> Idx -> Int -> Int 
+           -> (a -> Q.Property) -> IO (Result a)
+iterateArb d ext idx tries max prop = do
   g <- newStdGen
   iterateArb' FailedPreCond g 0 0
 
   where
-  ext :: SubT
-  ext = case getAtIdx d idx of
-          Just v  -> v
-          Nothing -> errorMsg "iterateArb 0"
-
-  newMax SubT { unSubT = v } = maxDepth v
+  newMax SubT { unSubT = v } = valDepth v
 
   -- Main loop.  We break out if we ever satisfy the property.  Otherwise, we
   -- return the latest value.
@@ -48,9 +55,10 @@ iterateArb d idx tries maxSize prop = do
   iterateArb' res g try currMax
     -- We've exhausted the number of iterations.
     | try >= tries = return res
-    -- Values are now too big.  Start again with size at 0.
-    | newMax s >= maxSize = iterateArb' res g0 (try + 1) 0
-    | otherwise = 
+    -- The generated random value is too big.  Start again sampling again with
+    -- size at 0.
+    | newMax s >= max = iterateArb' res g0 (try + 1) 0
+    | otherwise = --trace ("iter: " ++ show try ++ show s) $
         case replace d idx s of
           Nothing -> errorMsg "iterateArb 1"
           Just d' -> do 
@@ -65,13 +73,15 @@ iterateArb d idx tries maxSize prop = do
     s = sample ext g size
     sample SubT { unSubT = v } = newVal v 
     rec res' = iterateArb' res' g0 (try + 1) 
-                 (currMax * 2) -- XXX what ratio is right to increase size of
-                               -- values?  This gives us exponentail growth, but
-                               -- remember we're randomly chosing within the
-                               -- range of [0, max], so many values are
-                               -- significantly smaller than the max.  Plus we
-                               -- reset the size whenever we get a value that's
-                               -- too big.
+                 ((currMax + 1) * 2) -- XXX what ratio is right to increase size
+                                     -- of values?  This gives us exponentail
+                                     -- growth, but remember we're randomly
+                                     -- chosing within the range of [0, max], so
+                                     -- many values are significantly smaller
+                                     -- than the max.  Plus we reset the size
+                                     -- whenever we get a value that's too big.
+                                     -- Note the need for (+ 1), since we seed
+                                     -- with 0.
 
 ---------------------------------------------------------------------------------
 
@@ -149,7 +159,7 @@ iter d test nxt prop forest idx idxs
 -- | Get the maximum depth of a value, where depth is measured in the maximum
 -- depth of the tree representation, not counting base types (defined in
 -- Types.hs).
-maxDepth :: SubTypes a => a -> Int
-maxDepth d = depth (mkSubstForest d True) 
+valDepth :: SubTypes a => a -> Int
+valDepth d = depth (mkSubstForest d True) 
 
 ---------------------------------------------------------------------------------

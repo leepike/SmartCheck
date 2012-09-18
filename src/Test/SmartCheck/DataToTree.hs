@@ -90,10 +90,12 @@ getIdxForest forest idx              =
 getAtIdx :: SubTypes a
          => a     -- ^ Parent value
          -> Idx   -- ^ Index of hole to replace
+         -> Maybe Int -- ^ Maximum depth we want to extract
          -> Maybe SubT
-getAtIdx d Idx { level  = l
-               , column = c } 
-  = if length lev > c then Just (lev !! c) else Nothing
+getAtIdx d Idx { level  = l, column = c } maxLevel
+  | maybe False ((>) l) maxLevel = Nothing
+  | length lev > c = Just (lev !! c)
+  | otherwise      = Nothing
   where
   lev = getLevel (subTypes d) l
 

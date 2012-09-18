@@ -24,7 +24,7 @@ import Data.Maybe
 smartRun :: SubTypes a => ScArgs -> a -> (a -> Q.Property) -> IO a
 smartRun args res prop = do
   putStrLn ""
-  smartPrtLn "Smart Shrinking ... "
+  smartPrtLn "Smart Shrinking ..."
   new <- smartShrink args res prop
   smartPrtLn "Smart-shrunk value:"
   print new
@@ -67,21 +67,26 @@ smartShrink args d prop =
   -- idx.
   test :: a -> Idx -> IO (Maybe a)
   test x idx = do
-    hole <- testHole (getAtIdx x idx)
-    if isJust hole then return hole
-      else do r <- iterateArb x idx (maxFailure args) (maxSize x idx) notProp
-              return $ case r of
-                         Result a -> Just a
-                         FailedPreCond -> Nothing
-                         FailedProp    -> Nothing
+    let vm = getAtIdx x idx (maxDepth args)
+    case vm of 
+      Nothing -> errorMsg "smartShrink0"
+      Just v  -> do 
+        hole <- testHole v
+        if isJust hole then return hole
+          else do r <- iterateArb x v idx (maxFailure args) 
+                         -- Maximum size of values to generate; the minimum of
+                         -- the value at the current index and the maxSize
+                         -- parameter.
+                         (min (subValSize x idx) (maxSize args)) 
+                         notProp
+                  return $ resultToMaybe r
 
     where
     -- -- XXX debuging
     -- sh (Just SubT { unSubT = v }) = show v
 
-    testHole :: Maybe SubT -> IO (Maybe a)
-    testHole Nothing = return Nothing
-    testHole (Just SubT { unSubT = v }) = 
+    testHole :: SubT -> IO (Maybe a)
+    testHole SubT { unSubT = v } = 
       case cast v :: Maybe a of
         Just v' -> extractAndTest v'
         Nothing -> return Nothing
@@ -89,10 +94,14 @@ smartShrink args d prop =
       extractAndTest :: a -> IO (Maybe a)
       extractAndTest y = do 
         res <- resultify notProp y
-        return $ case res of
-                   FailedPreCond -> Nothing
-                   FailedProp    -> Nothing
-                   Result n      -> Just n
+        return $ resultToMaybe res
+
+resultToMaybe :: Result a -> Maybe a
+resultToMaybe res =
+  case res of
+    FailedPreCond -> Nothing
+    FailedProp    -> Nothing
+    Result n      -> Just n
 
 ---------------------------------------------------------------------------------
 
@@ -104,14 +113,14 @@ smartShrink args d prop =
 --   (:) C
 --     (:) C []
 
--- At (Idx 0 0) in v, we're at C, so maxSize v (Idx 0 0) == 0.
--- At (Idx 0 1) in v, we're at (C : C : []), so maxSize v (Idx 0 1) == 2, since
+-- At (Idx 0 0) in v, we're at C, so subValSize v (Idx 0 0) == 0.
+-- At (Idx 0 1) in v, we're at (C : C : []), so subValSize v (Idx 0 1) == 2, since
 -- we have the constructors :, C (or :, []) in the longest path underneath.
--- Base-types have maxSize 0.  So maxSize [1,2,3] idx == 0 for any idx.
--- Note that if we have maxSize d idx == 0, then it is impossible to construct a
+-- Base-types have subValSize 0.  So subValSize [1,2,3] idx == 0 for any idx.
+-- Note that if we have subValSize d idx == 0, then it is impossible to construct a
 -- *structurally* smaller value at hole idx.
-maxSize :: SubTypes a => a -> Idx -> Int
-maxSize d idx = maybe 0 id (fmap depth forestIdx)
+subValSize :: SubTypes a => a -> Idx -> Int
+subValSize d idx = maybe 0 id (fmap depth forestIdx)
   where
   forestIdx :: Maybe [Tree Bool]
   forestIdx = fmap subForest $ getIdxForest (mkSubstForest d True) idx

@@ -83,7 +83,6 @@ smartCheck args propT = do
         smartPrtLn "Extrapolated value:"
         renderWithVars (treeShow args) d repl -- XXX
 
-      nonEmpty :: a -> Maybe ([Idx], PropRedux a) -> Maybe [c] -> Bool
       nonEmpty d vs cs = vsIdxs || csIdxs
         where
         vsIdxs = case vs of
@@ -112,7 +111,7 @@ runQC args prop = do
 ---------------------------------------------------------------------------------
 -- Helpers
 
-repls :: Maybe ([Idx], PropRedux a) -> Maybe [Idx] -> Replace Idx
+repls :: Maybe ([Idx], b) -> Maybe [Idx] -> Replace Idx
 repls vs cs = Replace v c
   where 
   v = case vs of 
@@ -122,9 +121,7 @@ repls vs cs = Replace v c
         Nothing    -> []
         Just idxs  -> idxs
 
-propApp :: Maybe ([Idx], PropRedux a) -> PropRedux a
-propApp vs = case vs of 
-               Nothing         -> id
-               Just (_, prop_) -> prop_
+propApp :: Maybe (b, PropRedux a) -> PropRedux a
+propApp vs = maybe id snd vs
 
 ---------------------------------------------------------------------------------

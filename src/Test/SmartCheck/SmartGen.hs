@@ -58,7 +58,7 @@ iterateArb d ext idx tries max prop = do
     -- The generated random value is too big.  Start again sampling again with
     -- size at 0.
     | newMax s >= max = iterateArb' res g0 (try + 1) 0
-    | otherwise = --trace ("iter: " ++ show try ++ show s) $
+    | otherwise = 
         case replace d idx s of
           Nothing -> errorMsg "iterateArb 1"
           Just d' -> do 

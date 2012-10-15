@@ -38,7 +38,7 @@ import qualified Test.QuickCheck as Q
 -- Types synonyms
 ---------------------------------------------------------------------------------
 
-type PropRedux a = ((a -> Q.Property) -> a -> Q.Property)
+type PropRedux a = (a -> Q.Property) -> a -> Q.Property
 
 ---------------------------------------------------------------------------------
 -- User-defined subtypes of data
@@ -97,6 +97,17 @@ data Result a = FailedPreCond -- ^ Couldn't satisfy the precondition of a
                               --   and we fail.
               | Result a      -- ^ Satisfied it, with the satisfying value
   deriving (Show, Read, Eq)
+
+instance Functor Result where
+  fmap _ FailedPreCond = FailedPreCond
+  fmap _ FailedProp    = FailedProp
+  fmap f (Result a)    = Result (f a)
+
+instance Monad Result where
+  return a            = Result a
+  FailedPreCond >>= _ = FailedPreCond
+  FailedProp    >>= _ = FailedProp
+  Result a      >>= f = f a
 
 ---------------------------------------------------------------------------------
 -- Indexing

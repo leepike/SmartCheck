@@ -67,17 +67,17 @@ smartShrink args d prop =
   -- idx.
   test :: a -> Idx -> IO (Maybe a)
   test x idx = do
-    let vm = getAtIdx x idx (maxDepth args)
+    let vm = getAtIdx x idx (scMaxDepth args)
     case vm of 
       Nothing -> errorMsg "smartShrink0"
       Just v  -> do 
         hole <- testHole v
         if isJust hole then return hole
-          else do r <- iterateArb x v idx (maxFailure args) 
+          else do r <- iterateArb x v idx (scMaxFailure args) 
                          -- Maximum size of values to generate; the minimum of
                          -- the value at the current index and the maxSize
                          -- parameter.
-                         (min (subValSize x idx) (maxSize args)) 
+                         (min (subValSize x idx) (scMaxSize args)) 
                          notProp
                   return $ resultToMaybe r
 

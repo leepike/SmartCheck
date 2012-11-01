@@ -2,9 +2,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Test.SmartCheck.DataToTree
-  ( --subForestPath
---    forestReplaceChop
-    forestReplaceChildren
+  ( forestReplaceChildren
   , getAtIdx
   , replaceAtIdx
   , getIdxForest
@@ -88,8 +86,8 @@ getIdxForest forest idx              =
 -- | Returns the value at index idx.  Returns nothing if the index is out of
 -- bounds.
 getAtIdx :: SubTypes a
-         => a     -- ^ Parent value
-         -> Idx   -- ^ Index of hole to replace
+         => a         -- ^ Value
+         -> Idx       -- ^ Index of hole
          -> Maybe Int -- ^ Maximum depth we want to extract
          -> Maybe SubT
 getAtIdx d Idx { level  = l, column = c } maxLevel
@@ -104,16 +102,13 @@ getAtIdx d Idx { level  = l, column = c } maxLevel
 data SubStrat = Parent   -- ^ Replace everything in the path from the root to
                          -- here.  Used as breadcrumbs to the value.  Chop the
                          -- subforest.
---              | Chop     -- ^ Replace a value and remove the subforest.
               | Children -- ^ Replace a value and all of its subchildren.
   deriving  (Show, Read, Eq)
 
 ---------------------------------------------------------------------------------
 
 forestReplaceParent, forestReplaceChildren :: Forest a -> Idx -> a -> Forest a
---forestReplaceChop, 
 forestReplaceParent   = sub Parent
---forestReplaceChop     = sub Chop
 forestReplaceChildren = sub Children
 
 ---------------------------------------------------------------------------------
@@ -129,7 +124,6 @@ sub strat forest (Idx (0 :: Int) n) a =
     where  
     news = case strat of
              Parent   -> Node a []
---             Chop     -> Node a []
              Children -> fmap (\_ -> a) (forest !! n)
                          
 sub strat forest idx a = 
@@ -148,7 +142,6 @@ sub strat forest idx a =
     newTree = Node newRootLabel (sub strat (subForest t) (Idx l n) a)
     newRootLabel = case strat of 
                      Parent   -> a 
---                     Chop     -> rootLabel t
                      Children -> rootLabel t
 
 ---------------------------------------------------------------------------------
@@ -159,7 +152,7 @@ sub strat forest idx a =
 -- replace anything.
 mkSubstForest :: SubTypes a => a -> b -> Forest b
 mkSubstForest a b = map tMap (subTypes a)
-  where tMap = fmap (\_ -> b)
+  where tMap = fmap (const b)
 
 ---------------------------------------------------------------------------------
 

@@ -56,15 +56,16 @@ data ScArgs =
          , extrap      :: Bool   -- ^ Should we extrapolate?
          , constrGen   :: Bool   -- ^ Should we try to generalize constructors?
          --------------
-         , maxSuccess  :: Int    -- ^ How hard (number of rounds) to look for
-                                 --   failures durbing the extrapolation and
-                                 --   constructor generalization stages.
-         , maxFailure  :: Int    -- ^ How hard (number of rounds) to look for
-                                 --   failure in the reduction stage.
-         , maxSize     :: Int    -- ^ Maximum size of data to generate, in terms
-                                 --   of the size parameter of QuickCheck's
-                                 --   Arbitrary instance for your data.
-         , maxDepth    :: Maybe Int -- ^ How levels into the structure of the
+         , scMaxSuccess :: Int    -- ^ How hard (number of rounds) to look for
+                                  --   failures durbing the extrapolation and
+                                  --   constructor generalization stages.
+         , scMaxFailure :: Int    -- ^ How hard (number of rounds) to look for
+                                  --   failure in the reduction stage.
+         , scMaxSize    :: Int    -- ^ Maximum size of data to generate, in
+                                  --   terms of the size parameter of
+                                  --   QuickCheck's Arbitrary instance for your
+                                  --   data.
+         , scMaxDepth   :: Maybe Int -- ^ How levels into the structure of the
                                     --   failed value should we descend when
                                     --   reducing or generalizing?  Nothing
                                     --   means we go down to base types.
@@ -72,17 +73,17 @@ data ScArgs =
   deriving (Show, Read)
 
 scStdArgs :: ScArgs
-scStdArgs = ScArgs { treeShow    = PrintTree
-                   , qcArgs      = Q.stdArgs
+scStdArgs = ScArgs { treeShow     = PrintTree
+                   , qcArgs       = Q.stdArgs
                    --------------
-                   , qc          = True
-                   , extrap      = True
-                   , constrGen   = True
+                   , qc           = True
+                   , extrap       = True
+                   , constrGen    = True
                    --------------
-                   , maxSuccess  = 100
-                   , maxFailure  = 100
-                   , maxSize     = 10
-                   , maxDepth    = Nothing
+                   , scMaxSuccess = 100
+                   , scMaxFailure = 100
+                   , scMaxSize    = 10
+                   , scMaxDepth   = Nothing
                    }
 
 ---------------------------------------------------------------------------------
@@ -168,6 +169,11 @@ class (Q.Arbitrary a, Show a, Typeable a) => SubTypes a where
                    => a -> Forest SubT
   subTypes = gst . from
   -----------------------------------------------------------
+  -- | For data d, returns the length of (subTypes d).
+  getSize :: a -> Int
+  default getSize :: (Generic a, GST (Rep a)) => a -> Int
+  getSize = gsz . from
+  -----------------------------------------------------------
   baseType :: a -> Bool
   baseType _ = False
   -----------------------------------------------------------
@@ -204,6 +210,7 @@ class (Q.Arbitrary a, Show a, Typeable a) => SubTypes a where
   showForest = gsf . from
   -----------------------------------------------------------
 
+
 ---------------------------------------------------------------------------------
 -- Generic representation
 ---------------------------------------------------------------------------------
@@ -214,31 +221,29 @@ class GST f where
   grc :: Typeable b => f a -> Forest Subst -> b -> Maybe (f a)
   gtc :: f a -> String
   gsf :: f a -> Forest String
+  gsz :: f a -> Int
 
 instance GST U1 where
   gst U1 = []
   grc _ _ _ = Nothing
   gtc U1 = ""
   gsf U1 = []
+  gsz U1 = 0
 
 instance (GST a, GST b) => GST (a :*: b) where
   gst (a :*: b) = gst a ++ gst b
 
-  grc (a :*: b) forest c 
-    -- If the 1st element is a baseType, we skip it.  Can't use baseTypes
-    -- directly here, so we see if the tree's subforest is empty.
-    | null (gst a) = grc b forest c >>= \x -> return (a :*: x)
-    | otherwise       = 
-        case forest of
-          []                       -> Just (a :*: b)
-          (n@(Node Subst _) : _)   -> do left  <- grc a [n] c 
-                                         return $ left :*: b
-          (Node Keep _ : rst)      -> do right <- grc b rst c
-                                         return $ a :*: right
-
+  grc (a :*: b) forest c =
+    case forest of
+      []    -> Just (a :*: b)
+      ls    -> do let (x,y) = splitAt (gsz a) ls
+                  left  <- grc a x c
+                  right <- grc b y c
+                  return $ left :*: right
+               
   gtc (a :*: b) = gtc a ++ gtc b
-
   gsf (a :*: b) = gsf a ++ gsf b
+  gsz (a :*: b) = gsz a + gsz b
 
 instance (GST a, GST b) => GST (a :+: b) where
   gst (L1 a) = gst a
@@ -252,6 +257,9 @@ instance (GST a, GST b) => GST (a :+: b) where
 
   gsf (L1 a) = gsf a
   gsf (R1 a) = gsf a
+
+  gsz (L1 a) = gsz a
+  gsz (R1 a) = gsz a
 
 -- Constructor meta-information
 instance (Constructor c, GST a) => GST (M1 C c a) where
@@ -272,17 +280,19 @@ instance (Constructor c, GST a) => GST (M1 C c a) where
     root | null (gsf a) = conName m
          | otherwise    = conName m ++ " " ++ (rootLabel . head) (gsf a)
 
+  gsz (M1 a) = gsz a
+
 -- All the other meta-information (selector, module, etc.)
 instance GST a => GST (M1 i k a) where
   gst (M1 a) = gst a
   grc (M1 a) forest c = grc a forest c >>= return . M1
   gtc (M1 a) = gtc a
   gsf (M1 a) = gsf a
+  gsz (M1 a) = gsz a
 
 instance (Show a, Q.Arbitrary a, SubTypes a, Typeable a) => GST (K1 i a) where
-  gst (K1 a) = if baseType a then []
-                 else [ Node (subT a) (subTypes a) ]
-
+  gst (K1 a) = if baseType a then [] else [ Node (subT a) (subTypes a) ]
+                 
   grc (K1 a) forest c = 
     case forest of
       []                  -> Just (K1 a)
@@ -298,6 +308,8 @@ instance (Show a, Q.Arbitrary a, SubTypes a, Typeable a) => GST (K1 i a) where
   -- extract the value in the rootLabel above.
   gsf (K1 a) = if baseType a then [Node (show a) []] else showForest a
 
+  gsz (K1 a) = if baseType a then 0 else 1
+
 ---------------------------------------------------------------------------------
 -- We try to cover the instances supported by QuickCheck: http://hackage.haskell.org/packages/archive/QuickCheck/2.4.2/doc/html/Test-QuickCheck-Arbitrary.html
 
@@ -311,61 +323,71 @@ instance SubTypes Integer where
   baseType _    = True
   replaceChild  = replaceChild'
   toConstr      = toConstr'
-  showForest    = showForest'  
+  showForest    = showForest'
+  getSize       = getSize'  
 instance SubTypes Int8    where 
   subTypes _    = []
   baseType _    = True
   replaceChild  = replaceChild'
   toConstr      = toConstr'
-  showForest    = showForest'  
+  showForest    = showForest'
+  getSize       = getSize'
 instance SubTypes Int16   where 
   subTypes _    = []
   baseType _    = True
   replaceChild  = replaceChild'
   toConstr      = toConstr'
-  showForest    = showForest'  
+  showForest    = showForest'
+  getSize       = getSize'
 instance SubTypes Int32   where 
   subTypes _    = []
   baseType _    = True
   replaceChild  = replaceChild'
   toConstr      = toConstr'
-  showForest    = showForest'  
+  showForest    = showForest'
+  getSize       = getSize'
 instance SubTypes Int64   where 
   subTypes _    = []
   baseType _    = True
   replaceChild  = replaceChild'
   toConstr      = toConstr'
-  showForest    = showForest'  
+  showForest    = showForest'
+  getSize       = getSize'
 instance SubTypes Word    where
   subTypes _    = []
   baseType _    = True
   replaceChild  = replaceChild'
   toConstr      = toConstr'
-  showForest    = showForest'  
+  showForest    = showForest'
+  getSize       = getSize'
 instance SubTypes Word8   where
   subTypes _    = []
   baseType _    = True
   replaceChild  = replaceChild'
   toConstr      = toConstr'
-  showForest    = showForest'  
+  showForest    = showForest'
+  getSize       = getSize'
 instance SubTypes Word16  where
   subTypes _    = []
   baseType _    = True
   replaceChild  = replaceChild'
   toConstr      = toConstr'
-  showForest    = showForest'  
+  showForest    = showForest'
+  getSize       = getSize'
 instance SubTypes Word32  where
   subTypes _    = []
   baseType _    = True
   replaceChild  = replaceChild'
   toConstr      = toConstr'
-  showForest    = showForest'  
+  showForest    = showForest'
+  getSize       = getSize'
 instance SubTypes Word64  where
   subTypes _    = []
   baseType _    = True
   replaceChild  = replaceChild'
   toConstr      = toConstr'
-  showForest    = showForest'  
+  showForest    = showForest'
+  getSize       = getSize'
 instance SubTypes ()      where baseType _    = True
 
 --instance (Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes [a] 
@@ -393,6 +415,8 @@ instance (Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes [a] where
                     else gtc . from
   showForest    = if baseType (undefined :: a) then showForest' 
                     else gsf . from
+  getSize       = if baseType (undefined :: a) then getSize'
+                    else gsz . from
 
 -- -- We treat String specially: we don't want to rewrite them.  (This is open for
 -- -- revision...)
@@ -422,18 +446,22 @@ instance (Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes [a] where
 -- --  toConstrAndBase = toConstrAndBase'
 --   showForest    = showForest'  
 
-instance (Integral a, Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes (Ratio a) where 
+instance (Integral a, Q.Arbitrary a, SubTypes a, Typeable a) 
+  => SubTypes (Ratio a) where 
   subTypes _    = []
   baseType _    = True
   replaceChild  = replaceChild'
   toConstr      = toConstr'
-  showForest    = showForest'  
-instance (RealFloat a, Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes (Complex a) where 
+  showForest    = showForest'
+  getSize       = getSize'
+instance (RealFloat a, Q.Arbitrary a, SubTypes a, Typeable a)
+  => SubTypes (Complex a) where 
   subTypes _    = []
   baseType _    = True
   replaceChild  = replaceChild'
   toConstr      = toConstr'
-  showForest    = showForest'  
+  showForest    = showForest'
+  getSize       = getSize'
 instance (Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes (Maybe a)
 instance ( Q.Arbitrary a, SubTypes a, Typeable a
          , Q.Arbitrary b, SubTypes b, Typeable b) 
@@ -472,6 +500,9 @@ replaceChild' _ (Node Subst _ : _) b = cast b
 
 showForest' :: Show a => a -> Forest String
 showForest' _ = []
+
+getSize' :: a -> Int
+getSize' _ = 0
 
 ---------------------------------------------------------------------------------
 

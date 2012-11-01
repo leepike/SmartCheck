@@ -49,8 +49,8 @@ extrapolate args d origProp ds = do
   -- least one test passes a precondition, and for every test in which the
   -- precondition is passed, it fails.  We test values of all possible sizes, up
   -- to Q.maxSize.
-  test _ idx = iterateArbIdx d (idx, maxDepth args) (maxSuccess args)
-                 (maxSize args) origProp 
+  test _ idx = iterateArbIdx d (idx, scMaxDepth args) (scMaxSuccess args)
+                 (scMaxSize args) origProp 
 
   -- Control-flow.
   next _ res forest' idx idxs = 
@@ -87,7 +87,7 @@ matchesShape args a b idxs = test (subT a, subT b) && repIdxs
 
   f mb idx = do
     b' <- mb
-    v  <- getAtIdx a idx (maxDepth args)
+    v  <- getAtIdx a idx (scMaxDepth args)
     replace b' idx v
 
   nextLevel x = map rootLabel (subTypes x)

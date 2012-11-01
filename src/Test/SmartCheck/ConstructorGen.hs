@@ -55,7 +55,7 @@ constrsGen args d prop vs = do
 extrapolateConstrs :: (SubTypes a, Generic a, ConNames (Rep a)) 
   => ScArgs -> a -> Idx -> (a -> Q.Property) -> IO Bool
 extrapolateConstrs args a idx prop = 
-  recConstrs (S.singleton $ subConstr a idx (maxDepth args))
+  recConstrs (S.singleton $ subConstr a idx (scMaxDepth args))
 
   where
   notProp = Q.expectFailure . prop
@@ -72,7 +72,7 @@ extrapolateConstrs args a idx prop =
                 FailedPreCond -> return False
                 FailedProp    -> return False
       where
-        newConstr x = subConstr x idx (maxDepth args) `S.insert` constrs
+        newConstr x = subConstr x idx (scMaxDepth args) `S.insert` constrs
 
 ---------------------------------------------------------------------------------
 
@@ -87,14 +87,14 @@ arbSubset :: (SubTypes a, Generic a, ConNames (Rep a))
 arbSubset args a idx prop constrs = 
       -- Because we're looking for some failure that passes the precondition, we
       -- use maxDiscard.
-      iterateArbIdx a (idx, maxDepth args) 
-                      (maxSuccess args) (maxSize args) prop' 
+      iterateArbIdx a (idx, scMaxDepth args) 
+                      (scMaxSuccess args) (scMaxSize args) prop' 
   >>= return
 
   where
   prop' b = newConstr b Q.==> prop b
   -- Make sure b's constructor is a new one.
-  newConstr b = not $ subConstr b idx (maxDepth args) `S.member` constrs
+  newConstr b = not $ subConstr b idx (scMaxDepth args) `S.member` constrs
   
 ---------------------------------------------------------------------------------
 

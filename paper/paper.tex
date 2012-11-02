@@ -1,0 +1,100 @@
+\documentclass[9pt]{sigplanconf}
+\usepackage{url}
+\usepackage{tikz}
+\usepackage{graphicx}
+\usepackage{framed}
+\usepackage{color}
+\usepackage{url}
+\usepackage{alltt}
+\usepackage{tabularx}
+\usepackage{subfigure}
+\usepackage{fancyhdr}
+\usepackage{paralist}
+
+\usepackage{pgf}
+\usepackage{tikz}
+\usetikzlibrary{arrows,automata}
+
+%% \include{math}
+
+
+%% \newenvironment{code}{\begin{framed}\begin{alltt}\scriptsize}{\end{alltt}
+%%   \end{framed}}
+\newenvironment{code}{\begin{alltt}\footnotesize}{\end{alltt}}
+\newenvironment{cols}{\begin{tabular}{m{3.6cm}|m{3.6cm}}{Haskell} &
+    {\scriptsize Copilot}\\\hline}{\end{tabular}}
+
+\usepackage{ifthen}
+\newboolean{submission}  %set to true for the submission version
+%\setboolean{submission}{false}
+\setboolean{submission}{true}
+\ifthenelse
+{\boolean{submission}}
+{ \newcommand{\todo}[1]{ } } %hide todo
+{ \newcommand{\todo}[1]{ {\color{blue}$<<$#1$>>$}
+ }}
+%\usepackage{fancyhdr}
+
+
+\begin{document}
+
+%% \conferenceinfo{ICFP'12,} {September 9--15, 2012, Copenhagen, Denmark.}
+%% \CopyrightYear{2012}
+%% \copyrightdata{978-1-4503-1054-3/12/09}
+
+%\titlebanner{banner above paper title}        % These are ignored unless
+%\preprintfooter{}   % 'preprint' option specified.
+
+\title{SmartCheck}
+%\subtitle{Subtitle Text, if any}
+
+\authorinfo{Lee Pike}
+           {Galois, Inc.}
+           {leepike@galois.com}
+\maketitle
+
+\begin{abstract}
+foobar
+\end{abstract}
+
+%% \category{D.2.4}{Software/Program Verification}{Reliability}
+
+%% \terms
+%% Languages, Verification
+
+%% \keywords
+%% embedded domain-specific language, compiler, verification
+
+
+\section{Introduction}\label{sec:intro}
+
+
+\paragraph{Outline.}
+
+%--------------------------------------------------------------------------------
+
+\begin{code}
+fib :: [Word32]
+fib = [0,1] ++ zipWith (+) fib (drop 1 fib)
+\end{code}
+%
+
+%--------------------------------------------------------------------------------
+\section{Related Work}
+\label{sec:related}
+
+\cite{}
+
+%--------------------------------------------------------------------------------
+\section{Conclusions}
+\label{sec:conclusions}
+
+
+
+%% \balancecolumns
+
+\bibliographystyle{abbrvnat}
+\bibliography{paper}
+
+\end{document}
+

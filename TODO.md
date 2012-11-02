@@ -10,43 +10,24 @@ TODO
   you give them an index that is out of bounds.  Perhaps I should return a
   Maybe?  
 
-* Options:
-  * Option for controlling depth into structure we recurse.
-
-* Performance analysis of extrapolation.
-
 * Have extrapolate check whether we've run out of sub constructors and let the
   user know.
 
-* Lists are base types??
-
 * Document SubTypes class methods!
 
-* We extrapolate if there exists at least one test that satisfies the
-  precondition, and for all tests that asatisfy the precondition, they fail.  Is
-  this the right thing to do?  (I think it is.)
-
 * Args to optionally extrapolate and contructor extrapolate.
-
-* Make sure that foldM (extractResult prop) FailedPreCond res in SmartGen fails
-  eagerly.
-
-* Add option to bound depth of reducing.
 
 * Need to do constructor gen for *all* previously-found counterexamples, so we
 get their constructors, too.
 
 * Web view for large data (like Yav's thing for type nats)?
 
-* Would I benefit from using a zipper for traversal?  I suspect not since I 
-  really don't fold. (Oleg Kiselyov, 27 Apr 2005, haskell\@, "Zipper as a delimited continuation")
+* I would benefit from using a zipper for traversal.
 
-* Try out SubTypes instances for Map a b and try an algebric type inside of
+* Try out SubTypes instances for Map a b and try an algebraic type inside of
   lists (maybe Forest Foo).
 
 * Go through Reddit comments: (in refs/)
-
-* Why do things crap out with HeapPP sometimes in shrinking?  Profile.
 
 * Try to fix/simplify definition of showForest.
 
@@ -60,7 +41,11 @@ get their constructors, too.
 
 * Refactor so we only getAtIdx (which is expensive!) once per pass.
 
-* Pass around stdGen so that more code is pure.
+* Pass around stdGen so that the code is more pure.
+
+* Bug with XMonad stuff.  Look in examples/StackSet.  There you'll see that
+  getAtIdx does not get the same value as replaceAtIdx.  I'm working on
+  narrowing the bug in StackSetMinBug.  
 
 Won't Do / Can't Do
 -----------------------------------------------

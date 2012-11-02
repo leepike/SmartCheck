@@ -85,6 +85,12 @@ intermediate values.
 What I really want is a bijection from a set of sized value to values, and a
 function taking a value, and telling me what sized was used.
 
+What this works well for is if there's are large and numerous large
+counterexamples but with a small number of nearby small counterexamples that are
+local minimums.  This can happen with, say lists of lists as inputs, where the
+inner lists might all be empty (and still produce a counter example), but in
+general, you grow all the data simultaneously.  In general, this is an issue for
+any embedded data structures.
 
 -- xmonad ----------------------------------------------------------------------
 
@@ -115,7 +121,16 @@ From xmonad-0.10/
 
 or to test individual props:
 
-> Properties.mytest Properties.prop_findIndex 1000
+> :m + Test.QuickCheck.Test
+
+> quickCheckWithResult stdArgs Properties.prop_shift_reversible
+
+or 
+
+> :m + Test.SmartCheck
+> smartCheck stdArgs' prop_shift_reversible
+
+(This is a good candidate for shrinking...)
 
 * Mark changed properties or functions in StackSet.hs with -- BAD
 * Changes for SmartCheck marked with -- SC
@@ -135,4 +150,3 @@ or to test individual props:
     constructors.
 
   * Kinds of type coverage: exists some contructor to fail...
-

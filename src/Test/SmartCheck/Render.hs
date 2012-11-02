@@ -32,7 +32,7 @@ data Replace a = Replace { unVals :: [a], unConstrs :: [a] }
 
 ---------------------------------------------------------------------------------
 
--- XXX only print if variable list is non-empty.
+-- only print if variable list is non-empty.
 renderWithVars :: SubTypes a => Format -> a -> Replace Idx -> IO ()
 renderWithVars format d idxs = do
   prtVars "values" valsLen valVars

@@ -81,7 +81,7 @@ smartCheck args propT = do
       output d repl = do
         putStrLn ""
         smartPrtLn "Extrapolated value:"
-        renderWithVars (format args) d repl -- XXX
+        renderWithVars (format args) d repl
 
       nonEmpty d vs cs = vsIdxs || csIdxs
         where

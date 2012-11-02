@@ -83,9 +83,6 @@ smartShrink args d prop =
                   return $ resultToMaybe r
 
     where
-    -- -- XXX debuging
-    -- sh (Just SubT { unSubT = v }) = show v
-
     testHole :: SubT -> IO (Maybe a)
     testHole SubT { unSubT = v } = 
       case cast v :: Maybe a of

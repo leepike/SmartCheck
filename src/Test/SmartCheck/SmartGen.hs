@@ -19,9 +19,6 @@ import Prelude hiding (max)
 import System.Random 
 import Data.Tree hiding (levels)
 
--- XXX
-import Debug.Trace
-
 ---------------------------------------------------------------------------------
 
 -- | Driver for iterateArb.
@@ -63,7 +60,7 @@ iterateArb d ext idx tries max prop = do
     | newMax s >= max = iterateArb' res g0 (try + 1) 0
     | otherwise = 
         case replace d idx s of
-          Nothing -> trace ("d " ++ show d ++ "\nidx " ++ show idx ++ "\ns " ++ show s) $ errorMsg "iterateArb 1"
+          Nothing -> errorMsg "iterateArb 1"
           Just d' -> do 
             res' <- resultify prop d'
             case res' of

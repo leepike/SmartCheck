@@ -486,8 +486,8 @@ replaceChild' _ (Node Subst _ : _) b = cast b
 showForest' :: Show a => a -> Forest String
 showForest' _ = []
 
-getSize' :: a -> Int
-getSize' _ = 0
+-- getSize' :: a -> Int
+-- getSize' _ = 0
 
 ---------------------------------------------------------------------------------
 

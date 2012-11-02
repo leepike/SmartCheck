@@ -18,6 +18,10 @@ module Test.SmartCheck.Types
   , Format(..)
   , scStdArgs
   , errorMsg
+  -- defaults
+  , replaceChild'
+  , toConstr'
+  , showForest'
   ) where
   
 
@@ -48,7 +52,7 @@ data Format = PrintTree | PrintString
   deriving (Eq, Read, Show)
 
 data ScArgs = 
-  ScArgs { treeShow    :: Format -- ^ How to show extrapolated formula
+  ScArgs { format      :: Format -- ^ How to show extrapolated formula
          , qcArgs      :: Q.Args -- ^ QuickCheck arguments
          --------------
          , qc          :: Bool   -- ^ Should we run QuickCheck?  (If not, you
@@ -65,15 +69,15 @@ data ScArgs =
                                   --   terms of the size parameter of
                                   --   QuickCheck's Arbitrary instance for your
                                   --   data.
-         , scMaxDepth   :: Maybe Int -- ^ How levels into the structure of the
-                                    --   failed value should we descend when
-                                    --   reducing or generalizing?  Nothing
-                                    --   means we go down to base types.
+         , scMaxDepth   :: Maybe Int -- ^ How many levels into the structure of
+                                     -- the failed value should we descend when
+                                     -- reducing or generalizing?  Nothing means
+                                     -- we go down to base types.
          }
   deriving (Show, Read)
 
 scStdArgs :: ScArgs
-scStdArgs = ScArgs { treeShow     = PrintTree
+scStdArgs = ScArgs { format       = PrintTree
                    , qcArgs       = Q.stdArgs
                    --------------
                    , qc           = True
@@ -168,11 +172,6 @@ class (Q.Arbitrary a, Show a, Typeable a) => SubTypes a where
   default subTypes :: (Generic a, GST (Rep a)) 
                    => a -> Forest SubT
   subTypes = gst . from
-  -----------------------------------------------------------
-  -- | For data d, returns the length of (subTypes d).
-  getSize :: a -> Int
-  default getSize :: (Generic a, GST (Rep a)) => a -> Int
-  getSize = gsz . from
   -----------------------------------------------------------
   baseType :: a -> Bool
   baseType _ = False
@@ -324,70 +323,60 @@ instance SubTypes Integer where
   replaceChild  = replaceChild'
   toConstr      = toConstr'
   showForest    = showForest'
-  getSize       = getSize'  
 instance SubTypes Int8    where 
   subTypes _    = []
   baseType _    = True
   replaceChild  = replaceChild'
   toConstr      = toConstr'
   showForest    = showForest'
-  getSize       = getSize'
 instance SubTypes Int16   where 
   subTypes _    = []
   baseType _    = True
   replaceChild  = replaceChild'
   toConstr      = toConstr'
   showForest    = showForest'
-  getSize       = getSize'
 instance SubTypes Int32   where 
   subTypes _    = []
   baseType _    = True
   replaceChild  = replaceChild'
   toConstr      = toConstr'
   showForest    = showForest'
-  getSize       = getSize'
 instance SubTypes Int64   where 
   subTypes _    = []
   baseType _    = True
   replaceChild  = replaceChild'
   toConstr      = toConstr'
   showForest    = showForest'
-  getSize       = getSize'
 instance SubTypes Word    where
   subTypes _    = []
   baseType _    = True
   replaceChild  = replaceChild'
   toConstr      = toConstr'
   showForest    = showForest'
-  getSize       = getSize'
 instance SubTypes Word8   where
   subTypes _    = []
   baseType _    = True
   replaceChild  = replaceChild'
   toConstr      = toConstr'
   showForest    = showForest'
-  getSize       = getSize'
 instance SubTypes Word16  where
   subTypes _    = []
   baseType _    = True
   replaceChild  = replaceChild'
   toConstr      = toConstr'
   showForest    = showForest'
-  getSize       = getSize'
 instance SubTypes Word32  where
   subTypes _    = []
   baseType _    = True
   replaceChild  = replaceChild'
   toConstr      = toConstr'
   showForest    = showForest'
-  getSize       = getSize'
 instance SubTypes Word64  where
   subTypes _    = []
   baseType _    = True
   replaceChild  = replaceChild'
   toConstr      = toConstr'
   showForest    = showForest'
-  getSize       = getSize'
 instance SubTypes ()      where baseType _    = True
 
 --instance (Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes [a] 
@@ -415,8 +404,6 @@ instance (Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes [a] where
                     else gtc . from
   showForest    = if baseType (undefined :: a) then showForest' 
                     else gsf . from
-  getSize       = if baseType (undefined :: a) then getSize'
-                    else gsz . from
 
 -- -- We treat String specially: we don't want to rewrite them.  (This is open for
 -- -- revision...)
@@ -453,7 +440,6 @@ instance (Integral a, Q.Arbitrary a, SubTypes a, Typeable a)
   replaceChild  = replaceChild'
   toConstr      = toConstr'
   showForest    = showForest'
-  getSize       = getSize'
 instance (RealFloat a, Q.Arbitrary a, SubTypes a, Typeable a)
   => SubTypes (Complex a) where 
   subTypes _    = []
@@ -461,7 +447,6 @@ instance (RealFloat a, Q.Arbitrary a, SubTypes a, Typeable a)
   replaceChild  = replaceChild'
   toConstr      = toConstr'
   showForest    = showForest'
-  getSize       = getSize'
 instance (Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes (Maybe a)
 instance ( Q.Arbitrary a, SubTypes a, Typeable a
          , Q.Arbitrary b, SubTypes b, Typeable b) 
@@ -503,6 +488,12 @@ showForest' _ = []
 
 getSize' :: a -> Int
 getSize' _ = 0
+
+---------------------------------------------------------------------------------
+
+-- -- | For data d, returns the length of (subTypes d).
+-- getSize :: (Generic a, GST (Rep a)) => a -> Int
+-- getSize = gsz . from
 
 ---------------------------------------------------------------------------------
 

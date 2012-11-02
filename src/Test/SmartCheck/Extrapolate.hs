@@ -41,7 +41,7 @@ extrapolate args d origProp ds = do
 
   where
   forest = mkSubstForest d True
-  iter'  = iter d test next origProp
+  iter'  = iter d test next origProp (scMaxDepth args)
   prop idxs newProp a = 
     (not $ matchesShapes args a (d : ds) idxs) Q.==> newProp a
       

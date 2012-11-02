@@ -9,6 +9,7 @@ module Test.SmartCheck.DataToTree
   , breadthLevels
   , mkSubstForest 
   , depth
+  , tooDeep
   ) where
 
 import Test.SmartCheck.Types
@@ -90,12 +91,17 @@ getAtIdx :: SubTypes a
          -> Idx       -- ^ Index of hole
          -> Maybe Int -- ^ Maximum depth we want to extract
          -> Maybe SubT
-getAtIdx d Idx { level  = l, column = c } maxLevel
-  | maybe False ((>) l) maxLevel = Nothing
-  | length lev > c = Just (lev !! c)
-  | otherwise      = Nothing
+getAtIdx d Idx { level = l, column = c } maxDepth
+  | tooDeep l maxDepth = Nothing
+  | length lev > c     = Just (lev !! c)
+  | otherwise          = Nothing
   where
   lev = getLevel (subTypes d) l
+
+---------------------------------------------------------------------------------
+
+tooDeep :: Int -> Maybe Int -> Bool
+tooDeep l = maybe False ((>) l)
 
 ---------------------------------------------------------------------------------
 

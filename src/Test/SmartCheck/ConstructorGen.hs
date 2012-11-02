@@ -35,7 +35,7 @@ constrsGen args d prop vs = do
                -- from vs.  It does NOT ensure we don't replace equal indexes.
                foldl' (\f idx -> forestReplaceChildren f idx False) forest' vs
 
-  iter'      = iter d test next prop
+  iter'      = iter d test next prop (scMaxDepth args)
 
   -- Check if this has been generalized already during extrapolating values.
   test x idx = do res <- extrapolateConstrs args x idx prop

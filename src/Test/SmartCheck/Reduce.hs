@@ -43,7 +43,8 @@ smartShrink args d prop =
   notProp = Q.expectFailure . prop
 
   iter' x forest_ idx' = 
-    iter x test next notProp forest_ idx' (errorMsg "next-idxs")
+    iter x test next notProp (scMaxDepth args) forest_ idx' 
+      (errorMsg "next-idxs")
 
   -------------------------------------- 
 

@@ -136,11 +136,12 @@ iter :: SubTypes a
      -> Test a b          -- ^ Test to use
      -> Next a b          -- ^ What to do after the test
      -> (a -> Q.Property) -- ^ Property
+     -> Maybe Int         -- ^ Max depth to analyze
      -> Forest Bool       -- ^ Only evaluate at True indexes.
      -> Idx               -- ^ Starting index to extrapolate
      -> [Idx]             -- ^ List of generalized indices
      -> IO (a, [Idx])
-iter d test nxt prop forest idx idxs 
+iter d test nxt prop maxLevel forest idx idxs 
   | done      = return (d, idxs)
   | nextLevel = iter'
   | atFalse   = iter' -- Must be last check or !! index below may be out of
@@ -151,11 +152,12 @@ iter d test nxt prop forest idx idxs
   where
   -- Location is w.r.t. the forest, not the original data value.
   levels     = breadthLevels forest
-  done       = length levels <= level idx
-  nextLevel  = length (levels !! level idx) <= column idx
-  atFalse    = not $ (levels !! level idx) !! column idx
-  iter'      = iter d test nxt prop forest 
-                 idx { level = level idx + 1, column = 0 } idxs
+  done       = length levels <= l || tooDeep l maxLevel
+  nextLevel  = length (levels !! l) <= column idx
+  atFalse    = not $ (levels !! l) !! column idx
+  iter'      = iter d test nxt prop maxLevel forest 
+                 idx { level = l + 1, column = 0 } idxs
+  l          = level idx
 
 ---------------------------------------------------------------------------------
 

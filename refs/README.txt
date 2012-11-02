@@ -92,6 +92,12 @@ inner lists might all be empty (and still produce a counter example), but in
 general, you grow all the data simultaneously.  In general, this is an issue for
 any embedded data structures.
 
+-----
+
+Look at Large.hs in examples.  Note that Smallcheck can't handle this.  Even
+with the sensible shrink, smartcheck is much faster *and* delivers a smaller result.
+
+
 -- xmonad ----------------------------------------------------------------------
 
 * internals overview:

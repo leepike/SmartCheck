@@ -26,7 +26,7 @@ smartCheck :: forall a b. ( Read a, Q.Arbitrary a, SubTypes a
                           , Generic a, ConNames (Rep a), Q.Testable b )
     => ScArgs -> (a -> b) -> IO ()
 smartCheck args propT = do
-  smartPrtLn ("If any stage takes too long to reduce, try reducing the standard\n"
+  smartPrtLn ("If any stage takes too long to reduce, try reducing the standard "
                 ++ "arguments (see Types.hs).")
   smartCheck' prop []
 

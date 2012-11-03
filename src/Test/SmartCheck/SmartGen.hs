@@ -13,7 +13,7 @@ import Test.SmartCheck.DataToTree
 
 import qualified Test.QuickCheck.Gen as Q
 import qualified Test.QuickCheck as Q hiding (Result)
-import qualified Test.QuickCheck.Property as Q
+import qualified Test.QuickCheck.Property as P
 
 import Prelude hiding (max)
 import System.Random 
@@ -106,17 +106,23 @@ replace d idx SubT { unSubT = v } = replaceAtIdx d idx v
 -- | Make a QuickCheck Result by applying a property function to a value and
 -- then get out the Result using our result type.
 resultify :: (a -> Q.Property) -> a -> IO (Result a)
-resultify prop a = do 
-  Q.MkRose r _ <- res fs
-  return $ case Q.ok r of -- result of test case (True ==> passed)
+resultify prop a = do
+  P.MkRose r _ <- res fs
+  return $ case P.ok r of -- result of test case (True ==> passed)
              Nothing -> FailedPreCond -- Failed precondition (discard)
-             Just b  -> if b && Q.expect r then Result a
-                          else if not b && not (Q.expect r) then Result a
-                                 else FailedProp
+             -- XXX A hack!  Means we failed the property because it failed, not
+             -- because of an exception (i.e., with partial function tests).
+             Just b  -> if P.reason r == "Falsifiable" then get b r
+                          else FailedProp -- If failed because of an exception,
+                                          -- just say we failed.
   where
-  Q.MkGen { Q.unGen = f } = prop a :: Q.Gen Q.Prop
-  fs  = Q.unProp $ f err err       :: Q.Rose Q.Result
-  res = Q.protectRose . Q.reduceRose
+  get b r |     b &&      P.expect r    = Result a -- expected to pass and we did
+          | not b && not (P.expect r)   = Result a -- expected failure and got it
+          | otherwise                   = FailedProp -- We'll just discard it.
+
+  Q.MkGen { Q.unGen = f } = prop a :: Q.Gen P.Prop
+  fs  = P.unProp $ f err err       :: P.Rose P.Result
+  res = P.protectRose . P.reduceRose
 
   err = errorMsg "resultify: should not evaluate."
 

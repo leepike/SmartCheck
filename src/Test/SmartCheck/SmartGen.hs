@@ -110,11 +110,11 @@ resultify prop a = do
   P.MkRose r _ <- res fs
   return $ case P.ok r of -- result of test case (True ==> passed)
              Nothing -> FailedPreCond -- Failed precondition (discard)
-             -- XXX A hack!  Means we failed the property because it failed, not
-             -- because of an exception (i.e., with partial function tests).
-             Just b  -> if P.reason r == "Falsifiable" then get b r
-                          else FailedProp -- If failed because of an exception,
-                                          -- just say we failed.
+             Just b  ->  if notExceptionFail r then get b r
+                           -- If failed because of an exception, just say we
+                           -- failed.
+                           else FailedProp
+
   where
   get b r |     b &&      P.expect r    = Result a -- expected to pass and we did
           | not b && not (P.expect r)   = Result a -- expected failure and got it
@@ -123,6 +123,11 @@ resultify prop a = do
   Q.MkGen { Q.unGen = f } = prop a :: Q.Gen P.Prop
   fs  = P.unProp $ f err err       :: P.Rose P.Result
   res = P.protectRose . P.reduceRose
+
+  -- XXX A hack!  Means we failed the property because it failed, not because of
+  -- an exception (i.e., with partial function tests).
+  notExceptionFail r = let e = P.reason r in
+                       e == "Falsifiable" || e  == ""
 
   err = errorMsg "resultify: should not evaluate."
 

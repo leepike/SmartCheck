@@ -24,6 +24,8 @@
 \newenvironment{cols}{\begin{tabular}{m{3.6cm}|m{3.6cm}}{Haskell} &
     {\scriptsize Copilot}\\\hline}{\end{tabular}}
 
+\newcommand{\ttp}[1]{\texttt{#1}}
+
 \usepackage{ifthen}
 \newboolean{submission}  %set to true for the submission version
 %\setboolean{submission}{false}
@@ -68,6 +70,140 @@ foobar
 
 \section{Introduction}\label{sec:intro}
 
+The QuickCheck testing framework was a revolutionary step-forward in
+type-directed random testing~\cite{qc}.  Nowadays, QuickCheck is a standard
+stage of a program development cycle in Haskell.
+
+Because QuickCheck generates random values for testing, counterexamples it finds
+may not be minimal.  In their original QuickCheck paper~\cite{qc}, the authors
+report the following user experience by Andy Gill:
+%
+\begin{quote}
+Sometimes the counter examples found are very large and it is difficult to go
+back to the property and understand why it is a counter example.
+\end{quote}
+%
+\noindent
+QuickCheck defines a type class \ttp{Arbitrary} that defines a function
+\ttp{arbitrary} for generating random values of a given type.  Gill added another
+method to the type class:
+%
+\begin{code}
+smaller :: a -> [a] 
+\end{code}
+%
+\noindent
+The purpose of \ttp{smaller} is to generate strictly smaller values (according to
+some measure) from a given counterexample to attempt to find a smaller
+counterexample.  Today, \ttp{smaller} is called \ttp{shrink}.
+
+One of the dirty little secrets of QuickCheck is that even for simple data types
+and simple properties, counterexamples can be much larger than the minimal
+counterexamples.  Intuitively, there are two reasons: (1) because values are
+generated randomly, a smaller value that produces a counterexample is skipped;
+and (2) for a composite type, larger values are generated in tandem.  For
+example, consider the following data type and property:
+%
+\begin{code}
+data A = A Int deriving Show
+
+instance Arbitrary A where
+  arbitrary = liftM A arbitrary
+
+prop :: [A] -> Property
+prop x = property $ length x < 5
+\end{code}
+%
+\noindent
+where \ttp{property} is a QuickCheck library function that lifts a \ttp{Bool} into
+the \ttp{Property} type.  (We wrap \ttp{Int} in a constructor to prevent QuickCheck
+from using a default implementation of \ttp{shrink} for \ttp{Int}.)  A typical
+counterexample returned by QuickCheck is
+%
+\begin{code}
+> [A (-2),A (-9),A (-26),A (-28),A (-22)]  
+\end{code}
+%
+\noindent
+Whereas the smallest counterexample is
+%
+\begin{code}
+> [A 0,A 0,A 0,A 0,A 0]
+\end{code}
+%
+\noindent
+The problem is that while QuickCheck is generating larger lists, it is also
+generating larger integers.  
+
+SmallCheck is another testing framework that is guaranteed to return the a
+smallest counterexample, if one exists~\cite{sc}.  SmallCheck does this by
+enumerating all possible inputs, ordered from smallest to largest, up to some
+user-defined bound.  While SmallCheck is effective for testing many programs and
+properties (in accordance with the small model principle~\cite{jackson}),
+counterexamples deep in the state space may be infeasible to uncover.  For
+example, consider again our data type \ttp{A} defined above, used in the
+following property:
+%
+\begin{code}
+data B = B A A A A deriving Show
+
+prop :: B -> Bool
+prop (B a b c d) = and $ map f [a, b, c, d]
+  where f (A x) = x < 100
+\end{code}
+%
+\noindent
+With SmallCheck, a property is checked up to a depth set by the user, measuring
+how large values are.  For example, for type \ttp{Int}, the depth \ttp{d} is
+defined as the integers in the list \ttp{(-d)..d]}.  For a product type,
+  SmallCheck generates the cross product of its fields.  In the example above,
+  SmallCheck (or Lazy SmallCheck) will find a counterexample at depth 101,
+  requiring approximately $100^4$ test cases, which is infeasible to compute.\footnote{This
+  is an upper-bound, since Lazy SmallCheck eliminates some redundant test-cases,
+  but computing a counterexample is still infeasible.}
+
+quantified away
+
+and straightforward
+implementations of shrink are ineffective.
+
+writing good shrink functions is tedious, difficult, or
+both.  
+
+In principle, for a given counterexample, \ttp{shrink} can be implemented to
+find a local minimum within the neighborhood of the counterexample.  
+
+
+
+One of the
+dirty little secrets of QuickCheck is that even for simple data types and simple
+properties, counterexamples can be large, and straightforward implementations of
+\ttp{shrink} can miss finding minimal counterexamples, by a lot.
+
+%% For example, consider a trivial arithmetic expression language, containing
+%% constants, addition, and division:
+%% %
+%% \begin{code}
+%% data Exp = C Int
+%%          | Add Exp Exp
+%%          | Div Exp Exp
+%% \end{code}
+%% %
+%% \noindent
+%% And consider the following evaluation function that returns \ttp{Nothing} if the
+%% expression contains division by zero and 
+
+%% \todo{Example}
+
+\todo{then explain why---need to understand property}
+
+
+
+\todo{SmallCheck is guaranteed to find minimal counterexamples.}
+
+\todo{insight: shrink based on arbitrary}
+
+\url{http://stackoverflow.com/questions/8788542/how-do-i-get-good-small-shrinks-out-of-quickcheck}
 
 \paragraph{Outline.}
 
@@ -83,6 +219,9 @@ fib = [0,1] ++ zipWith (+) fib (drop 1 fib)
 \section{Related Work}
 \label{sec:related}
 
+\todo{\cite{syb} paper is motivated by generic shrink}
+\todo{shrink paper rehger pointed to ``Automatic isolation of compiler errors'' from 1994}
+
 \cite{}
 
 %--------------------------------------------------------------------------------
@@ -90,6 +229,8 @@ fib = [0,1] ++ zipWith (+) fib (drop 1 fib)
 \label{sec:conclusions}
 
 
+\section*{Acknowledgements}
+\todo{Thank Rehger for comments/pointing to paper.}
 
 %% \balancecolumns
 

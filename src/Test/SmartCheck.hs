@@ -5,6 +5,7 @@
 
 module Test.SmartCheck 
   ( smartCheck
+  , runQC
   , module Test.SmartCheck.Types
   ) where
 

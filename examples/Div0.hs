@@ -14,48 +14,50 @@ import Data.Typeable
 
 -----------------------------------------------------------------
 
-data M = C Int
-       | A M M
-       | D M M
+data Exp = C Int
+         | Add Exp Exp
+         | Div Exp Exp
   deriving (Read, Show, Typeable, Generic)
 
-instance SubTypes M 
+instance SubTypes Exp 
 
-eval :: M -> Maybe Int
+eval :: Exp -> Maybe Int
 eval (C i) = Just i
-eval (A a b) = do
-  i <- eval a 
-  j <- eval b
-  return $ i + j
-eval (D a b) = 
-  if eval b == Just 0 then Nothing 
-    else do i <- eval a 
-            j <- eval b
-            return $ i `div` j
+eval (Add e0 e1) =
+  liftM2 (+) (eval e0) (eval e1)
+eval (Div e0 e1) = 
+  let e = eval e1 in 
+  if e == Just 0 then Nothing 
+    else liftM2 div (eval e0) e
 
-instance Arbitrary M where
+instance Arbitrary Exp where
   arbitrary = sized mkM
     where
     mkM 0 = liftM C arbitrary
-    mkM n = oneof [ liftM2 A mkM' mkM' 
-                  , liftM2 D mkM' mkM' ]
+    mkM n = oneof [ liftM2 Add mkM' mkM' 
+                  , liftM2 Div mkM' mkM' ]
       where mkM' = mkM =<< choose (0,n-1)
 
-  -- shrink (C _)   = []
-  -- shrink (A a b) = [a, b]
-  -- shrink (D a b) = [a, b]
+  shrink (C i)       = map C (shrink i)
+  shrink (Add e0 e1) = [e0, e1]
+  shrink (Div e0 e1) = [e0, e1]
 
 -- property: so long as 0 isn't in the divisor, we won't try to divide by 0.
 -- It's false: something might evaluate to 0 still.
-div_prop :: M -> Property
-div_prop m = divSubTerms m ==> eval m /= Nothing
+div_prop :: Exp -> Property
+--div_prop e = divSubTerms e ==> eval e /= Nothing
+div_prop e = property $ case x of
+                          Nothing -> True
+                          Just True -> True
+                          _       -> False
+  where x = fmap (< 1) (eval e)
 
   -- precondition: no dividand in a subterm can be 0.
-divSubTerms :: M -> Bool
-divSubTerms (C _)       = True
-divSubTerms (D _ (C 0)) = False
-divSubTerms (A m0 m1)   = divSubTerms m0 && divSubTerms m1
-divSubTerms (D m0 m1)   = divSubTerms m0 && divSubTerms m1
+divSubTerms :: Exp -> Bool
+divSubTerms (C _)         = True
+divSubTerms (Div _ (C 0)) = False
+divSubTerms (Add e0 e1)   = divSubTerms e0 && divSubTerms e1
+divSubTerms (Div e0 e1)   = divSubTerms e0 && divSubTerms e1
 
 -- div0 (A _ _) = property False
 -- div0 _       = property True
@@ -68,10 +70,10 @@ divSubTerms (D m0 m1)   = divSubTerms m0 && divSubTerms m1
 divTest :: IO ()
 divTest = smartCheck args div_prop
   where 
-  args = scStdArgs { qcArgs    = stdArgs 
+  args = scStdArgs { qcArgs  = stdArgs 
                                 -- { maxSuccess = 1000
                                 -- , maxSize    = 20  }
-                   , treeShow  = PrintString
+                   , format  = PrintString
                    }
 
 ---------------------------------------------------------------------------------

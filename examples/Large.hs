@@ -7,13 +7,13 @@ module Large where
 
 import Test.SmartCheck
 import Test.QuickCheck
-import Test.LazySmallCheck hiding (Property, test)
-import qualified Test.LazySmallCheck as S
+import Test.LazySmallCheck hiding (Property, test, (==>))
 
 import GHC.Generics hiding (P, C)
 import Data.Typeable
 import Control.Monad
-import Data.List
+
+import Data.Int
 
 -----------------------------------------------------------------
 
@@ -21,47 +21,93 @@ import Data.List
 -- single element to have a long list.
 
 -- Container so that we don't have base types.
-data C = C Int
+data A = A Int16
   deriving (Read, Show, Typeable, Generic)
 
-instance SubTypes C
+instance Serial Int16 where
+  series d = drawnFrom [(-d')..d']
+    where d' = fromIntegral d
 
-instance Arbitrary C where
-  arbitrary = liftM C arbitrary
-  shrink (C i) = map C (shrink i)
+instance SubTypes A
 
-instance Serial C where
-  series = cons1 C
+instance Arbitrary A where
+  arbitrary = liftM A arbitrary
+  shrink (A i) = map A (shrink i)
 
-data P = P [C] [C] [C] [C]
+instance Serial A where
+  series = cons1 A
+
+data B = B [A] [A] [A] [A]
   deriving (Read, Show, Typeable, Generic)
 
-instance SubTypes P
+instance SubTypes B
 
-instance Arbitrary P where
-  arbitrary = liftM4 P arbitrary arbitrary arbitrary arbitrary
---  shrink (P a b c d) = [ P w x y z | w <- shrink a, x <- shrink b, y <- shrink c, z <- shrink d ]
+-- qc/shrink takes over 1m seconds
+instance Arbitrary B where
+  arbitrary = liftM4 B arbitrary arbitrary arbitrary arbitrary
+--  shrink (B a b c d) = [ B w x y z | w <- shrink a, x <- shrink b, y <- shrink c, z <- shrink d ]
 
-instance Serial P where
-  series = cons4 P 
+instance Serial B where
+  series = cons4 B 
 
-sumC :: [C] -> Int
-sumC = foldl' (\acc (C c) -> acc + c) 0 
+add :: [A] -> Int16
+add = sum . map (\(A i) -> i)
 
-test :: P -> Bool
-test (P a b _ _) = sumC a - sumC b < 4096
+pre :: B -> Bool
+pre (B a b c d) = and $ map pre' [a, b, c, d]
+  where
+  pre' x = add x < 16
 
-prop :: P -> Property
-prop = property . test
+test :: B -> Bool
+test (B a b c d) = add a + add b + add c + add d < 64
+
+prop_p :: B -> Property
+prop_p p = pre p ==> test p
 
 main :: IO ()
-main = smartCheck scStdArgs { format = PrintString 
-                            , scMaxDepth = Just 20
-                            } 
-         prop
+main = smartCheck scStdArgs { extrap = False, constrGen = False } prop_p
+  -- smartCheck scStdArgs { format = PrintString 
+  --                      , scMaxDepth = Just 20
+  --                      } 
+  --   prop_p
 
 
-
+-- sc :: Int -> IO ()
+-- sc n = smallCheck n test
 
 t0 :: Int -> Bool
 t0 a = a < 99999999999
+
+---------------------
+
+
+-- data A = A {int :: Int} deriving Show
+-- instance Arbitrary A where
+--   arbitrary = liftM A arbitrary
+--   shrink (A i) = map A (shrink i)
+-- prop :: [A] -> Property
+-- prop x = property (sum (map int x) /= 10)
+
+-- instance Serial A where
+--   series = cons1 A
+
+-- data B = B A A A A deriving Show
+-- instance Arbitrary B where
+--   arbitrary = liftM4 B arbitrary arbitrary arbitrary arbitrary
+-- instance Serial B where
+--   series = cons4 B
+-- prop0 :: B -> Bool
+-- prop0 (B a b c d) = and $ map f [a, b, c, d]
+--   where f (A x) = x < 30
+
+-- data E = E Bool deriving Show
+
+-- instance Serial E where
+--   series = cons1 E
+
+-- data F = F E E deriving Show
+
+-- instance Serial F where
+--   series = cons2 F
+
+-- prop1 (F (E a) (E b)) = not a || not b

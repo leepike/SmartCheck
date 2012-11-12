@@ -72,11 +72,10 @@ foobar
 
 The QuickCheck testing framework was a revolutionary step-forward in
 type-directed random testing~\cite{qc}.  Nowadays, QuickCheck is a standard
-stage of a program development cycle in Haskell.
-
-Because QuickCheck generates random values for testing, counterexamples it finds
-may not be minimal.  In their original QuickCheck paper~\cite{qc}, the authors
-report the following user experience by Andy Gill:
+stage of a program development cycle in Haskell.  Because QuickCheck generates
+random values for testing, counterexamples it finds may not be substantially
+larger than a minimal counterexample.  In their original QuickCheck
+paper~\cite{qc}, the authors report the following user experience by Andy Gill:
 %
 \begin{quote}
 Sometimes the counter examples found are very large and it is difficult to go
@@ -97,12 +96,9 @@ The purpose of \ttp{smaller} is to generate strictly smaller values (according t
 some measure) from a given counterexample to attempt to find a smaller
 counterexample.  Today, \ttp{smaller} is called \ttp{shrink}.
 
-One of the dirty little secrets of QuickCheck is that even for simple data types
-and simple properties, counterexamples can be much larger than the minimal
-counterexamples.  Intuitively, there are two reasons: (1) because values are
-generated randomly, a smaller value that produces a counterexample is skipped;
-and (2) for a composite type, larger values are generated in tandem.  For
-example, consider the following data type and property:
+This trouble with randomly generating large counterexamples is compounded in
+composite data types, for which increasingly larger sub-values are generated in
+tandem.  For example, consider the following data type and property:
 %
 \begin{code}
 data A = A Int deriving Show
@@ -111,7 +107,7 @@ instance Arbitrary A where
   arbitrary = liftM A arbitrary
 
 prop :: [A] -> Property
-prop x = property $ length x < 5
+prop x = property (length x < 5)
 \end{code}
 %
 \noindent
@@ -140,7 +136,8 @@ smallest counterexample, if one exists~\cite{sc}.  SmallCheck does this by
 enumerating all possible inputs, ordered from smallest to largest, up to some
 user-defined bound.  While SmallCheck is effective for testing many programs and
 properties (in accordance with the small model principle~\cite{jackson}),
-counterexamples deep in the state space may be infeasible to uncover.  For
+counterexamples to even relatively simple properties may be infeasible to
+uncover for product types.  For
 example, consider again our data type \ttp{A} defined above, used in the
 following property:
 %
@@ -158,9 +155,18 @@ how large values are.  For example, for type \ttp{Int}, the depth \ttp{d} is
 defined as the integers in the list \ttp{(-d)..d]}.  For a product type,
   SmallCheck generates the cross product of its fields.  In the example above,
   SmallCheck (or Lazy SmallCheck) will find a counterexample at depth 101,
-  requiring approximately $100^4$ test cases, which is infeasible to compute.\footnote{This
-  is an upper-bound, since Lazy SmallCheck eliminates some redundant test-cases,
-  but computing a counterexample is still infeasible.}
+  requiring on the order of $200^4$ test cases to be executed; executing $10e^6$
+  tests requires just under four minutes on a Pentium i7 at
+  2.7GHz.\footnote{This is an upper-bound, since Lazy SmallCheck eliminates some
+    redundant test-cases.}
+
+Furthermore, even if a minimal counterexample is found, regardless of the testing
+framework used, it tells the user nothing about related counterexamples.  That
+is, it would be nice for a counterexample to be generalized so that the user is
+presented with a formula characterizing a set of counterexamples.  
+
+For
+example, 
 
 quantified away
 

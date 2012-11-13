@@ -42,6 +42,7 @@ instance Arbitrary A where
 
 instance Serial A where
   series = cons1 A 
+
 data B = B [A] [A] [A] [A]
   deriving (Read, Show, Typeable, Generic)
 
@@ -71,14 +72,13 @@ add = sum . map (\(A i) -> i)
 
 pre :: B -> Bool
 pre (B a b c d) = and $ map pre' [a, b, c, d]
-  where
-  pre' x = add x < 16
-
+  where pre' x = add x < 16
+  
 post :: B -> Bool
 post (B a b c d) = add a + add b + add c + add d < 64
 
-prop :: B -> Property
-prop p = pre p ==> post p
+prop_qc :: B -> Property
+prop_qc p = pre p ==> post p
 
 prop_sc :: B -> Bool
 prop_sc p = pre p S.==> post p
@@ -130,20 +130,20 @@ test' run = do
 
 runSC :: IO (Maybe B)
 runSC = do
-  res <- runQC stdArgs prop
+  res <- runQC stdArgs prop_qc
   case res of 
     Nothing -> return Nothing
-    Just r  -> do smartRun scStdArgs r prop >>= return . Just
+    Just r  -> do smartRun scStdArgs r prop_qc >>= return . Just
                   
 
 --------------------------------------------------------------------------------
 
 defShrink :: Bool
-defShrink = True
+defShrink = False
 
 main :: IO ()
 main = do 
-  test $ runQC stdArgs prop
+  test $ runQC stdArgs prop_qc
 --  test runSC 
 
   -- _ <- test' $ smallCheck 7 prop_sc >> return (Just $ B [] [] [] [])
@@ -153,15 +153,17 @@ main = do
 {-
 -- RESULTS
 
+-- maybe a 2x noise in results
+
 ----------------------------------------
 QC, no shrinking:
 ----------------------------------------
 
 Num  : 100
-Max  : 0.646203s
-Avg  : 0.31339717s
-Med  : 0.302749s
-Size : 72.45
+Max  : 0.154356s
+Avg  : 0.0733841s
+Med  : 0.07041s
+Size : 70.25
 
 ----------------------------------------
 QC, shrinking:
@@ -180,23 +182,14 @@ Max  : 125.366509s
 Avg  : 3.79998622s
 Med  : 0.516224s
 Size : 32.34
+
 ----------------------------------------
 SC:
 ----------------------------------------
 Num  : 100
-Max  : 1.299704s
-Avg  : 0.30142302s
-Med  : 0.239969s
-Size : 5.56
-
-Num  : 100
-Max  : 8.185753s
-Avg  : 1.32356305s
-Med  : 1.07359s
-Size : 5.78
-----------------------------------------
-smallCheck
-----------------------------------------
-
+Max  : 1.961384s
+Avg  : 0.30087232s
+Med  : 0.24315s
+Size : 5.35
 
 -}

@@ -12,6 +12,48 @@
 \usepackage{paralist}
 
 \usepackage{pgf}
+
+\usepackage{listings}
+\lstset{ %
+  language=Haskell,                 % the language of the code
+  basicstyle=\scriptsize,           % the size of the fonts that are used
+  %% for the code
+  %%firstnumber=0, % index to start numbering at
+  %%numbers=left,                      % where to put the line-numbers
+  %% numberstyle=\tiny\color{gray},  % the style that is used for the
+  %% line-numbers
+  stepnumber=5,                   % the step between two line-numbers. If it's
+                                  % 1, each line 
+  %%                              % will be numbered
+  numbersep=5pt,                  % how far the line-numbers are from the code
+  xleftmargin=0ex,
+  %% backgroundcolor=\color{white},      % choose the background color. You must
+  %% add \usepackage{color}
+  %% showspaces=false,               % show spaces adding particular underscores
+  %% showstringspaces=false,         % underline spaces within strings
+  %% showtabs=false,                 % show tabs within strings adding
+  %% particular underscores
+  %% frame=single,                   % adds a frame around the code
+  %% rulecolor=\color{black},        % if not set, the frame-color may be
+  %% changed on line-breaks within not-black text (e.g. commens (green here))
+  %% tabsize=2,                      % sets default tabsize to 2 spaces
+  %% captionpos=b,                   % sets the caption-position to bottom
+  %% breaklines=true,                % sets automatic line breaking
+  %% breakatwhitespace=false,        % sets if automatic breaks should only
+  %% happen at whitespace
+  %% title=\lstname,                   % show the filename of files included
+  %% with \lstinputlisting;
+  %%                                 % also try caption instead of title
+  %% keywordstyle=\color{blue},          % keyword style
+  %% commentstyle=\color{dkgreen},       % comment style
+  %% stringstyle=\color{mauve},          % string literal style
+  escapeinside={@*}{*@},            % if you want to add a comment within your
+                                    % code
+  %% morekeywords={*,...}           % if you want to add more keywords to
+  %% the set
+}
+
+
 %% \usepackage{tikz}
 %% \usetikzlibrary{arrows,automata}
 
@@ -53,6 +95,7 @@
  }}
 %\usepackage{fancyhdr}
 
+\newcommand{\sub}[1]{\(\sb{#1}\)}
 
 \begin{document}
 
@@ -88,20 +131,18 @@ foobar
 
 The QuickCheck testing framework was a revolutionary step-forward in
 type-directed random testing~\cite{qc}.  Nowadays, QuickCheck is a standard
-aspect of the Haskell development cycle.  
-
-Because QuickCheck generates
-random values for testing, counterexamples it finds may not be substantially
-larger than a minimal counterexample.  In their original QuickCheck
-paper~\cite{qc}, the authors report the following user experience by Andy Gill:
+aspect of the Haskell development cycle.  Because QuickCheck generates random
+values for testing, counterexamples it finds may not be substantially larger
+than a minimal counterexample.  In their original QuickCheck paper~\cite{qc},
+the authors report the following user experience by Andy Gill:
 %
 \begin{quote}
-Sometimes the counter examples found are very large and it is difficult to go
-back to the property and understand why it is a counter example.
+Sometimes the counterexamples found are very large and it is difficult to go
+back to the property and understand why it is a counterexample.
 \end{quote}
 %
 \noindent
-QuickCheck defines a type class \ttp{Arbitrary} that defines a function
+QuickCheck defines a type class \ttp{Arbitrary} that presents a method
 \ttp{arbitrary} for generating random values of a given type.  Gill added another
 method to the type class:
 %
@@ -152,20 +193,21 @@ post (B a b c d) = add a + add b + add c + add d < 64
 prop :: B -> Property
 prop p = pre p ==> post p
 \end{code}
-  \caption{QuickCheck and SmallCheck for a product type input.}
+  \caption{QuickCheck and SmallCheck for a product-type input.}
   \label{fig:initial}
 \end{figure}
 
 While \ttp{shrink} is user-defined and can have any type-correct implementation,
 it is typically defined using structural recursion for composite data types.
 For example, consider the \ttp{shrink} instances given to data types \ttp{A} and
-\ttp{B} in Figure~\ref{fig:initial}.  Indeed, the principal motivation for one
+\ttp{B} in Figure~\ref{fig:initial}.  Indeed, because of the regular structure
+of \ttp{shrink} implementations, the principal motivation for one
 of Haskell's first generics package was for providing generic definitions for
 \ttp{shrink}~\cite{syb}.
 
 However, this straightforward approach to defining \ttp{shrink} instances may
 either miss minimal counterexamples, be too inefficient to be practical, or
-both.\footnote{E.g., see the user question posed on StackOverflow:
+both.\footnote{E.g., for a recent real-world case, see the user question posed on StackOverflow:
   \url{http://stackoverflow.com/questions/8788542/how-do-i-get-good-small-shrinks-out-of-quickcheck}.}
 For example, consider again Figure~\ref{fig:initial}.  The data type \ttp{B} is
 a product type over lists of 16-bit signed integers, wrapped by a constructor.
@@ -181,7 +223,7 @@ B [A (-32769)] [] [] []
 %
 \noindent
 Without shrinking, QuickCheck finds large examples to the property; on average,
-a value contains 70 \ttp{Int16} values!
+QuickCheck returns a value contains 70 \ttp{Int16} values!
 
 Thus, it pays to define \ttp{shrink}.  Unfortunately, even for a simple property
 and program like this one, the definition for \ttp{shrink} given in
@@ -189,7 +231,9 @@ Figure~\ref{fig:initial} produces an intractable number of potential
 counterexamples to test; with the definitions and property provided, which also
 rely on QuickCheck's default instances for the list type, the list of potential
 counterexamples generated by \ttp{shrink} can contain more than $10^{10}$
-elements.  This is an enormous state space to search for a smaller example!
+elements.  This is an enormous state space to search for a smaller example!  In
+particular, if a counterexample is not found does not finish in a reasonable
+amount of time.
 
 It is not always straightforward to determine how to make a more efficient
 implementation for \ttp{shrink}.  Shrinking presents a programmer's dilemma:
@@ -198,28 +242,36 @@ property failed; but to implement an efficient shrink function in general
 requires knowing how to generate counterexamples to the property.
 
 Typically, a user tries a brute-force approach to reduce the number of potential
-counterexamples, for example by truncating lists using the \ttp{take n} function
+counterexamples, for example, by truncating lists using the \ttp{take n} function
 that returns the first $n$ elements of a list.  The trade-off is quicker
 shrinking with a lower probability of finding a smaller counterexample.  For
 example, redefining shrink for type \ttp{B} as follows
 %
-\begin{code}
+\lstset{ caption={Truncated shrinking function for data type \ttp{B}.}
+       , label=lst:newshrink
+       ,captionpos=b }
+\begin{lstlisting}
+len = 10
+
 shrink (B a b c d) = [ B w x y z | w <- tk a, x <- tk b
                                  , y <- tk c, z <- tk d ]
-  where tk x = take 10 (shrink x)
-\end{code}
+  where tk x = take len (shrink x)
+\end{lstlisting}
+%% \begin{code}
+%% \end{code}
 %
 \noindent
 controls the exponential blowup of the state-space by taking the first ten
 elements of each list, so the cross product is limited to 1000 elements.  The
 downside is that potentially smaller counterexamples may be omitted.
 
-What if we omit the need for shrinking counterexamples altogether?  SmallCheck
-is another testing framework for Haskell.  SmallCheck is guaranteed to return
-the a smallest counterexample, if one exists~\cite{sc}.  SmallCheck does this by
-enumerating all possible inputs, ordered from smallest to largest, up to some
-user-defined bound.  While SmallCheck is effective for testing many programs and
-properties (in accordance with the \emph{small scope hypothesis}~\cite{jackson}),
+The programmer might ask herself: ``What if we omit the need for shrinking
+counterexamples altogether?''  SmallCheck is another testing framework for
+Haskell that does just this.  SmallCheck is guaranteed to return the a smallest
+counterexample, if one exists~\cite{sc}.  SmallCheck does this by enumerating
+all possible inputs, ordered from smallest to largest, up to some user-defined
+bound.  While SmallCheck is effective for testing many programs and properties
+(in accordance with the \emph{small scope hypothesis}~\cite{jackson}),
 counterexamples to even relatively simple properties may be infeasible to
 discover due to state-space explosion.
 
@@ -240,17 +292,39 @@ exponentially with respect to the depth.\footnote{All tests in this paper are
   interpreted Haskell under GHC 7.4.2.}
 
 Finally, even if we could overcome the problems described above with QuickCheck
-and SmallCheck, we are left with two others.  First, when a
-counterexample is discovered, one might wish to search for different
-counterexamples.  There currently is no automated way to add a predicate
-characterizing a counterexample as preconditions to a property to strengthen the
-property.  Second, and more generally, a counterexample is usually
-representative of other counterexamples, but that generalization is left to the
-user to discover for herself.  Really, what would be useful would be not just a
-minimal counterexample, but a quantified formula characterizing a set of
-counterexamples.  Such a formula has the added benefit of replacing a
-potentially large sub-term of a composite data type value with a quantifier.
+and SmallCheck, we are left with two others.  
+\begin{itemize}
+  \item First, when a counterexample is discovered to some property, say with
+    type
+%
+\begin{code}
+prop :: B -> Bool      
+\end{code}
+%
+\noindent
+    one might wish to search for different counterexamples to \ttp{prop}.
+    Ideally, the testing framework would automatically add a predicate
+    characterizing (and perhaps generalizing) a counterexample 
+%
+    \begin{code}
+cex :: B -> Bool      
+    \end{code}
+%
+\noindent as a precondition to \ttp{prop} to define a new property
+\begin{code}
+prop' b = not (cex b) ==> prop b
+\end{code}
+%
+\noindent
+where \ttp{==>} is implication to generate new counterexamples to the same property.
 
+  \item Second, and more generally, a counterexample is usually representative
+    of other counterexamples, but that generalization is left to the user to
+    discover for herself.  Really, what would be useful would be not just a
+    minimal counterexample, but a quantified formula characterizing a set of
+    counterexamples.  Such a formula has the added benefit of replacing a
+    potentially large sub-term of a composite data type value with a quantifier.
+\end{itemize}
 
 \begin{figure}[ht]
 \scriptsize
@@ -278,17 +352,19 @@ Mean size & 70 & 34 & 32 & 5\\
 \paragraph{SmartCheck}
 Motivated by these limitations of QuickCheck and SmallCheck, we have developed
 \emph{SmartCheck}.  SmartCheck extends QuickCheck to efficiently and generically
-find small counterexamples.  To motivate the benefit of SmartCheck, consider the
-table in Figure~\ref{fig:results}.  The table characterizes testing the program
-shown in Figure~\ref{fig:initial} that we have described so far.  Four runs are
+find small counterexamples as well as generalize them as described in the
+preceding paragraph.  To motivate the benefit of SmartCheck, consider the table
+in Figure~\ref{fig:results}.  The table characterizes testing the program shown
+in Figure~\ref{fig:initial} that we have described so far.  Four trials are
 presented.  In the first three, we use QuickCheck to generate counterexamples.
 The first column contains the results of using QuickCheck without shrinking to
 provide a baseline.  The next two columns show the result of using QuickCheck
 with definitions of \ttp{shrink} that limit the lists of fields of \ttp{B} to 10
-(the ``QC (10)'' tests) and 20 (the ``QC (20)'' tests) elements, respectively,
-using a definition like the truncated implementation of \ttp{shrink} for the
-type \ttp{B} discussed earlier.  In each row, we show the maximum, mean, and
-median number of seconds required to by QuickCheck to generate a counterexample
+(Listing~\ref{lst:newshrink}) and 20 elements (Listing~\ref{lst:newshrink}, with
+\ttp{len = 20}), respectively.  (Recall that with the original definition for
+shrink from Figure~\ref{fig:initial}, some counterexamples cause QuickCheck to
+not return after hours of computation.)  In each row, we show the maximum, mean,
+and median number of seconds required by QuickCheck to generate a counterexample
 over 100 runs.  In the last row, we show the mean size of the final value
 returned, measured by the taking the cumulative length of the lists of the
 fields of \ttp{B}.  Notice that while typically counterexamples are returned in
@@ -297,34 +373,43 @@ the two tests.  Both tests roughly cut the size of the counterexample in half;
 increasing the number of potential counterexamples can result in a significant
 performance penalty for this example without much benefit.
 
-In the last column are the results under the same condition for SmartCheck.  Not
-only does it execute faster than QuickCheck with shrinking, it has significantly
-smaller outliers.  The most striking difference, however, is the size of the
-counterexample returned, reducing on average the size of a counterexample found
-by QuickCheck without shrinking by a factor of 14.
+In the last column are the results for SmartCheck.  Not only does it execute
+faster than QuickCheck with shrinking, it has significantly smaller outliers.
+The most striking difference, however, is the size of the counterexample
+returned, reducing on average the size of a counterexample found by QuickCheck
+without shrinking by a factor of 14.
 
 The purpose of this paper is to explain first how to efficiently and generically
 generate small counterexamples for algebraic data types and second how to
-generalize the counterexamples..
+generalize the counterexamples.
 
 \paragraph{Contributions}
 This paper, and the library it describes, makes the following contributions:
 
 \begin{itemize}
 
-\item Using generic programming techniques, we describe efficient counterexample
-  reduction strategies for algebraic data types.
+\item an efficient counterexample reduction strategy for algebraic
+  data types;
 
-\item We describe an approach to counterexample generalization, to present the
-  user with a formula describing a set of counterexamples to a property.
+\item an approach to counterexample generalization, to present the
+  user with a formula describing a set of counterexamples to a property;
 
-\item We present an approach to generically strengthen a property with a
-  precondition that characterizes an already-discovered counterexample for the
-  purpose of finding new, dissimilar counterexamples.
+\item an approach to generically strengthen a property with a precondition that
+  characterizes an already-discovered counterexample for the purpose of finding
+  new, dissimilar counterexamples;
 
-\item More generally, this paper is the first to explore the idea of efficient,
-  generic counterexample reduction and generalization for functional program testing.
+\item an implementation based on generic programming that is not only more
+  efficient that hand-written \ttp{shrink} instances in many cases but that
+  generates the instances automatically for the user.
+
+%% \item More generally, this paper is the first to explore the idea of
+%%   efficient, generic counterexample reduction and generalization for
+%%   functional program testing.
 \end{itemize}
+
+%% \noindent Moreover, the inability to quickly uncover understandable
+%% counterexamples is a real-world problem with QuickCheck (or other functional
+%% languages).  It works great when your tests pass,
 
 \paragraph{Outline.}
 
@@ -332,13 +417,188 @@ This paper, and the library it describes, makes the following contributions:
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
-\newpage
-
-\todo{insight: shrink based on arbitrary}
-
-
 \section{Shrinking Data}
+In this section, we describe how to efficiently shrink data values.  Before we
+begin, recall the basic approach implemented by the \ttp{shrink} method:
+generate a list of values, each of which is smaller than the current
+counterexample.  Each of the new values generated has nothing in common with the
+original counterexample, since each one is freshly generated by recursive
+size-constrained calls to \ttp{arbitrary}.
 
+Consider the problem of finding a small counterexample as a graph search
+problem.  The set of vertexes are all possible well-typed values (the same as
+the counterexample).  There is an edge from vertex $v$ to $v'$ if $v'$ is
+smaller (by some measure).  The goal is to fine a vertex from the set of
+smallest counterexamples in the graph.
+
+The approach taken by \ttp{shrink} is the most naive graph search algorithm:
+it simply generates a random set of potential vertexes to check in the graph.
+However, it does not exploit that the original counterexample \ttp{cex} is
+already in a neighborhood of likely counterexamples.  So rather than choose
+random vertexes, it may be more efficient to test other values that are closely
+related to \ttp{cex}.  By restricting the search to \ttp{cex}'s neighborhood, a
+smaller counterexample might be missed, and only a local minimum is returned.
+However, with a large state space, finding a global minimum by random sampling
+vertexes in the graph is possible but too inefficient, as we saw from the
+example in the introduction.
+
+\paragraph{Smart reduction algorithm}
+The algorithm we present for efficiently searching for new counterexamples can
+be thought of as a recursive breadth-first traversal over the structure of the
+current counterexample value, where the value is represented as a tree.  At each
+node, during the traversal, we generate arbitrary \emph{structurally} smaller
+sub-values and build a new value from that, leaving the remainder of the tree
+unchanged.  Intuitively, by a structurally smaller value, we mean one with fewer
+constructors.  We continue until we reach a fixed-point.
+
+To present the algorithm, consider the \ttp{SubTypes} type class below for which
+QuickCheck's \ttp{Arbitrary} class is a super-class.\footnote{This presentation
+  deviates from the implementation; for example, we elide details regarding
+  error handling.}
+%
+\begin{code}
+class Arbitrary a => SubTypes a where
+  size    :: a -> Int
+  index   :: a -> Int -> Maybe SubVal
+  replace :: a -> Int -> SubVal -> a
+\end{code}
+%
+\noindent
+\ttp{SubTypes} has three methods.  The \ttp{size} method returns the size of a
+value, \ttp{index} returns a sub-value at an breadth-first index in a value, and
+\ttp{replace} replaces a sub-value at a particular focus.  If the index is
+out-of-bounds (too large or negative), \ttp{index} return \ttp{Nothing}.  The
+method \ttp{replace} returns the original value for an out-of-bounds index or an
+incorrectly-typed replacement value.  The \ttp{SubVal} type is an existential
+data type, used as a generic container for sub-values from a counterexample.
+%
+\begin{code}
+data SubVal = forall a. (Arbitrary a, SubTypes a) => SubVal a
+\end{code}
+%
+\noindent
+For example, consider a binary tree type
+%
+\begin{code}
+data Tree = L | B Tree Tree
+\end{code}
+% 
+\noindent
+and the value \ttp{tree}, labeled with the indexes of its sub-values
+%
+\begin{code}
+tree = B\sub{0} (B\sub{1} L\sub{3} 
+             (B\sub{4} L\sub{6} L\sub{8}))
+          (B\sub{2} L\sub{5} L\sub{7})
+\end{code}
+%
+\noindent
+Here are example applications of \ttp{SubTypes}; in the following, we show
+the indexes with respect to the \ttp{tree} value:
+%
+\begin{code}
+size tree = 9
+
+index tree 4 = (Just . SubVal) (B\sub{4} L\sub{6} L\sub{8})
+
+index tree 12 = Nothing
+
+replace tree 2 (SubVal L) = 
+  B\sub{0} (B\sub{1} L\sub{3} 
+        (B\sub{4} L\sub{6} L\sub{8}))
+     L\sub{2}
+\end{code}
+%
+\noindent
+We will sometimes refer to unwrapped value returned by \ttp{index a i} as the
+\emph{$i$th sub-value of $a$}, so for example,
+
+\begin{figure}[ht]
+  \lstset{caption={}
+%         ,xleftmargin=5ex,firstnumber=0,numbers=left
+         }
+  \begin{lstlisting}
+reduce :: SubTypes a => a -> Property a -> IO a
+reduce cex prop = reduce' 1
+  where
+  reduce' idx =
+    case index cex idx of 
+      Nothing -> return cex
+      Just v  -> 
+        case test cex idx v prop of
+          Nothing   -> reduce' (idx + 1)
+          Just cex' -> reduce cex' prop
+
+test :: SubTypes a 
+     => a -> Int -> SubVal -> Property a -> Maybe a
+test cex idx v prop = go maxTries
+  where
+  go 0 = Nothing
+  go n = let v'   = newVal v in
+         let cex' = replace cex idx v' in
+         if prop cex' then go (n - 1) else Just cex'
+
+  newVal (SubVal a) = sizedArbitrary a (size a)
+  \end{lstlisting}
+  \caption{Counterexample reduction algorithm\label{fig:reduction}}
+\end{figure}
+
+Figure~\ref{fig:reduction} shows the reduction algorithm.  The function
+\ttp{reduce} takes a counterexample \ttp{cex} and the property \ttp{prop}, which
+for our purposes, we can suppose has the type \ttp{a -> Bool}.  The reduction
+begins at the first sub-value of \ttp{cex}.  Why not begin with \ttp{cex}
+itself?  The idea is that 
+
+
+
+\todo{optimization: check value directly}
+
+%% For example, consider the following types that give us a binary tree
+%% %
+%% \begin{code}
+%% data T = N Int
+%%        | B T T
+%% \end{code}
+%% %
+%% \noindent
+%% and suppose that the property is that the sum of the leaves is less than 10.
+%% Starting from the following counterexample
+%% %
+%% \lstset{caption={A counterexample value.}
+%%        ,label=lst:val}
+%% \begin{lstlisting}
+%% B (B (N 2) (N 3)) 
+%%   (B (N 4) (B (N 5) (N 6)))
+%% \end{lstlisting}
+%% %
+%% \noindent
+%% Consider the sub-value \ttp{B (N 4) (B (N 5) (N 6))}.  Some example values of
+%% structurally smaller well-typed values include the following:
+%% %
+%% \begin{code}
+%% N 2
+%% B (N 8) (N 7)
+%% B (N 0) (N 1)
+%% \end{code}
+%% %
+%% \noindent
+%% Replacing the sub-value, we get the following new values, each of which is
+%% smaller than the value in Listing~\ref{lst:val}:
+%% %
+%% \begin{code}
+%% B (B (N 2) (N 3)) 
+%%   (N 2)
+
+%% B (B (N 2) (N 3)) 
+%%   (B (N 8) (N 7))
+
+%% B (B (N 2) (N 3)) 
+%%   (B (N 0) (N 1))
+%% \end{code}
+
+In this work, we limit ourselves to algebraic data types.
+
+\todo{GADTs?}
 
 \section{Generalizing Data}
 

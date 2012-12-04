@@ -5,7 +5,9 @@ module Paper where
 class Arbitrary a where
   -- arbitrary :: a
 
-type Property a = a -> Bool
+--type Property a = a -> Bool
+
+data Property
 
 -- sized :: [a] -> Int -> [a]
 -- sized = undefined
@@ -17,31 +19,62 @@ class Arbitrary a => SubTypes a where
   index   :: a -> Int -> Maybe SubVal
   replace :: a -> Int -> SubVal -> a
 
-reduce :: SubTypes a => a -> Property a -> IO a
+reduce :: SubTypes a => a -> (a -> Property) -> IO a
 reduce cex prop = reduce' 1
   where
   reduce' idx = 
     case index cex idx of 
       Nothing -> return cex
-      Just v  -> 
-        case test cex idx v prop of
+      Just v  -> do
+        vs <- newVals v
+        case test cex idx vs prop of
           Nothing   -> reduce' (idx + 1)
           Just cex' -> reduce cex' prop
 
+  newVals (SubVal a) = sequence (replicate maxTries s)
+    where s = sizedArbitrary a >>= return . SubVal
+
 test :: SubTypes a 
-     => a -> Int -> SubVal -> Property a -> Maybe a
-test cex idx v prop = go maxTries
+     => a -> Int -> [SubVal] -> (a -> Property) -> Maybe a
+test cex idx vs prop = go vs
   where
-  go 0 = Nothing
-  go n = let v'   = newVal v in
-         let cex' = replace cex idx v' in
-         if prop cex' then go (n - 1) else Just cex'
+  go []     = Nothing
+  go (v:vs') = let cex' = replace cex idx v in
+               if pass prop cex' then go vs' else Just cex'
 
-  newVal (SubVal a) = sizedArbitrary a (size a)
-
-sizedArbitrary :: forall a. SubTypes a => a -> Int -> SubVal
-sizedArbitrary _ _ = SubVal (undefined :: a)
+sizedArbitrary :: forall a. SubTypes a => a -> IO a
+sizedArbitrary _ = return (undefined :: a)
 --sizedArbitrary a n = SubVal (sized arbitrary n)
 
 maxTries :: Int
-maxTries = 100    
+maxTries = 100
+
+pass :: (a -> Property) -> a -> Bool
+pass _ _ = True
+
+
+--------------------------------------------------------------------------------
+
+data Tree = L | B Tree Tree
+
+-- instance SubTypes Tree where
+--   size L = 1
+--   size (B t0 t1) = 1 + size t0 + size 1
+
+--   -- index t 0 = (Just . SubVal) t
+--   -- index (B t0 t1) n = if size t0 >= n then 
+
+-- tree = B (B L
+--              (B L L))
+--           (B L L)
+
+-- size tree = 9
+
+-- index tree 4 = (Just . SubVal) (B L L)
+
+-- index tree 12 = Nothing
+
+-- replace tree 2 (SubVal L) = 
+--   B (B L 
+--         (B L L))
+--      L

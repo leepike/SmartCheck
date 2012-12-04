@@ -1,4 +1,5 @@
-\documentclass[9pt]{sigplanconf}
+% can be 9pt
+\documentclass[10pt]{sigplanconf}
 \usepackage{url}
 \usepackage{tikz}
 \usepackage{graphicx}
@@ -16,17 +17,17 @@
 \usepackage{listings}
 \lstset{ %
   language=Haskell,                 % the language of the code
-  basicstyle=\scriptsize,           % the size of the fonts that are used
+  %%basicstyle= \scriptsize,           % the size of the fonts that are used
   %% for the code
   %%firstnumber=0, % index to start numbering at
   %%numbers=left,                      % where to put the line-numbers
   %% numberstyle=\tiny\color{gray},  % the style that is used for the
   %% line-numbers
-  stepnumber=5,                   % the step between two line-numbers. If it's
+  %% stepnumber=5,                   % the step between two line-numbers. If it's
                                   % 1, each line 
   %%                              % will be numbered
-  numbersep=5pt,                  % how far the line-numbers are from the code
-  xleftmargin=0ex,
+  %% numbersep=5pt,                  % how far the line-numbers are from the code
+  %% xleftmargin=0ex,
   %% backgroundcolor=\color{white},      % choose the background color. You must
   %% add \usepackage{color}
   %% showspaces=false,               % show spaces adding particular underscores
@@ -78,9 +79,8 @@
 
 %% \include{math}
 
-\newenvironment{code}{\begin{alltt}\scriptsize}{\end{alltt}}
+\newenvironment{code}{\begin{alltt}}{\end{alltt}}
 %% \newenvironment{cols}{\begin{tabular}{m{3.6cm}|m{3.6cm}}{Haskell} &
-%%     {\scriptsize Copilot}\\\hline}{\end{tabular}}
 
 \newcommand{\ttp}[1]{\texttt{#1}}
 
@@ -167,14 +167,18 @@ instance Arbitrary A where
   shrink (A i) = map A (shrink i)
 
 instance Arbitrary B where
-  arbitrary = liftM4 B arbitrary arbitrary arbitrary arbitrary
+  arbitrary = liftM4 B arbitrary arbitrary 
+                       arbitrary arbitrary
   shrink (B a b c d) = 
-    [ B w x y z | w <- shrink a, x <- shrink b
-                , y <- shrink c, z <- shrink d ]
+    [ B w x y z | w <- shrink a
+                , x <- shrink b
+                , y <- shrink c
+                , z <- shrink d ]
 
 -- SmallCheck instances
 instance Serial Int16 where
-  series d = drawnFrom [(-d')..d'] where d' = fromIntegral d
+  series d = drawnFrom [(-d')..d'] 
+    where d' = fromIntegral d
 
 instance Serial A where series = cons1 A 
 instance Serial B where series = cons4 B
@@ -185,7 +189,8 @@ pre (B a b c d) = and \$ map pre' [a, b, c, d]
   where pre' x = add x < 16
   
 post :: B -> Bool
-post (B a b c d) = add a + add b + add c + add d < 64
+post (B a b c d) = 
+  add a + add b + add c + add d < 64
   where add :: [A] -> Int16
         add = sum . map (\(\backslash\)(A i) -> i)
 
@@ -247,18 +252,28 @@ that returns the first $n$ elements of a list.  The trade-off is quicker
 shrinking with a lower probability of finding a smaller counterexample.  For
 example, redefining shrink for type \ttp{B} as follows
 %
-\lstset{ caption={Truncated shrinking function for data type \ttp{B}.}
-       , label=lst:newshrink
-       ,captionpos=b }
-\begin{lstlisting}
+
+%% \begin{minipage}{\columnwidth}
+%% \lstset{ caption={Truncated shrinking function for data type \ttp{B}.}
+%%        , label=lst:newshrink
+%%        , captionpos=b }
+%% \begin{lstlisting}
+
+\begin{figure}[ht]
+\begin{code}
 len = 10
 
-shrink (B a b c d) = [ B w x y z | w <- tk a, x <- tk b
-                                 , y <- tk c, z <- tk d ]
+shrink (B a b c d) = 
+  [ B w x y z | w <- tk a, x <- tk b
+              , y <- tk c, z <- tk d ]
   where tk x = take len (shrink x)
-\end{lstlisting}
-%% \begin{code}
-%% \end{code}
+\end{code}
+  \caption{Truncated shrinking function for data type \ttp{B}.}
+  \label{lst:newshrink}
+\end{figure}
+
+%% \end{lstlisting}
+%% \end{minipage}
 %
 \noindent
 controls the exponential blowup of the state-space by taking the first ten
@@ -302,15 +317,16 @@ prop :: B -> Bool
 \end{code}
 %
 \noindent
-    one might wish to search for different counterexamples to \ttp{prop}.
-    Ideally, the testing framework would automatically add a predicate
-    characterizing (and perhaps generalizing) a counterexample 
+one might wish to search for different counterexamples to \ttp{prop}.  Ideally,
+the testing framework would automatically add a predicate characterizing (and
+perhaps generalizing) a counterexample
 %
-    \begin{code}
+\begin{code}
 cex :: B -> Bool      
-    \end{code}
+\end{code}
 %
-\noindent as a precondition to \ttp{prop} to define a new property
+\noindent
+as a precondition to \ttp{prop} to define a new property
 \begin{code}
 prop' b = not (cex b) ==> prop b
 \end{code}
@@ -327,7 +343,7 @@ where \ttp{==>} is implication to generate new counterexamples to the same prope
 \end{itemize}
 
 \begin{figure}[ht]
-\scriptsize
+\footnotesize
   \begin{center}
     \begin{tabular}{|r||c|c|c|c|}
 \hline 
@@ -360,7 +376,7 @@ presented.  In the first three, we use QuickCheck to generate counterexamples.
 The first column contains the results of using QuickCheck without shrinking to
 provide a baseline.  The next two columns show the result of using QuickCheck
 with definitions of \ttp{shrink} that limit the lists of fields of \ttp{B} to 10
-(Listing~\ref{lst:newshrink}) and 20 elements (Listing~\ref{lst:newshrink}, with
+(Figure~\ref{lst:newshrink}) and 20 elements (Figure~\ref{lst:newshrink}, with
 \ttp{len = 20}), respectively.  (Recall that with the original definition for
 shrink from Figure~\ref{fig:initial}, some counterexamples cause QuickCheck to
 not return after hours of computation.)  In each row, we show the maximum, mean,
@@ -442,7 +458,7 @@ However, with a large state space, finding a global minimum by random sampling
 vertexes in the graph is possible but too inefficient, as we saw from the
 example in the introduction.
 
-\paragraph{Smart reduction algorithm}
+\subsection{Reduction Algorithm Overview}
 The algorithm we present for efficiently searching for new counterexamples can
 be thought of as a recursive breadth-first traversal over the structure of the
 current counterexample value, where the value is represented as a tree.  At each
@@ -473,7 +489,8 @@ incorrectly-typed replacement value.  The \ttp{SubVal} type is an existential
 data type, used as a generic container for sub-values from a counterexample.
 %
 \begin{code}
-data SubVal = forall a. (Arbitrary a, SubTypes a) => SubVal a
+data SubVal = 
+  forall a. (Arbitrary a, SubTypes a) => SubVal a
 \end{code}
 %
 \noindent
@@ -506,52 +523,231 @@ index tree 12 = Nothing
 replace tree 2 (SubVal L) = 
   B\sub{0} (B\sub{1} L\sub{3} 
         (B\sub{4} L\sub{6} L\sub{8}))
-     L\sub{2}
+     L
 \end{code}
 %
 \noindent
 We will sometimes refer to unwrapped value returned by \ttp{index a i} as the
-\emph{$i$th sub-value of $a$}, so for example,
+\emph{$i$th sub-value of $a$}, so for example, \ttp{B\sub{4} L\sub{6} L\sub{8}}
+is the 4th sub-value of \ttp{tree}.
 
 \begin{figure}[ht]
   \lstset{caption={}
 %         ,xleftmargin=5ex,firstnumber=0,numbers=left
          }
   \begin{lstlisting}
-reduce :: SubTypes a => a -> Property a -> IO a
+reduce :: SubTypes a 
+       => a -> (a -> Property) -> IO a
 reduce cex prop = reduce' 1
   where
-  reduce' idx =
+  reduce' idx = 
     case index cex idx of 
       Nothing -> return cex
-      Just v  -> 
-        case test cex idx v prop of
-          Nothing   -> reduce' (idx + 1)
+      Just v  -> do
+        vs <- newVals v
+        case test cex idx vs prop of
+          Nothing   -> reduce' (idx+1)
           Just cex' -> reduce cex' prop
 
-test :: SubTypes a 
-     => a -> Int -> SubVal -> Property a -> Maybe a
-test cex idx v prop = go maxTries
-  where
-  go 0 = Nothing
-  go n = let v'   = newVal v in
-         let cex' = replace cex idx v' in
-         if prop cex' then go (n - 1) else Just cex'
+  newVals (SubVal a) = 
+    sequence (replicate maxTries s)
+    where s =     sizedArbitrary a 
+              >>= return . SubVal
 
-  newVal (SubVal a) = sizedArbitrary a (size a)
+test :: SubTypes a 
+     => a -> Int -> [SubVal] 
+     -> (a -> Property) -> Maybe a
+test cex idx vs prop = go vs
+  where
+  go []      = Nothing
+  go (v:vs') = 
+    let cex' = replace cex idx v in
+    if pass prop cex' then go vs' 
+      else Just cex'
   \end{lstlisting}
   \caption{Counterexample reduction algorithm\label{fig:reduction}}
 \end{figure}
 
 Figure~\ref{fig:reduction} shows the reduction algorithm.  The function
-\ttp{reduce} takes a counterexample \ttp{cex} and the property \ttp{prop}, which
-for our purposes, we can suppose has the type \ttp{a -> Bool}.  The reduction
-begins at the first sub-value of \ttp{cex}.  Why not begin with \ttp{cex}
-itself?  The idea is that 
+\ttp{reduce} takes a counterexample \ttp{cex} and the property \ttp{prop}.  At
+the beginning of execution, we assume that a counterexample has been obtained
+somehow; our implementation relies on QuickCheck as a ``front-end'' to generate
+a counterexample that the algorithm automatically shrinks.  The reduction begins
+at the first sub-value of \ttp{cex}, \ttp{v}.  When the index \ttp{idx} becomes
+out-of-bounds and returns \ttp{Nothing}, the algorithm terminates.  Otherwise, a
+list of new random values are generated.
+%
+\begin{code}
+sizedArbitrary :: SubTypes a => a -> IO a  
+\end{code}
+%
+generates a new value \ttp{v'} having the same type as \ttp{v} and strictly
+smaller (with respect to the \ttp{size} method) than \ttp{v}.
+\ttp{sizedArbitrary} returns a value inside the \ttp{IO} monad since it depends
+on a random seed for generation (we could pass in the generator seed, but for
+simplicity, we assume one is generated locally).  The constant \ttp{maxTries} is
+the maximum number of tries to discover a new counterexample by replacing
+\ttp{v} in \ttp{cex} and testing it.  The result of \ttp{pass prop cex'} for
+%
+\begin{code}
+pass :: (a -> Property) -> a -> Bool
+\end{code}
+%
+holds if \ttp{cex'} satisfies the property \ttp{prop}.  If no failure is found,
+we move to the next sub-value of \ttp{cex} and continue.  However, if a new
+smaller counterexample \ttp{cex'} is found, we start a new breadth-first
+traversal of \ttp{cex'}, attempting to shrink it further.
+
+\subsection{Reduction Algorithm Details and Optimizations}
+The reduction algorithm description above omits some minor details and
+optimizations we describe here.
+
+\paragraph{Sum-type hypothesis}
+First, recall that the algorithm begins at the \emph{first} sub-value of the
+counterexample rather than the 0th sub-value.  The 0th sub-value of \ttp{cex} is
+\ttp{cex} itself.  No invariant of the algorithm would be violated by beginning
+with the 0th sub-value; recall that it would generate strictly smaller values
+than \ttp{cex}.  However, we begin with a strict sub-value because of a
+hypothesis we refer to as the \emph{sum-type hypothesis}.  The hypothesis is
+that in the search space of possible values, if a counterexample of the form
+\ttp{C}~$\vec{x}$, where \ttp{C} is some constructor and $\vec{x}$ are its
+arguments, is discovered, then it is more likely to find another ``nearby''
+counterexample of the form \ttp{C}~$\vec{y}$, where $\vec{y}$ are different
+arguments to \ttp{C}.  For example, consider a property about unintended
+variable capture over a language's parse tree represented by a sum type with
+constructors for module imports, function definitions, and global-variable
+assignments, respectively.  A function definition counterexample can only be
+reduced to smaller function definition counterexamples, the only construct in
+which variable capture is possible.
+
+Another way to motivate the hypothesis is that searching the space of possible
+counterexamples by generating \emph{any} well-typed value that is strictly
+smaller than the original counterexample is something we have seen before: it is
+precisely the naive approach to implementing \ttp{shrink}!  
+
+\paragraph{Conditional properties}
+A QuickCheck property may be a conditional of the form
+%
+\begin{code}
+prop a = pre a ==> prop' a
+\end{code}
+%
+\noindent
+such that \ttp{prop} is true if the precondition \ttp{pre a} is false or
+\ttp{prop' a} holds.  In practice, conditionals are used to restrict the set of
+values tested; values that fail the precondition are discarded.  Thus, the call
+to \ttp{pass} in the reduction algorithm only considers a potential
+counterexample \ttp{cex} to have failed if it passes the property's
+precondition and fails the consequent.
+
+\paragraph{Counterexample search}
+We make two optimizations in searching for counterexamples.  First, just like
+QuickCheck's \ttp{arbitrary} method does, our \ttp{sizedArbitrary} function
+successfully larger counterexamples when generating new values with which to
+replace a sub-value.
+
+Furthermore, we can instrument a low-cost shortcut check in the algorithm.
+Sometimes, a counterexample fails a property due to a sub-value nested deep
+inside the counterexample.  For example, consider a simple calculator language
+containing constant \ttp{Int}s, addition, and division:
+%
+\begin{code}
+data Exp = C Int
+         | Add Exp Exp
+         | Div Exp Exp  
+\end{code}
+%
+\noindent
+and consider an evaluator for the language that returns \ttp{Nothing} if
+division-by-zero is encountered and \ttp{Just} the value otherwise:
+%
+\begin{code}
+eval :: Exp -> Maybe Int
+eval (C i) = Just i
+eval (Add e0 e1) =
+  liftM2 (+) (eval e0) (eval e1)
+eval (Div e0 e1) = 
+  let e = eval e1 in 
+  if e == Just 0 then Nothing 
+    else liftM2 div (eval e0) e
+\end{code}
+%
+\noindent
+Suppose we restrict the set of programs with the following predicate:
+%
+\begin{code}
+divSubTerms :: Exp -> Bool
+divSubTerms (C _)         = True
+divSubTerms (Div _ (C 0)) = False
+divSubTerms (Add e0 e1)   =    divSubTerms e0 
+                            && divSubTerms e1
+divSubTerms (Div e0 e1)   =    divSubTerms e0 
+                            && divSubTerms e1  
+\end{code}
+%
+and then test the property
+%
+\begin{code}
+div_prop e = divSubTerms e ==> eval e /= Nothing  
+\end{code}
+%
+\noindent
+The property \ttp{div\_prop} turns out to be false; for example, 
+%
+\begin{code}
+Div (C 1) (Div (C 0) (C 1))
+\end{code}
+%
+\noindent
+is a counterexample.  In the predicate case
+%
+\begin{code}
+divSubTerms (Div _ (C 0)) = False  
+\end{code}
+%
+\noindent
+we forgot to recur on the divisor.  However, a typical counterexample returned
+by QuickCheck, without \ttp{shrink} implemented, is as follows:
+%
+\begin{quote}
+\ttp{Div (Div (C (-22)) (Div (C 2) (C 13))) (Div (Div (Div (C (-11)) (C 14))
+  (Add (Div (C (-4)) (C (-3))) (Div (C (-25)) (C (-25))))) (Add (Add (C 22) (Div
+  (C (-30)) (C (-14)))) (C 13)))}
+\end{quote}
+%
+\noindent
+To butcher an expression, finding the cause of failure is like searching for a
+divide-by-zero in the haystack!  But it turns out that the culprit is a small
+sub-value:
+%
+\begin{code}
+Div (C (-22)) (Div (C 2) (C 13))  
+\end{code}
+%
+
+Generalizing this scenario, during the reduction algorithm's breadth-first
+search through a counterexample \ttp{cex}'s sub-values, we may happen upon a
+sub-value \ttp{cex'} that has the same type as \ttp{cex} and fails the property
+(while passing any preconditions).  In this case, we can return \ttp{cex'}
+directly, and rerun the reduction algorithm on \ttp{cex'}.
+
+\todo{violates sum-type hypothesis but cheap---not testing generated values,
+  just direct subvalues.  Call this the sub-value hypothesis: direct sub-values
+  of a counterexample may also be a counterexample.}
 
 
 
-\todo{optimization: check value directly}
+\paragraph{Bounding counterexample exploration}
+\todo{limit depth}
+\todo{limit size of generated structures}
+
+
+\paragraph{Base types}
+
+
+
+
+
 
 %% For example, consider the following types that give us a binary tree
 %% %
@@ -600,10 +796,12 @@ In this work, we limit ourselves to algebraic data types.
 
 \todo{GADTs?}
 
-\section{Generalizing Data}
+\section{Counterexample Generalization}
 
 
 \section{Implementation}
+
+\todo{generics}
 
 
 \section{Experiments}
@@ -615,7 +813,6 @@ In this work, we limit ourselves to algebraic data types.
 \section{Related Work}
 \label{sec:related}
 
-\todo{\cite{syb} paper is motivated by generic shrink}
 \todo{shrink paper rehger pointed to ``Automatic isolation of compiler errors'' from 1994}
 
 \cite{}

@@ -27,7 +27,7 @@ eval (Add e0 e1) =
   liftM2 (+) (eval e0) (eval e1)
 eval (Div e0 e1) = 
   let e = eval e1 in 
-  if e == Just 0 then Nothing 
+  if e == Just 0 then trace ("dom " ++ show e1) Nothing 
     else liftM2 div (eval e0) e
 
 instance Arbitrary Exp where
@@ -38,19 +38,19 @@ instance Arbitrary Exp where
                   , liftM2 Div mkM' mkM' ]
       where mkM' = mkM =<< choose (0,n-1)
 
-  shrink (C i)       = map C (shrink i)
-  shrink (Add e0 e1) = [e0, e1]
-  shrink (Div e0 e1) = [e0, e1]
+  -- shrink (C i)       = map C (shrink i)
+  -- shrink (Add e0 e1) = [e0, e1]
+  -- shrink (Div e0 e1) = [e0, e1]
 
 -- property: so long as 0 isn't in the divisor, we won't try to divide by 0.
 -- It's false: something might evaluate to 0 still.
 div_prop :: Exp -> Property
---div_prop e = divSubTerms e ==> eval e /= Nothing
-div_prop e = property $ case x of
-                          Nothing -> True
-                          Just True -> True
-                          _       -> False
-  where x = fmap (< 1) (eval e)
+div_prop e = divSubTerms e ==> eval e /= Nothing
+-- div_prop e = property $ case x of
+--                           Nothing -> True
+--                           Just True -> True
+--                           _       -> False
+--   where x = fmap (< 1) (eval e)
 
   -- precondition: no dividand in a subterm can be 0.
 divSubTerms :: Exp -> Bool

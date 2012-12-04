@@ -15,7 +15,7 @@ import Data.Typeable
 import Data.Tree
 import Data.Maybe
 
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 -- Smarter than shrinks.  Does substitution.  m is a value that failed QC that's
 -- been shrunk.  We substitute successive children with strictly smaller (and
@@ -30,7 +30,7 @@ smartRun args res prop = do
   print new
   return new
 
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 -- | Breadth-first traversal of d, trying to shrink it with *strictly* smaller
 -- children.  We replace d whenever a successful shrink is found and try again.
@@ -92,7 +92,7 @@ smartShrink args d prop =
       extractAndTest :: a -> IO (Maybe a)
       extractAndTest y = do 
         res <- resultify notProp y
-        return $ resultToMaybe res
+        return $ traceShow resultToMaybe res
 
 resultToMaybe :: Result a -> Maybe a
 resultToMaybe res =
@@ -101,7 +101,7 @@ resultToMaybe res =
     FailedProp    -> Nothing
     Result n      -> Just n
 
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 -- | Get the maximum depth of d's subforest at idx.  Intuitively, it's the
 -- maximum number of constructors you have *below* the constructor at idx.  So
@@ -123,4 +123,4 @@ subValSize d idx = maybe 0 id (fmap depth forestIdx)
   forestIdx :: Maybe [Tree Bool]
   forestIdx = fmap subForest $ getIdxForest (mkSubstForest d True) idx
 
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------

@@ -27,7 +27,7 @@ eval (Add e0 e1) =
   liftM2 (+) (eval e0) (eval e1)
 eval (Div e0 e1) = 
   let e = eval e1 in 
-  if e == Just 0 then trace ("dom " ++ show e1) Nothing 
+  if e == Just 0 then Nothing 
     else liftM2 div (eval e0) e
 
 instance Arbitrary Exp where

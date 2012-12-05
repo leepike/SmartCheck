@@ -92,7 +92,7 @@ smartShrink args d prop =
       extractAndTest :: a -> IO (Maybe a)
       extractAndTest y = do 
         res <- resultify notProp y
-        return $ traceShow resultToMaybe res
+        return $ resultToMaybe res
 
 resultToMaybe :: Result a -> Maybe a
 resultToMaybe res =

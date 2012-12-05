@@ -540,7 +540,7 @@ reduce :: SubTypes a
        => a -> (a -> Property) -> IO a
 reduce cex prop = reduce' 1
   where
-  reduce' idx = 
+  reduce' idx =
     case index cex idx of 
       Nothing -> return cex
       Just v  -> do
@@ -549,10 +549,11 @@ reduce cex prop = reduce' 1
           Nothing   -> reduce' (idx+1)
           Just cex' -> reduce cex' prop
 
-  newVals (SubVal a) = 
-    sequence (replicate maxTries s)
-    where s =     sizedArbitrary a 
-              >>= return . SubVal
+newVals :: SubVal -> IO [SubVal]
+newVals (SubVal a) = 
+  sequence (replicate maxTries s)
+  where s =     sizedArbitrary a 
+            >>= return . SubVal
 
 test :: SubTypes a 
      => a -> Int -> [SubVal] 
@@ -565,7 +566,7 @@ test cex idx vs prop = go vs
     if pass prop cex' then go vs' 
       else Just cex'
   \end{lstlisting}
-  \caption{Counterexample reduction algorithm\label{fig:reduction}}
+  \caption{Counterexample reduction algorithm.\label{fig:reduction}}
 \end{figure}
 
 Figure~\ref{fig:reduction} shows the reduction algorithm.  The function
@@ -581,8 +582,13 @@ list of new random values are generated.
 sizedArbitrary :: SubTypes a => a -> IO a  
 \end{code}
 %
+\noindent
 generates a new value \ttp{v'} having the same type as \ttp{v} and strictly
-smaller (with respect to the \ttp{size} method) than \ttp{v}.
+smaller (with respect to the \ttp{size} method) than \ttp{v}.  Just like
+QuickCheck's \ttp{arbitrary} method, \ttp{sizedArbitrary} generates successfully
+larger counterexamples when generating new values with which to replace a
+sub-value.
+
 \ttp{sizedArbitrary} returns a value inside the \ttp{IO} monad since it depends
 on a random seed for generation (we could pass in the generator seed, but for
 simplicity, we assume one is generated locally).  The constant \ttp{maxTries} is
@@ -593,6 +599,7 @@ the maximum number of tries to discover a new counterexample by replacing
 pass :: (a -> Property) -> a -> Bool
 \end{code}
 %
+\noindent
 holds if \ttp{cex'} satisfies the property \ttp{prop}.  If no failure is found,
 we move to the next sub-value of \ttp{cex} and continue.  However, if a new
 smaller counterexample \ttp{cex'} is found, we start a new breadth-first
@@ -602,23 +609,23 @@ traversal of \ttp{cex'}, attempting to shrink it further.
 The reduction algorithm description above omits some minor details and
 optimizations we describe here.
 
-\paragraph{Sum-type hypothesis}
+\paragraph{Sum-type counterexample hypothesis}
 First, recall that the algorithm begins at the \emph{first} sub-value of the
 counterexample rather than the 0th sub-value.  The 0th sub-value of \ttp{cex} is
 \ttp{cex} itself.  No invariant of the algorithm would be violated by beginning
 with the 0th sub-value; recall that it would generate strictly smaller values
 than \ttp{cex}.  However, we begin with a strict sub-value because of a
-hypothesis we refer to as the \emph{sum-type hypothesis}.  The hypothesis is
-that in the search space of possible values, if a counterexample of the form
-\ttp{C}~$\vec{x}$, where \ttp{C} is some constructor and $\vec{x}$ are its
-arguments, is discovered, then it is more likely to find another ``nearby''
-counterexample of the form \ttp{C}~$\vec{y}$, where $\vec{y}$ are different
-arguments to \ttp{C}.  For example, consider a property about unintended
-variable capture over a language's parse tree represented by a sum type with
-constructors for module imports, function definitions, and global-variable
-assignments, respectively.  A function definition counterexample can only be
-reduced to smaller function definition counterexamples, the only construct in
-which variable capture is possible.
+hypothesis we refer to as the \emph{sum-type counterexample hypothesis}.  The
+hypothesis is that in the search space of possible values, if a counterexample
+of the form \ttp{C}~$\vec{x}$, where \ttp{C} is some constructor and $\vec{x}$
+are its arguments, is discovered, then it is more likely to find another
+``nearby'' counterexample of the form \ttp{C}~$\vec{y}$, where $\vec{y}$ are
+different arguments to \ttp{C}.  For example, consider a property about
+unintended variable capture over a language's parse tree represented by a sum
+type with constructors for module imports, function definitions, and
+global-variable assignments, respectively.  A function definition counterexample
+can only be reduced to smaller function definition counterexamples, the only
+construct in which variable capture is possible.
 
 Another way to motivate the hypothesis is that searching the space of possible
 counterexamples by generating \emph{any} well-typed value that is strictly
@@ -640,16 +647,15 @@ to \ttp{pass} in the reduction algorithm only considers a potential
 counterexample \ttp{cex} to have failed if it passes the property's
 precondition and fails the consequent.
 
-\paragraph{Counterexample search}
-We make two optimizations in searching for counterexamples.  First, just like
-QuickCheck's \ttp{arbitrary} method does, our \ttp{sizedArbitrary} function
-successfully larger counterexamples when generating new values with which to
-replace a sub-value.
-
-Furthermore, we can instrument a low-cost shortcut check in the algorithm.
+\paragraph{Sub-value counterexample hypothesis}
 Sometimes, a counterexample fails a property due to a sub-value nested deep
-inside the counterexample.  For example, consider a simple calculator language
-containing constant \ttp{Int}s, addition, and division:
+inside the counterexample.  The rest of the value is irrelevant.  We call this
+the \emph{sub-value counterexample hypothesis.}  Thus, one way to efficiently
+search the space of potential counterexamples is to test a counterexample's
+(well-typed) sub-values.
+
+For example, consider a simple calculator language containing constant
+\ttp{Int}s, addition, and division:
 %
 \begin{code}
 data Exp = C Int
@@ -658,7 +664,7 @@ data Exp = C Int
 \end{code}
 %
 \noindent
-and consider an evaluator for the language that returns \ttp{Nothing} if
+and consider an interpreter for the language that returns \ttp{Nothing} if
 division-by-zero is encountered and \ttp{Just} the value otherwise:
 %
 \begin{code}
@@ -725,17 +731,46 @@ Div (C (-22)) (Div (C 2) (C 13))
 \end{code}
 %
 
+\begin{figure}
+\begin{lstlisting}
+reduce0 :: forall a . SubTypes a 
+        => a -> (a -> Property) -> IO a
+reduce0 cex prop = reduce' 1
+  where
+  reduce' idx = 
+    case index cex idx of 
+      Nothing -> return cex
+      Just v  -> 
+        case testHole v of
+          Just v' -> reduce0 v' prop
+          Nothing -> do
+            vs <- newVals v
+            case test cex idx vs prop of
+              Nothing   -> 
+                reduce' (idx+1)
+              Just cex' -> 
+                reduce0 cex' prop
+
+  testHole (SubVal a) = 
+    case cast a :: Maybe a of
+      Nothing -> Nothing
+      Just a' -> 
+        if pass prop a' then Nothing
+          else Just a'
+\end{lstlisting}
+  \caption{Reduction algorithm with the sub-value counterexample optimization.}
+  \label{fig:reduce0}
+\end{figure}
+
 Generalizing this scenario, during the reduction algorithm's breadth-first
 search through a counterexample \ttp{cex}'s sub-values, we may happen upon a
 sub-value \ttp{cex'} that has the same type as \ttp{cex} and fails the property
 (while passing any preconditions).  In this case, we can return \ttp{cex'}
-directly, and rerun the reduction algorithm on \ttp{cex'}.
-
-\todo{violates sum-type hypothesis but cheap---not testing generated values,
-  just direct subvalues.  Call this the sub-value hypothesis: direct sub-values
-  of a counterexample may also be a counterexample.}
-
-
+directly, and rerun the reduction algorithm on \ttp{cex'}.  In
+Figure~\ref{fig:reduce0}, we show an updated reduction algorithm, \ttp{reduce0}
+that implements this optimization.  The function \ttp{testHole} tests the
+current sub-value and if it fails the property, the function tests the sub-value
+directly.
 
 \paragraph{Bounding counterexample exploration}
 \todo{limit depth}

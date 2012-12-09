@@ -19,9 +19,9 @@ import Data.List
 import Data.Maybe
 import Data.Typeable
 
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- Operations on Trees and Forests.
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 -- | Return the list of values at each level in a Forest Not like levels in
 -- Data.Tree (but what I imagined it should have done!).
@@ -31,14 +31,14 @@ breadthLevels forest =
   where
   go = map (getLevel forest) [0..]
 
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 -- | Return the elements at level i from a forest.  0-based indexing.
 getLevel :: Forest a -> Int -> [a]  
 getLevel fs 0 = map rootLabel fs
 getLevel fs n = concatMap (\fs' -> getLevel (subForest fs') (n-1)) fs
 
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 -- | Get the depth of a Forest.  0-based (an empty Forest has depth 0).
 depth :: Forest a -> Int
@@ -48,14 +48,14 @@ depth forest = if null ls then 0 else maximum ls
   depth' (Node _ [])      = 1
   depth' (Node _ forest') = 1 + depth forest'
 
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 -- | How many members are at level i in the Tree?
 levelLength :: Int -> Tree a -> Int
 levelLength 0 t = length (subForest t)
 levelLength n t = sum $ map (levelLength (n-1)) (subForest t)
 
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 -- | Get the tree at idx in a forest.  Nothing if the index is out-of-bounds.
 getIdxForest :: Forest a -> Idx -> Maybe (Tree a)
@@ -82,7 +82,25 @@ getIdxForest forest idx              =
                   (n-len, t')
              else (n-len, Nothing)
 
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+
+-- Morally, we should be using generic zippers and a nice, recursive breadth-first search function, e.g.
+
+{-
+
+data Tree = N Int Tree Tree
+          | E   
+
+index :: Int -> Tree -> Tree
+index = index' []
+  where
+  index' :: [Tree] -> Int -> Tree -> Tree
+  index' _      0   t           = t
+  index' []     idx (N i t0 t1) = index' [t1]             (idx-1) t0
+  index' (k:ks) idx E           = index' ks               (idx-1) k 
+  index' (k:ks) idx (N i t0 t1) = index' (ks ++ [t0, t1]) (idx-1) k
+
+-}
 
 -- | Returns the value at index idx.  Returns nothing if the index is out of
 -- bounds.
@@ -98,12 +116,12 @@ getAtIdx d Idx { level = l, column = c } maxDepth
   where
   lev = getLevel (subTypes d) l
 
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 tooDeep :: Int -> Maybe Int -> Bool
 tooDeep l = maybe False ((>) l)
 
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 data SubStrat = Parent   -- ^ Replace everything in the path from the root to
                          -- here.  Used as breadcrumbs to the value.  Chop the
@@ -111,13 +129,13 @@ data SubStrat = Parent   -- ^ Replace everything in the path from the root to
               | Children -- ^ Replace a value and all of its subchildren.
   deriving  (Show, Read, Eq)
 
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 forestReplaceParent, forestReplaceChildren :: Forest a -> Idx -> a -> Forest a
 forestReplaceParent   = sub Parent
 forestReplaceChildren = sub Children
 
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 sub :: SubStrat -> Forest a -> Idx -> a -> Forest a
 -- on right level, and we'll assume correct subtree.
@@ -150,9 +168,9 @@ sub strat forest idx a =
                      Parent   -> a 
                      Children -> rootLabel t
 
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- Operations on SubTypes.
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 -- | Make a substitution Forest (all proper children).  Initially we don't
 -- replace anything.
@@ -160,7 +178,7 @@ mkSubstForest :: SubTypes a => a -> b -> Forest b
 mkSubstForest a b = map tMap (subTypes a)
   where tMap = fmap (const b)
 
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 -- | Replace a value at index idx generically in a Tree/Forest generically.
 replaceAtIdx :: (SubTypes a, Typeable b)
@@ -172,4 +190,4 @@ replaceAtIdx m idx = replaceChild m (forestReplaceParent subF idx Subst)
   where 
   subF = mkSubstForest m Keep
 
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------

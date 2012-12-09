@@ -18,7 +18,6 @@ module Test.SmartCheck.Types
   , Format(..)
   , scStdArgs
   , errorMsg
-  -- defaults
   , replaceChild'
   , toConstr'
   , showForest'
@@ -34,45 +33,47 @@ import Data.Word
 import Data.Int
 import Data.Ratio
 import Data.Complex
---import qualified Data.Map as M
 
 import qualified Test.QuickCheck as Q
 
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- Types synonyms
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 type PropRedux a = (a -> Q.Property) -> a -> Q.Property
 
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- User-defined subtypes of data
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 data Format = PrintTree | PrintString
   deriving (Eq, Read, Show)
 
 data ScArgs = 
-  ScArgs { format      :: Format -- ^ How to show extrapolated formula
-         , qcArgs      :: Q.Args -- ^ QuickCheck arguments
-         --------------
-         , qc          :: Bool   -- ^ Should we run QuickCheck?  (If not, you
-                                 --   are expected to pass in data to analyze.)
-         , extrap      :: Bool   -- ^ Should we extrapolate?
-         , constrGen   :: Bool   -- ^ Should we try to generalize constructors?
-         --------------
-         , scMaxSuccess :: Int    -- ^ How hard (number of rounds) to look for
-                                  --   failures durbing the extrapolation and
-                                  --   constructor generalization stages.
-         , scMaxFailure :: Int    -- ^ How hard (number of rounds) to look for
-                                  --   failure in the reduction stage.
-         , scMaxSize    :: Int    -- ^ Maximum size of data to generate, in
-                                  --   terms of the size parameter of
-                                  --   QuickCheck's Arbitrary instance for your
-                                  --   data.
+  ScArgs { format       :: Format    -- ^ How to show extrapolated formula
+         , qcArgs       :: Q.Args    -- ^ QuickCheck arguments
+                                     --------------
+         , qc           :: Bool      -- ^ Should we run QuickCheck?  (If not,
+                                     --   you are expected to pass in data to
+                                     --   analyze.)
+         , extrap       :: Bool      -- ^ Should we extrapolate?
+         , constrGen    :: Bool      -- ^ Should we try to generalize
+                                     --   constructors?
+                                     --------------
+         , scMaxSuccess :: Int       -- ^ How hard (number of rounds) to look
+                                     --   for failures during the extrapolation
+                                     --   and constructor generalization stages.
+         , scMaxFailure :: Int       -- ^ How hard (number of rounds) to look
+                                     --   for failure in the reduction stage.
+         , scMaxSize    :: Int       -- ^ Maximum size of data to generate, in
+                                     --   terms of the size parameter of
+                                     --   QuickCheck's Arbitrary instance for
+                                     --   your data.
          , scMaxDepth   :: Maybe Int -- ^ How many levels into the structure of
-                                     -- the failed value should we descend when
-                                     -- reducing or generalizing?  Nothing means
-                                     -- we go down to base types.
+                                     --   the failed value should we descend
+                                     --   when reducing or generalizing?
+                                     --   Nothing means we go down to base
+                                     --   types.
          }
   deriving (Show, Read)
 
@@ -114,9 +115,9 @@ instance Monad Result where
   FailedProp    >>= _ = FailedProp
   Result a      >>= f = f a
 
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- Indexing
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 -- | Index into a Tree/Forest, where level is the depth from the root and column
 -- is the distance d is the dth value on the same level.  Thus, all left-most
@@ -139,9 +140,9 @@ instance Ord Idx where
                                   | c0 > c1 = GT
                                   | True    = EQ
 
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- User-defined subtypes of data
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 data SubT = forall a. (Q.Arbitrary a, SubTypes a) 
           => SubT { unSubT :: a }
@@ -210,9 +211,9 @@ class (Q.Arbitrary a, Show a, Typeable a) => SubTypes a where
   -----------------------------------------------------------
 
 
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- Generic representation
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 class GST f where
   -- Names are abbreviations of the corresponding method names above.
@@ -309,7 +310,7 @@ instance (Show a, Q.Arbitrary a, SubTypes a, Typeable a) => GST (K1 i a) where
 
   gsz (K1 a) = if baseType a then 0 else 1
 
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- We try to cover the instances supported by QuickCheck: http://hackage.haskell.org/packages/archive/QuickCheck/2.4.2/doc/html/Test-QuickCheck-Arbitrary.html
 
 instance SubTypes Bool    where baseType _    = True
@@ -470,7 +471,7 @@ instance ( Q.Arbitrary a, SubTypes a, Typeable a
          , Q.Arbitrary e, SubTypes e, Typeable e) 
          => SubTypes (a, b, c, d, e)
 
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- Helpers
 
 -- These should never be directly called.  We provide compatible instances anyway.
@@ -489,13 +490,13 @@ showForest' _ = []
 -- getSize' :: a -> Int
 -- getSize' _ = 0
 
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 -- -- | For data d, returns the length of (subTypes d).
 -- getSize :: (Generic a, GST (Rep a)) => a -> Int
 -- getSize = gsz . from
 
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 -- addSpace :: String -> String -> String
 -- addSpace a b = if null b then a else a ++ ' ': b
@@ -503,11 +504,11 @@ showForest' _ = []
 -- parens :: String -> String
 -- parens a = '(' : a ++ ")"
 
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 errorMsg :: String -> a
 errorMsg loc = error $ "SmartCheck error: unexpected error in " ++ loc
     ++ ".  Please file a bug report at " 
     ++ "<https://github.com/leepike/SmartCheck/issues>."
 
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------

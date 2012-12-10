@@ -106,7 +106,7 @@
 %\titlebanner{banner above paper title}        % These are ignored unless
 %\preprintfooter{}   % 'preprint' option specified.
 
-\title{SmartCheck}
+\title{SmartCheck: Automatic and Efficient Counterexample Reduction and Generalization}
 %\subtitle{Subtitle Text, if any}
 
 \authorinfo{Lee Pike}
@@ -115,7 +115,19 @@
 \maketitle
 
 \begin{abstract}
-foobar
+QuickCheck is a powerful library for automatic test-case generation.  Because
+QuickCheck performs random testing, it can discover very large counterexamples,
+even when enumerating test-cases is infeasible, as is done with SmallCheck.
+QuickCheck provides an interface for the user to write a \emph{shrink} function
+to attempt to reduce the size of a counterexample discovered by QuickCheck.
+Implementations of \emph{shrink} often require significant boilerplate and are
+not ``smart'', just generating structurally smaller values.  We introduce
+\emph{SmartCheck}, an automatic efficient counterexample reduction algorithm.
+SmartCheck reduces algebraic data using generic search heuristics to efficiently
+find smaller counterexamples.  In addition to shrinking, SmartCheck generalizes
+counterexamples by returning a formula that abstracts over individual
+counterexamples.  SmartCheck has been implemented for Haskell and tested on a
+variety of Haskell programs.
 \end{abstract}
 
 %% \category{D.2.4}{Software/Program Verification}{Reliability}
@@ -342,7 +354,7 @@ where \ttp{==>} is implication to generate new counterexamples to the same prope
     potentially large sub-term of a composite data type value with a quantifier.
 \end{itemize}
 
-\begin{figure}[ht]
+\begin{table}[ht]
 \footnotesize
   \begin{center}
     \begin{tabular}{|r||c|c|c|c|}
@@ -361,8 +373,8 @@ Mean size & 70 & 34 & 32 & 5\\
   \end{center}
   \caption{Results for 100 tests of the program in Figure~\ref{fig:initial}
     using interpreted Haskell.}
-  \label{fig:results}
-\end{figure}
+  \label{table:results}
+\end{table}
 
 
 \paragraph{SmartCheck}
@@ -370,7 +382,7 @@ Motivated by these limitations of QuickCheck and SmallCheck, we have developed
 \emph{SmartCheck}.  SmartCheck extends QuickCheck to efficiently and generically
 find small counterexamples as well as generalize them as described in the
 preceding paragraph.  To motivate the benefit of SmartCheck, consider the table
-in Figure~\ref{fig:results}.  The table characterizes testing the program shown
+in Table~\ref{fig:results}.  The table characterizes testing the program shown
 in Figure~\ref{fig:initial} that we have described so far.  Four trials are
 presented.  In the first three, we use QuickCheck to generate counterexamples.
 The first column contains the results of using QuickCheck without shrinking to
@@ -458,7 +470,7 @@ However, with a large state space, finding a global minimum by random sampling
 vertexes in the graph is possible but too inefficient, as we saw from the
 example in the introduction.
 
-\subsection{Reduction Algorithm Overview}
+\subsection{Reduction Algorithm Overview}\label{sec:reduct}
 The algorithm we present for efficiently searching for new counterexamples can
 be thought of as a recursive breadth-first traversal over the structure of the
 current counterexample value, where the value is represented as a tree.  At each
@@ -772,79 +784,85 @@ that implements this optimization.  The function \ttp{testHole} tests the
 current sub-value and if it fails the property, the function tests the sub-value
 directly.
 
-\paragraph{Bounding counterexample exploration}
-\todo{limit depth}
-\todo{limit size of generated structures}
-
-
 \paragraph{Base types}
 
+The number of constructors in an algebraic data value primarily determines how
+large and understandable it is.  In our experience, the size of fields that come
+from primitive types, like \ttp{Int} or \ttp{Char}, have less of a role in
+understanding a counterexample.
 
+Consequently, we distinguish a class of types referred to as \emph{base types}.
+If the reduction algorithm encounters a base type, it is ignored.  By default,
+this includes numeric types (e.g., \ttp{Int}, \ttp{Word}, \ttp{Float}, etc.,
+\ttp{Bool}, and \ttp{Char}.  We also treat lists specially: lists of base types
+are considered to be base types themselves.  This prevents the algorithm from
+analyzing, for example, strings.  A list of a non-base-types is shrunk by the
+algorithm.  
 
+By providing custom instances, the user can declare any substructure in a data
+type to be a base type.  Doing so can help make SmartCheck more efficient if the
+user knows that some portion of the structure cannot be shrunk or is irrelevant
+to the property.
 
+\paragraph{Bounding counterexample exploration}
 
+SmartCheck's implementation contains flags to allow the user to customize its
+behavior.  Three flags that are relevant to the reduction algorithm are the
+following:
+%
+\begin{code}
+scMaxFailure :: Int
+scMaxSize    :: Int
+scMaxDepth   :: Maybe Int  
+\end{code}
+%
+\noindent
+The ``\ttp{sc}'' prefix stands for \emph{S}mart\emph{C}heck and is used to
+prevent name clashes with QuickCheck's flags.  \ttp{scMaxFailure} controls the
+number of values generated by the reduction algorithm for each sub-value
+analyzed.  \ttp{scMaxSize} controls the maximum size of values generated to
+replace sub-values by the reduction algorithm.  Thus, new sub-values must be
+strictly smaller than the minimum of \ttp{scMaxSize} and the size of the
+sub-value being replaced.  (The size of the value is with respect to the
+\ttp{size} method in the \ttp{SubTypes} class.)  Finally, \ttp{scMaxDepth}
+determines the maximum depth in the counterexample the reduction algorithm
+should analyze.  A value of \ttp{Nothing} means that the counterexample should
+be exhaustively reduced, as the algorithm is presented in
+Figure~\ref{fig:reduction}.  For example, the depth of a list is determined by
+its length and the depth of the binary tree defined in Section~\ref{sec:reduct}
+is determined by the function \ttp{depth}:
+%
+\begin{code}
+depth L         = 0
+depth (B t0 t1) = 1 + max (depth t0) (depth t1)
+\end{code}
+%
+\noindent
+Of the flags, \ttp{scMaxDepth} is the most important for controlling
+efficiency, particularly for large product types with significant ``fan out''.
+The number of sub-values of a value product type can grow exponentially with
+respect to the depth.  Furthermore, note that as the reduction algorithm
+descends further, there is less chance to reduce the size of the value overall,
+since smaller and smaller sub-values are replaced.
 
-%% For example, consider the following types that give us a binary tree
-%% %
-%% \begin{code}
-%% data T = N Int
-%%        | B T T
-%% \end{code}
-%% %
-%% \noindent
-%% and suppose that the property is that the sum of the leaves is less than 10.
-%% Starting from the following counterexample
-%% %
-%% \lstset{caption={A counterexample value.}
-%%        ,label=lst:val}
-%% \begin{lstlisting}
-%% B (B (N 2) (N 3)) 
-%%   (B (N 4) (B (N 5) (N 6)))
-%% \end{lstlisting}
-%% %
-%% \noindent
-%% Consider the sub-value \ttp{B (N 4) (B (N 5) (N 6))}.  Some example values of
-%% structurally smaller well-typed values include the following:
-%% %
-%% \begin{code}
-%% N 2
-%% B (N 8) (N 7)
-%% B (N 0) (N 1)
-%% \end{code}
-%% %
-%% \noindent
-%% Replacing the sub-value, we get the following new values, each of which is
-%% smaller than the value in Listing~\ref{lst:val}:
-%% %
-%% \begin{code}
-%% B (B (N 2) (N 3)) 
-%%   (N 2)
-
-%% B (B (N 2) (N 3)) 
-%%   (B (N 8) (N 7))
-
-%% B (B (N 2) (N 3)) 
-%%   (B (N 0) (N 1))
-%% \end{code}
-
-In this work, we limit ourselves to algebraic data types.
-
-\todo{GADTs?}
-
-\section{Counterexample Generalization}
+\section{Counterexample Generalization} \label{sec:generalization}
+Suppose we are testing a value.
 
 
 \section{Implementation}
 
 \todo{generics}
 
+\todo{GADTs? don't work}
 
 \section{Experiments}
 
-%--------------------------------------------------------------------------------
+\todo{xmonad}
+
+%-------------------------------------------------------------------------------
 
 
-%--------------------------------------------------------------------------------
+%-------------------------------------------------------------------------------
 \section{Related Work}
 \label{sec:related}
 
@@ -852,7 +870,7 @@ In this work, we limit ourselves to algebraic data types.
 
 \cite{}
 
-%--------------------------------------------------------------------------------
+%-------------------------------------------------------------------------------
 \section{Conclusions}
 \label{sec:conclusions}
 

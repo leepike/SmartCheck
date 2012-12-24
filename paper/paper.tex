@@ -24,7 +24,7 @@
   %% numberstyle=\tiny\color{gray},  % the style that is used for the
   %% line-numbers
   %% stepnumber=5,                   % the step between two line-numbers. If it's
-                                  % 1, each line 
+                                  % 1, each line
   %%                              % will be numbered
   %% numbersep=5pt,                  % how far the line-numbers are from the code
   %% xleftmargin=0ex,
@@ -74,7 +74,7 @@
 %% \newtheorem{codenum}{lst}
 
 \usepackage{float}
-\floatstyle{boxed} 
+\floatstyle{boxed}
 \restylefloat{figure}
 
 %% \include{math}
@@ -140,7 +140,6 @@ variety of Haskell programs.
 
 
 \section{Introduction}\label{sec:intro}
-
 The QuickCheck testing framework was a revolutionary step-forward in
 type-directed random testing~\cite{qc}.  Nowadays, QuickCheck is a standard
 aspect of the Haskell development cycle.  Because QuickCheck generates random
@@ -159,7 +158,7 @@ QuickCheck defines a type class \ttp{Arbitrary} that presents a method
 method to the type class:
 %
 \begin{code}
-smaller :: a -> [a] 
+smaller :: a -> [a]
 \end{code}
 %
 \noindent
@@ -179,9 +178,9 @@ instance Arbitrary A where
   shrink (A i) = map A (shrink i)
 
 instance Arbitrary B where
-  arbitrary = liftM4 B arbitrary arbitrary 
+  arbitrary = liftM4 B arbitrary arbitrary
                        arbitrary arbitrary
-  shrink (B a b c d) = 
+  shrink (B a b c d) =
     [ B w x y z | w <- shrink a
                 , x <- shrink b
                 , y <- shrink c
@@ -189,19 +188,19 @@ instance Arbitrary B where
 
 -- SmallCheck instances
 instance Serial Int16 where
-  series d = drawnFrom [(-d')..d'] 
+  series d = drawnFrom [(-d')..d']
     where d' = fromIntegral d
 
-instance Serial A where series = cons1 A 
+instance Serial A where series = cons1 A
 instance Serial B where series = cons4 B
 
 -- Predicates for defining properties
 pre :: B -> Bool
 pre (B a b c d) = and \$ map pre' [a, b, c, d]
   where pre' x = add x < 16
-  
+
 post :: B -> Bool
-post (B a b c d) = 
+post (B a b c d) =
   add a + add b + add c + add d < 64
   where add :: [A] -> Int16
         add = sum . map (\(\backslash\)(A i) -> i)
@@ -224,15 +223,16 @@ of Haskell's first generics package was for providing generic definitions for
 
 However, this straightforward approach to defining \ttp{shrink} instances may
 either miss minimal counterexamples, be too inefficient to be practical, or
-both.\footnote{E.g., for a recent real-world case, see the user question posed on StackOverflow:
+both.\footnote{E.g., for a recent real-world case, see the user question posed
+  on StackOverflow:
   \url{http://stackoverflow.com/questions/8788542/how-do-i-get-good-small-shrinks-out-of-quickcheck}.}
 For example, consider again Figure~\ref{fig:initial}.  The data type \ttp{B} is
 a product type over lists of 16-bit signed integers, wrapped by a constructor.
 Consider the property \ttp{prop} in the figure, stating that if the sum of each
 list in a field of \ttp{B} is less than 16, then the sum of the four fields of
-\ttp{B} is less than 64.  \ttp{prop} seems reasonable at first glance, until
-one realizes that due to underflow, the property can be violated.  For example,
-consider the value
+\ttp{B} is less than 64.  The property \ttp{prop} seems reasonable at first
+glance, until one realizes that due to underflow, the property can be violated.
+For example, consider the value
 %
 \begin{code}
 B [A (-32769)] [] [] []
@@ -319,13 +319,13 @@ exponentially with respect to the depth.\footnote{All tests in this paper are
   interpreted Haskell under GHC 7.4.2.}
 
 Finally, even if we could overcome the problems described above with QuickCheck
-and SmallCheck, we are left with two others.  
+and SmallCheck, we are left with two others.
 \begin{itemize}
   \item First, when a counterexample is discovered to some property, say with
     type
 %
 \begin{code}
-prop :: B -> Bool      
+prop :: B -> Bool
 \end{code}
 %
 \noindent
@@ -334,7 +334,7 @@ the testing framework would automatically add a predicate characterizing (and
 perhaps generalizing) a counterexample
 %
 \begin{code}
-cex :: B -> Bool      
+cex :: B -> Bool
 \end{code}
 %
 \noindent
@@ -358,9 +358,9 @@ where \ttp{==>} is implication to generate new counterexamples to the same prope
 \footnotesize
   \begin{center}
     \begin{tabular}{|r||c|c|c|c|}
-\hline 
- & QC (none) & QC (10) & QC (20) & SmartCheck \\      
-\hline \hline 
+\hline
+ & QC (none) & QC (10) & QC (20) & SmartCheck \\
+\hline \hline
 Max.  & 0.15s & 21.51s & 125.37s & 1.96s\\
 \hline
 Mean  & 0.07s & 1.21s & 3.80s & 0.30s\\
@@ -411,6 +411,7 @@ The purpose of this paper is to explain first how to efficiently and generically
 generate small counterexamples for algebraic data types and second how to
 generalize the counterexamples.
 
+\todo{check paper against this section again, especially generalization sec.}
 \paragraph{Contributions}
 This paper, and the library it describes, makes the following contributions:
 
@@ -485,10 +486,12 @@ QuickCheck's \ttp{Arbitrary} class is a super-class.\footnote{This presentation
   error handling.}
 %
 \begin{code}
+type Idx = Int
+
 class Arbitrary a => SubTypes a where
-  size    :: a -> Int
-  index   :: a -> Int -> Maybe SubVal
-  replace :: a -> Int -> SubVal -> a
+  size    :: a -> Idx
+  index   :: a -> Idx -> Maybe SubVal
+  replace :: a -> Idx -> SubVal -> a
 \end{code}
 %
 \noindent
@@ -501,8 +504,8 @@ incorrectly-typed replacement value.  The \ttp{SubVal} type is an existential
 data type, used as a generic container for sub-values from a counterexample.
 %
 \begin{code}
-data SubVal = 
-  forall a. (Arbitrary a, SubTypes a) => SubVal a
+data SubVal =
+  forall a. SubTypes a => SubVal a
 \end{code}
 %
 \noindent
@@ -511,12 +514,12 @@ For example, consider a binary tree type
 \begin{code}
 data Tree = L | B Tree Tree
 \end{code}
-% 
+%
 \noindent
 and the value \ttp{tree}, labeled with the indexes of its sub-values
 %
 \begin{code}
-tree = B\sub{0} (B\sub{1} L\sub{3} 
+tree = B\sub{0} (B\sub{1} L\sub{3}
              (B\sub{4} L\sub{6} L\sub{8}))
           (B\sub{2} L\sub{5} L\sub{7})
 \end{code}
@@ -532,8 +535,8 @@ index tree 4 = (Just . SubVal) (B\sub{4} L\sub{6} L\sub{8})
 
 index tree 12 = Nothing
 
-replace tree 2 (SubVal L) = 
-  B\sub{0} (B\sub{1} L\sub{3} 
+replace tree 2 (SubVal L) =
+  B\sub{0} (B\sub{1} L\sub{3}
         (B\sub{4} L\sub{6} L\sub{8}))
      L
 \end{code}
@@ -547,13 +550,13 @@ is the 4th sub-value of \ttp{tree}.
   \lstset{caption={}
 %         ,xleftmargin=5ex,firstnumber=0,numbers=left
          }
-  \begin{lstlisting}
-reduce :: SubTypes a 
+  \begin{code}
+reduce :: SubTypes a
        => a -> (a -> Property) -> IO a
 reduce cex prop = reduce' 1
   where
   reduce' idx =
-    case index cex idx of 
+    case index cex idx of
       Nothing -> return cex
       Just v  -> do
         vs <- newVals v
@@ -562,22 +565,22 @@ reduce cex prop = reduce' 1
           Just cex' -> reduce cex' prop
 
 newVals :: SubVal -> IO [SubVal]
-newVals (SubVal a) = 
-  sequence (replicate maxTries s)
-  where s =     sizedArbitrary a 
-            >>= return . SubVal
+newVals (SubVal a) =
+  sequence (replicate max s)
+  where
+  s = sizedArbitrary a >>= return . SubVal
 
-test :: SubTypes a 
-     => a -> Int -> [SubVal] 
+test :: SubTypes a
+     => a -> Idx -> [SubVal]
      -> (a -> Property) -> Maybe a
 test cex idx vs prop = go vs
   where
   go []      = Nothing
-  go (v:vs') = 
+  go (v:vs') =
     let cex' = replace cex idx v in
-    if pass prop cex' then go vs' 
+    if pass prop cex' then go vs'
       else Just cex'
-  \end{lstlisting}
+  \end{code}
   \caption{Counterexample reduction algorithm.\label{fig:reduction}}
 \end{figure}
 
@@ -591,7 +594,7 @@ out-of-bounds and returns \ttp{Nothing}, the algorithm terminates.  Otherwise, a
 list of new random values are generated.
 %
 \begin{code}
-sizedArbitrary :: SubTypes a => a -> IO a  
+sizedArbitrary :: SubTypes a => a -> IO a
 \end{code}
 %
 \noindent
@@ -642,7 +645,7 @@ construct in which variable capture is possible.
 Another way to motivate the hypothesis is that searching the space of possible
 counterexamples by generating \emph{any} well-typed value that is strictly
 smaller than the original counterexample is something we have seen before: it is
-precisely the naive approach to implementing \ttp{shrink}!  
+precisely the naive approach to implementing \ttp{shrink}!
 
 \paragraph{Conditional properties}
 A QuickCheck property may be a conditional of the form
@@ -667,12 +670,12 @@ search the space of potential counterexamples is to test a counterexample's
 (well-typed) sub-values.
 
 For example, consider a simple calculator language containing constant
-\ttp{Int}s, addition, and division:
+\ttp{Ints}, addition, and division:
 %
 \begin{code}
 data Exp = C Int
          | Add Exp Exp
-         | Div Exp Exp  
+         | Div Exp Exp
 \end{code}
 %
 \noindent
@@ -684,9 +687,9 @@ eval :: Exp -> Maybe Int
 eval (C i) = Just i
 eval (Add e0 e1) =
   liftM2 (+) (eval e0) (eval e1)
-eval (Div e0 e1) = 
-  let e = eval e1 in 
-  if e == Just 0 then Nothing 
+eval (Div e0 e1) =
+  let e = eval e1 in
+  if e == Just 0 then Nothing
     else liftM2 div (eval e0) e
 \end{code}
 %
@@ -697,20 +700,20 @@ Suppose we restrict the set of programs with the following predicate:
 divSubTerms :: Exp -> Bool
 divSubTerms (C _)         = True
 divSubTerms (Div _ (C 0)) = False
-divSubTerms (Add e0 e1)   =    divSubTerms e0 
+divSubTerms (Add e0 e1)   =    divSubTerms e0
                             && divSubTerms e1
-divSubTerms (Div e0 e1)   =    divSubTerms e0 
-                            && divSubTerms e1  
+divSubTerms (Div e0 e1)   =    divSubTerms e0
+                            && divSubTerms e1
 \end{code}
 %
 and then test the property
 %
 \begin{code}
-div_prop e = divSubTerms e ==> eval e /= Nothing  
+div_prop e = divSubTerms e ==> eval e /= Nothing
 \end{code}
 %
 \noindent
-The property \ttp{div\_prop} turns out to be false; for example, 
+The property \ttp{div\_prop} turns out to be false; for example,
 %
 \begin{code}
 Div (C 1) (Div (C 0) (C 1))
@@ -720,56 +723,57 @@ Div (C 1) (Div (C 0) (C 1))
 is a counterexample.  In the predicate case
 %
 \begin{code}
-divSubTerms (Div _ (C 0)) = False  
+divSubTerms (Div _ (C 0)) = False
 \end{code}
 %
 \noindent
-we forgot to recur on the divisor.  However, a typical counterexample returned
-by QuickCheck, without \ttp{shrink} implemented, is as follows:
-%
-\begin{quote}
+we forgot to recur on the divisor.
+
+\begin{figure}[ht!]
 \ttp{Div (Div (C (-22)) (Div (C 2) (C 13))) (Div (Div (Div (C (-11)) (C 14))
   (Add (Div (C (-4)) (C (-3))) (Div (C (-25)) (C (-25))))) (Add (Add (C 22) (Div
   (C (-30)) (C (-14)))) (C 13)))}
-\end{quote}
-%
-\noindent
-To butcher an expression, finding the cause of failure is like searching for a
-divide-by-zero in the haystack!  But it turns out that the culprit is a small
-sub-value:
+  \caption{Typical counterexample from QuickCheck with no user-defined
+    \ttp{shrink} function.}
+  \label{fig:div-cex}
+\end{figure}
+
+However, a typical counterexample returned by QuickCheck, without \ttp{shrink}
+implemented, is shown in Figure~\ref{fig:div-cex}.  To butcher an expression,
+finding the cause of failure is like searching for a divide-by-zero in the
+haystack!  But it turns out that the culprit is a small sub-value:
 %
 \begin{code}
-Div (C (-22)) (Div (C 2) (C 13))  
+Div (C (-22)) (Div (C 2) (C 13))
 \end{code}
 %
 
 \begin{figure}
-\begin{lstlisting}
-reduce0 :: forall a . SubTypes a 
+\begin{code}
+reduce0 :: forall a . SubTypes a
         => a -> (a -> Property) -> IO a
 reduce0 cex prop = reduce' 1
   where
-  reduce' idx = 
-    case index cex idx of 
+  reduce' idx =
+    case index cex idx of
       Nothing -> return cex
-      Just v  -> 
-        case testHole v of
-          Just v' -> reduce0 v' prop
-          Nothing -> do
-            vs <- newVals v
-            case test cex idx vs prop of
-              Nothing   -> 
-                reduce' (idx+1)
-              Just cex' -> 
-                reduce0 cex' prop
+      Just v  -> case testHole v of
+                   Just v' -> reduce0 v' prop
+                   Nothing -> test' v idx
 
-  testHole (SubVal a) = 
+  test' v idx = do
+    vs <- newVals v
+    case test cex idx vs prop of
+      Nothing   -> reduce' (idx+1)
+      Just cex' -> reduce0 cex' prop
+
+  testHole (SubVal a) =
     case cast a :: Maybe a of
       Nothing -> Nothing
-      Just a' -> 
+      Just a' ->
         if pass prop a' then Nothing
           else Just a'
-\end{lstlisting}
+\end{code}
   \caption{Reduction algorithm with the sub-value counterexample optimization.}
   \label{fig:reduce0}
 \end{figure}
@@ -797,7 +801,7 @@ this includes numeric types (e.g., \ttp{Int}, \ttp{Word}, \ttp{Float}, etc.,
 \ttp{Bool}, and \ttp{Char}.  We also treat lists specially: lists of base types
 are considered to be base types themselves.  This prevents the algorithm from
 analyzing, for example, strings.  A list of a non-base-types is shrunk by the
-algorithm.  
+algorithm.
 
 By providing custom instances, the user can declare any substructure in a data
 type to be a base type.  Doing so can help make SmartCheck more efficient if the
@@ -813,7 +817,7 @@ following:
 \begin{code}
 scMaxFailure :: Int
 scMaxSize    :: Int
-scMaxDepth   :: Maybe Int  
+scMaxDepth   :: Maybe Int
 \end{code}
 %
 \noindent
@@ -834,7 +838,8 @@ is determined by the function \ttp{depth}:
 %
 \begin{code}
 depth L         = 0
-depth (B t0 t1) = 1 + max (depth t0) (depth t1)
+depth (B t0 t1) =
+  1 + max (depth t0) (depth t1)
 \end{code}
 %
 \noindent
@@ -846,8 +851,135 @@ descends further, there is less chance to reduce the size of the value overall,
 since smaller and smaller sub-values are replaced.
 
 \section{Counterexample Generalization} \label{sec:generalization}
-Suppose we are testing a value.
 
+Small counterexamples make debugging easier, but they are just half the battle.
+To go from a specific counterexample to the required fix in a program, the
+programmer must have a flash of insight in which she generalizes the
+counterexample to a set of counterexamples for which the program and property
+fails.  For example, in the introduction, we realized that the specific
+counterexample
+%
+\begin{code}
+B [A (-32769)] [] [] []
+\end{code}
+%
+\noindent
+is representative of the set of counterexamples in which underflow causes the
+sum of the fields to be greater or equal to 64.
+
+The generalization step is an important under-appreciated step in the debugging
+process.  For counterexamples that are large, deeply-nested values, the
+generalization step can be difficult.  One way we might help the programmer is
+to provide her not with a single counterexample but with a quantified formula
+that characterizes a set of counterexamples.  Doing so has two benefits.  First,
+it already generalizes a counterexample, perhaps helping the programmer's
+insight in the generalization step.  Second, it reduces the noise in favor of
+the signal by abstracting away portions of large counterexample that are
+irrelevant to why it violates the property.
+
+The characterization of counterexamples that most helps the programmer seems to
+should strike a middle ground.  At the one extreme, a single counterexample is
+can be thought of as a closed formula containing only literals that
+under-approximates the set of counterexamples.  At the other extreme, the
+property itself being tested is a formula that over-approximates the failing
+inputs.  We describe two kinds of formula that fall between these two extremes.
+
+\subsection{Universal Sub-Value Generalization}
+An example best explains the first kind of quantified formulas we generate.
+Compare the following formula to the counterexample in Figure~\ref{fig:div-cex}:
+%
+\begin{code}
+\ttp{forall x, y . Div (Div x (Div (C 2) (C 13))) y}
+\end{code}
+%
+\noindent
+Here, the formula claims that for all well-typed values \ttp{x} and \ttp{y}, the
+property fails.  Not only does the generalization assist the programmer's
+insight, but it reduces the sheer size of the counterexample, and it can do so significantly.
+
+\begin{figure}
+  \begin{code}
+extrapolate :: SubTypes a
+       => a -> (a -> Property) -> IO [Idx]
+extrapolate cex prop = extrapolate' 1 []
+  where
+  extrapolate' idx idxs =
+    case index cex idx of
+      Nothing -> return idxs
+      Just v  -> do
+        vs <- extrapVals v
+        if allFail cex idx vs prop
+          then extrapolate' (idx+1) (idx:idxs)
+          else extrapolate' (idx+1) idxs
+
+extrapVals :: SubVal -> IO [SubVal]
+extrapVals (SubVal a) =
+  sequence (replicate maxExtrap s)
+  where
+  s = unsizedArbitrary a >>= return . SubVal
+
+allFail :: SubTypes a
+     => a -> Idx -> [SubVal]
+     -> (a -> Property) -> Bool
+allFail cex idx vs prop =
+  (not (null res)) && and res
+  where
+  res  = catMaybes (map (fail prop) vals)
+  vals = map (replace cex idx) vs
+  \end{code}
+  \caption{Universal sub-value generation algorithm.}
+  \label{fig:universal}
+\end{figure}
+
+We call the kind of formula just shown \emph{universal sub-value generalization}
+and is implemented in SmartCheck.  The algorithm is shown in
+Figure~\ref{fig:universal}.  The algorithm is similar to the reduction algorithm
+in Figure~\ref{fig:reduction} (and in the implementation, the algorithms are
+generalized and combined).  The function \ttp{extrapolate} takes a
+counterexample \ttp{cex} and a property.  It returns a list of indexes to be
+universally quantified.  This algorithm also performs a breadth-first search
+over the sub-values of the counterexample.  For each sub-value, the algorithm
+generates new sub-values, replaces them in \ttp{cex}, and tests them.  If every
+new counterexample non-trivially fails (i.e., does not just fail the
+precondition) the property \ttp{prop}, then we extrapolate, claiming that for
+\emph{any} new value replacing that sub-value in \ttp{cex}, the property will
+fail.
+
+The function \ttp{extrapVals} generates the new sub-values, much like
+\ttp{newVal} in the reduction algorithm.  Here, \ttp{maxExtrap} well-typed
+values are generated, and \ttp{unsizedArbitrary} is the analogue of
+\ttp{sizedArbitrary}, but does not limit the size of values generated.
+
+In the definition of \ttp{allFail},
+%
+\begin{code}
+fail :: (a -> Property) -> a -> Maybe Bool
+\end{code}
+%
+\noindent
+is the roughly the dual of \ttp{pass} in the reduction algorithm: it returns
+\ttp{Just True} if a value satisfies the property and passes the property's
+precondition \ttp{pre}, \ttp{Just False} if the value fails the property, and
+\ttp{Nothing} if the value fails \ttp{pre}.
+
+Thus, 
+
+
+\subsection{Existential Sub-Value Generalization}
+
+\subsection{Automated Invariant Strengthening}
+
+\begin{figure}[ht!]
+  \begin{center}
+    \includegraphics[scale=0.5]{Figs/cex-gen}
+  \end{center}
+  \caption{Counterexample generalization.}
+  \label{fig:cex-gen}
+\end{figure}
+
+\subsection{Generalization Details}
+
+\todo{flags, optimizations}
 
 \section{Implementation}
 

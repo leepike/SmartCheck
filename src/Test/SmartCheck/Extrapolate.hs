@@ -33,7 +33,7 @@ extrapolate :: SubTypes a
             -> (a -> Q.Property) -- ^ Original property
             -> [a]               -- ^ Previous failed values
             -> IO ([Idx], PropRedux a)
-extrapolate args d origProp ds = do 
+extrapolate args d origProp ds = do
   putStrLn ""
   smartPrtLn "Extrapolating values ..."
   (_, idxs) <- iter' forest (Idx 0 0) []
@@ -42,18 +42,18 @@ extrapolate args d origProp ds = do
   where
   forest = mkSubstForest d True
   iter'  = iter d test next origProp (scMaxDepth args)
-  prop idxs newProp a = 
+  prop idxs newProp a =
     (not $ matchesShapes args a (d : ds) idxs) Q.==> newProp a
-      
+
   -- In this call to iterateArb, we want to claim we can extrapolate iff at
   -- least one test passes a precondition, and for every test in which the
   -- precondition is passed, it fails.  We test values of all possible sizes, up
   -- to Q.maxSize.
   test _ idx = iterateArbIdx d (idx, scMaxDepth args) (scMaxSuccess args)
-                 (scMaxSize args) origProp 
+                 (scMaxSize args) origProp
 
   -- Control-flow.
-  next _ res forest' idx idxs = 
+  next _ res forest' idx idxs =
     case res of
       -- None of the tries satisfy prop (but something passed the precondition).
       -- Prevent recurring down this tree, since we can generalize.
@@ -79,7 +79,7 @@ matchesShapes args d ds idxs = foldl' f False ds
 -- algebraic constructors only, while ignoring differences in all values at
 -- holes indexed by the indexes.
 matchesShape :: SubTypes a => ScArgs -> a -> a -> [Idx] -> Bool
-matchesShape args a b idxs = test (subT a, subT b) && repIdxs 
+matchesShape args a b idxs = test (subT a, subT b) && repIdxs
   where
   repIdxs = case foldl' f (Just b) idxs of
               Nothing -> False

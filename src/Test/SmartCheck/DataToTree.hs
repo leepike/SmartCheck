@@ -7,7 +7,7 @@ module Test.SmartCheck.DataToTree
   , replaceAtIdx
   , getIdxForest
   , breadthLevels
-  , mkSubstForest 
+  , mkSubstForest
   , depth
   , tooDeep
   ) where
@@ -26,7 +26,7 @@ import Data.Typeable
 -- | Return the list of values at each level in a Forest Not like levels in
 -- Data.Tree (but what I imagined it should have done!).
 breadthLevels :: Forest a -> [[a]]
-breadthLevels forest = 
+breadthLevels forest =
   takeWhile (not . null) go
   where
   go = map (getLevel forest) [0..]
@@ -34,7 +34,7 @@ breadthLevels forest =
 --------------------------------------------------------------------------------
 
 -- | Return the elements at level i from a forest.  0-based indexing.
-getLevel :: Forest a -> Int -> [a]  
+getLevel :: Forest a -> Int -> [a]
 getLevel fs 0 = map rootLabel fs
 getLevel fs n = concatMap (\fs' -> getLevel (subForest fs') (n-1)) fs
 
@@ -60,7 +60,7 @@ levelLength n t = sum $ map (levelLength (n-1)) (subForest t)
 -- | Get the tree at idx in a forest.  Nothing if the index is out-of-bounds.
 getIdxForest :: Forest a -> Idx -> Maybe (Tree a)
 getIdxForest forest (Idx (0 :: Int) n) =
-  if length forest > n then Just (forest !! n) 
+  if length forest > n then Just (forest !! n)
     else Nothing
 getIdxForest forest idx              =
   -- Should be a single Just x in the list, holding the value.
@@ -89,7 +89,7 @@ getIdxForest forest idx              =
 {-
 
 data Tree = N Int Tree Tree
-          | E   
+          | E
 
 index :: Int -> Tree -> Tree
 index = index' []
@@ -97,7 +97,7 @@ index = index' []
   index' :: [Tree] -> Int -> Tree -> Tree
   index' _      0   t           = t
   index' []     idx (N i t0 t1) = index' [t1]             (idx-1) t0
-  index' (k:ks) idx E           = index' ks               (idx-1) k 
+  index' (k:ks) idx E           = index' ks               (idx-1) k
   index' (k:ks) idx (N i t0 t1) = index' (ks ++ [t0, t1]) (idx-1) k
 
 -}
@@ -139,23 +139,23 @@ forestReplaceChildren = sub Children
 
 sub :: SubStrat -> Forest a -> Idx -> a -> Forest a
 -- on right level, and we'll assume correct subtree.
-sub strat forest (Idx (0 :: Int) n) a = 
+sub strat forest (Idx (0 :: Int) n) a =
   snd $ mapAccumL f 0 forest
   where
-  f i node | i == n = ( i+1, news )  
+  f i node | i == n = ( i+1, news )
            | True   = ( i+1, node )
 
-    where  
+    where
     news = case strat of
              Parent   -> Node a []
              Children -> fmap (\_ -> a) (forest !! n)
-                         
-sub strat forest idx a = 
+
+sub strat forest idx a =
   snd $ mapAccumL findTree (column idx) forest
   where
   l = level idx - 1
   -- Invariant: not at the right level yet.
-  findTree n t = 
+  findTree n t =
     if n < 0 -- Already found index
       then (n, t)
       else if n < len -- Big enough to index, so we climb down this one.
@@ -164,8 +164,8 @@ sub strat forest idx a =
     where
     len = levelLength l t
     newTree = Node newRootLabel (sub strat (subForest t) (Idx l n) a)
-    newRootLabel = case strat of 
-                     Parent   -> a 
+    newRootLabel = case strat of
+                     Parent   -> a
                      Children -> rootLabel t
 
 --------------------------------------------------------------------------------
@@ -187,7 +187,7 @@ replaceAtIdx :: (SubTypes a, Typeable b)
              -> b     -- ^ Value to replace with
              -> Maybe a
 replaceAtIdx m idx = replaceChild m (forestReplaceParent subF idx Subst)
-  where 
+  where
   subF = mkSubstForest m Keep
 
 --------------------------------------------------------------------------------

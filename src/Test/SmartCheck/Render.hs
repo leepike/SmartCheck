@@ -1,6 +1,6 @@
 -- | Rendering arbitrary data, and filling in holes in the data with variables.
 
-module Test.SmartCheck.Render 
+module Test.SmartCheck.Render
   ( renderWithVars
   , smartPrtLn
   , Replace(..)
@@ -46,11 +46,11 @@ renderWithVars format d idxs = do
   idxs' = let cs = unConstrs idxs \\ unVals idxs in
           idxs { unConstrs = cs }
 
-  constrArgs = 
+  constrArgs =
     unless (constrsLen == 0) $ putStrLn "  there exist arguments x̅ s.t."
 
-  prtVars kind len vs = 
-    when (len > 0) $ 
+  prtVars kind len vs =
+    when (len > 0) $
          (putStrLn $ "forall " ++ kind ++ " "
       ++ unwords (take len vs) ++ ":")
 
@@ -68,7 +68,7 @@ type VarRepl = Either String String
 -- | At each index into d from idxs, replace the whole with a fresh value.
 replaceWithVars :: SubTypes a
                 => Format -> a -> Replace Idx -> Replace String -> String
-replaceWithVars format d idxs vars = 
+replaceWithVars format d idxs vars =
   case format of
     PrintTree   -> drawTree strTree
     -- We have to be careful here.  We can't just show d and then find the
@@ -96,17 +96,17 @@ replaceWithVars format d idxs vars =
 
     where
     sf = subForest tree
-  
+
   -- A tree representation of the data turned into a tree of Strings showing the
   -- data.  showForest is one of our generic methods.
   t :: Tree VarRepl
-  t = let forest = showForest d in 
-      if null forest then errorMsg "replaceWithVars" 
+  t = let forest = showForest d in
+      if null forest then errorMsg "replaceWithVars"
          else fmap Left (head forest) -- Should be a singleton
 
   -- Note: we put value idxs before constrs, since they take precedence.
   zipRepl :: [(String, Idx)]
-  zipRepl =    zip (unVals vars)    (unVals idxs) 
+  zipRepl =    zip (unVals vars)    (unVals idxs)
             ++ zip (unConstrs vars) (unConstrs idxs)
 
 ---------------------------------------------------------------------------------
@@ -116,10 +116,10 @@ replaceWithVars format d idxs vars =
 -- space).
 stitchTree :: Tree String -> String
 stitchTree = stitch
-  where 
+  where
   stitch (Node str forest) = str ++ " " ++ (unwords $ map stitchTree' forest)
 
-  stitchTree' (Node str []) = if isJust $ find isSpace str 
+  stitchTree' (Node str []) = if isJust $ find isSpace str
                                 then '(' : str ++ ")"
                                 else str
   stitchTree' node = '(' : stitch node ++ ")"

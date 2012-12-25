@@ -16,7 +16,7 @@ import qualified Test.QuickCheck as Q hiding (Result)
 import qualified Test.QuickCheck.Property as P
 
 import Prelude hiding (max)
-import System.Random 
+import System.Random
 import Data.Tree hiding (levels)
 
 ---------------------------------------------------------------------------------
@@ -25,7 +25,7 @@ import Data.Tree hiding (levels)
 iterateArbIdx :: SubTypes a
               => a -> (Idx, Maybe Int) -> Int -> Int
               -> (a -> Q.Property) -> IO (Result a)
-iterateArbIdx d (idx, max) tries sz prop = 
+iterateArbIdx d (idx, max) tries sz prop =
   case getAtIdx d idx max of
     Nothing  -> errorMsg "iterateArb 0"
     Just ext -> iterateArb d ext idx tries sz prop
@@ -40,7 +40,7 @@ iterateArbIdx d (idx, max) tries sz prop =
 -- (Thus, there's an implied linear order on the Result type: FailedPreCond <
 -- FailedProp < Result a.)
 iterateArb :: forall a. SubTypes a
-           => a -> SubT -> Idx -> Int -> Int 
+           => a -> SubT -> Idx -> Int -> Int
            -> (a -> Q.Property) -> IO (Result a)
 iterateArb d ext idx tries max prop = do
   g <- newStdGen
@@ -58,21 +58,21 @@ iterateArb d ext idx tries max prop = do
     -- The generated random value is too big.  Start again sampling again with
     -- size at 0.
     | newMax s >= max = iterateArb' res g0 (try + 1) 0
-    | otherwise = 
+    | otherwise =
         case replace d idx s of
           Nothing -> errorMsg "iterateArb 1"
-          Just d' -> do 
+          Just d' -> do
             res' <- resultify prop d'
             case res' of
               FailedPreCond -> rec FailedPreCond
               FailedProp    -> rec FailedProp
               Result x      -> return (Result x)
 
-    where 
+    where
     (size, g0) = randomR (0, currMax) g
     s = sample ext g size
-    sample SubT { unSubT = v } = newVal v 
-    rec res' = iterateArb' res' g0 (try + 1) 
+    sample SubT { unSubT = v } = newVal v
+    rec res' = iterateArb' res' g0 (try + 1)
                  ((currMax + 1) * 2) -- XXX what ratio is right to increase size
                                      -- of values?  This gives us exponentail
                                      -- growth, but remember we're randomly
@@ -87,9 +87,9 @@ iterateArb d ext idx tries max prop = do
 
 -- | Make a new random value given a generator and a max size.  Based on the
 -- value's type's arbitrary instance.
-newVal :: forall a. (SubTypes a, Q.Arbitrary a) 
+newVal :: forall a. (SubTypes a, Q.Arbitrary a)
        => a -> StdGen -> Int -> SubT
-newVal _ g size = 
+newVal _ g size =
   let Q.MkGen m = Q.resize size (Q.arbitrary :: Q.Gen a) in
   let v = m g size in
   subT v
@@ -139,7 +139,7 @@ type Test a b = a -> Idx -> IO b
 -- Do a breadth-first traversal of the data.  First, we find the next valid
 -- index we can use.  Then we apply our test function, passing the result to our
 -- next function.
-iter :: SubTypes a 
+iter :: SubTypes a
      => a                 -- ^ Failed value
      -> Test a b          -- ^ Test to use
      -> Next a b          -- ^ What to do after the test
@@ -149,7 +149,7 @@ iter :: SubTypes a
      -> Idx               -- ^ Starting index to extrapolate
      -> [Idx]             -- ^ List of generalized indices
      -> IO (a, [Idx])
-iter d test nxt prop maxLevel forest idx idxs 
+iter d test nxt prop maxLevel forest idx idxs
   | done      = return (d, idxs)
   | nextLevel = iter'
   | atFalse   = iter' -- Must be last check or !! index below may be out of
@@ -163,7 +163,7 @@ iter d test nxt prop maxLevel forest idx idxs
   done       = length levels <= l || tooDeep l maxLevel
   nextLevel  = length (levels !! l) <= column idx
   atFalse    = not $ (levels !! l) !! column idx
-  iter'      = iter d test nxt prop maxLevel forest 
+  iter'      = iter d test nxt prop maxLevel forest
                  idx { level = l + 1, column = 0 } idxs
   l          = level idx
 
@@ -173,6 +173,6 @@ iter d test nxt prop maxLevel forest idx idxs
 -- depth of the tree representation, not counting base types (defined in
 -- Types.hs).
 valDepth :: SubTypes a => a -> Int
-valDepth d = depth (mkSubstForest d True) 
+valDepth d = depth (mkSubstForest d True)
 
 ---------------------------------------------------------------------------------

@@ -36,15 +36,15 @@ import Data.Complex
 
 import qualified Test.QuickCheck as Q
 
---------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 -- Types synonyms
---------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 
 type PropRedux a = (a -> Q.Property) -> a -> Q.Property
 
---------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 -- User-defined subtypes of data
---------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 
 data Format = PrintTree | PrintString
   deriving (Eq, Read, Show)
@@ -81,6 +81,10 @@ data ScArgs =
                                      --   Nothing means we go down to base
                                      --   types.
                                      --------------
+         , scMinExtrap  :: Int       -- ^ Minimum number of times a property's
+                                     -- precondition must be passed to
+                                     -- generalize it.
+                                     --------------
          } deriving (Show, Read)
 
 scStdArgs :: ScArgs
@@ -95,11 +99,12 @@ scStdArgs = ScArgs { format       = PrintTree
                    , scMaxFailure = 100
                    , scMaxSize    = 10
                    , scMaxDepth   = Nothing
+                   , scMinExtrap  = 0
                    }
 
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 -- Result type
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 -- | Possible results of iterateArb.
 data Result a = FailedPreCond -- ^ Couldn't satisfy the precondition of a
@@ -107,7 +112,7 @@ data Result a = FailedPreCond -- ^ Couldn't satisfy the precondition of a
               | FailedProp    -- ^ Failed the property---either we expect
                               --   failure and it passes or we expect to pass it
                               --   and we fail.
-              | Result a      -- ^ Satisfied it, with the satisfying value
+              | Result a      -- ^ Satisfied it, with the satisfying value.
   deriving (Show, Read, Eq)
 
 instance Functor Result where
@@ -121,9 +126,9 @@ instance Monad Result where
   FailedProp    >>= _ = FailedProp
   Result a      >>= f = f a
 
---------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 -- Indexing
---------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 
 -- | Index into a Tree/Forest, where level is the depth from the root and column
 -- is the distance d is the dth value on the same level.  Thus, all left-most
@@ -146,9 +151,9 @@ instance Ord Idx where
                                   | c0 > c1 = GT
                                   | True    = EQ
 
---------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 -- User-defined subtypes of data
---------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 
 data SubT = forall a. (Q.Arbitrary a, SubTypes a)
           => SubT { unSubT :: a }
@@ -217,9 +222,9 @@ class (Q.Arbitrary a, Show a, Typeable a) => SubTypes a where
   -----------------------------------------------------------
 
 
---------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 -- Generic representation
---------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 
 class GST f where
   -- Names are abbreviations of the corresponding method names above.
@@ -316,7 +321,7 @@ instance (Show a, Q.Arbitrary a, SubTypes a, Typeable a) => GST (K1 i a) where
 
   gsz (K1 a) = if baseType a then 0 else 1
 
---------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 -- We try to cover the instances supported by QuickCheck: http://hackage.haskell.org/packages/archive/QuickCheck/2.4.2/doc/html/Test-QuickCheck-Arbitrary.html
 
 instance SubTypes Bool    where baseType _    = True
@@ -477,7 +482,7 @@ instance ( Q.Arbitrary a, SubTypes a, Typeable a
          , Q.Arbitrary e, SubTypes e, Typeable e)
          => SubTypes (a, b, c, d, e)
 
---------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 -- Helpers
 
 -- These should never be directly called.  We provide compatible instances anyway.
@@ -496,13 +501,13 @@ showForest' _ = []
 -- getSize' :: a -> Int
 -- getSize' _ = 0
 
---------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 
 -- -- | For data d, returns the length of (subTypes d).
 -- getSize :: (Generic a, GST (Rep a)) => a -> Int
 -- getSize = gsz . from
 
---------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 
 -- addSpace :: String -> String -> String
 -- addSpace a b = if null b then a else a ++ ' ': b
@@ -510,11 +515,11 @@ showForest' _ = []
 -- parens :: String -> String
 -- parens a = '(' : a ++ ")"
 
---------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 
 errorMsg :: String -> a
 errorMsg loc = error $ "SmartCheck error: unexpected error in " ++ loc
     ++ ".  Please file a bug report at "
     ++ "<https://github.com/leepike/SmartCheck/issues>."
 
---------------------------------------------------------------------------------
+-------------------------------------------------------------------------------

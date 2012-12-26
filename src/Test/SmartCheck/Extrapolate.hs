@@ -15,7 +15,7 @@ import qualified Test.QuickCheck as Q
 import Data.Tree
 import Data.List
 
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 -- | Test d with arbitrary values replacing its children.  For anything we get
 -- 100% failure for, we claim we can generalize it---any term in that hole
@@ -53,18 +53,16 @@ extrapolate args d origProp ds = do
                  (scMaxSize args) origProp
 
   -- Control-flow.
-  next _ res forest' idx idxs =
-    case res of
-      -- None of the tries satisfy prop (but something passed the precondition).
-      -- Prevent recurring down this tree, since we can generalize.
-      FailedProp    -> nextIter (forestReplaceChildren forest' idx False)
-                                (idx : idxs)
-      FailedPreCond -> nextIter forest' idxs
-      Result _      -> nextIter forest' idxs
-    where
-    nextIter f s = iter' f idx { column = column idx + 1 } s
+  next _ (i, FailedProp) forest' idx idxs
+    -- None of the tries satisfy prop (but something passed the precondition).
+    -- Prevent recurring down this tree, since we can generalize.
+    | scMinExtrap args <= i =
+        nextIter (forestReplaceChildren forest' idx False) idx (idx : idxs)
+  next _ _ forest' idx idxs = nextIter forest' idx idxs
 
----------------------------------------------------------------------------------
+  nextIter f idx s = iter' f idx { column = column idx + 1 } s
+
+--------------------------------------------------------------------------------
 
 -- | Finds any two distinct values that match.  INVARIANT: the ds are all
 -- unequal, and d /= any ds.
@@ -94,4 +92,4 @@ matchesShape args a b idxs = test (subT a, subT b) && repIdxs
 
   test (SubT x, SubT y)  = baseType x || toConstr x == toConstr y
 
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------

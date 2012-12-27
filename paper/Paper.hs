@@ -4,6 +4,7 @@ module Paper where
 
 import Prelude hiding (fail)
 import Data.Maybe (catMaybes)
+import qualified Test.QuickCheck as Q
 
 cast :: SubTypes a => a -> Maybe b
 cast _ = undefined
@@ -11,11 +12,48 @@ cast _ = undefined
 class Arbitrary a where
 --  arbitrary :: IO a
 
-sizedArbitrary :: forall a. SubTypes a => a -> IO a
-sizedArbitrary _ = return (undefined :: a)
+sizedArbitrary :: forall a. SubTypes a => Size -> a -> IO a
+sizedArbitrary sz _ = return ((undefined sz) :: a)
 
-unsizedArbitrary :: forall a. SubTypes a => a -> IO a
-unsizedArbitrary _ = return (undefined :: a)
+--------------------------------------------------------------------------------
+
+data Format = PrintTree | PrintString
+  deriving (Eq, Read, Show)
+
+-- SmartCheck arguments
+format       :: Format    -- ^ How to show extrapolated formula
+format       = undefined
+qcArgs       :: Q.Args    -- ^ QuickCheck arguments
+qcArgs       = undefined
+qc           :: Bool      -- ^ Should we run QuickCheck?  (If not, you are
+                          -- expected to pass in data to analyze.)
+qc           = undefined
+extrap       :: Bool      -- ^ Should we extrapolate?
+extrap       = undefined
+constrGen    :: Bool      -- ^ Should we try to generalize constructors?
+constrGen    = undefined
+scMaxSuccess :: Int       -- ^ How hard (number of rounds) to look for failures
+                          -- during the extrapolation and constructor
+                          -- generalization stages.
+scMaxSuccess = undefined
+scMaxFailure :: Int       -- ^ How hard (number of rounds) to look for failure
+                          -- in the reduction stage.
+scMaxFailure = undefined
+scMaxSize    :: Int       -- ^ Maximum size of data to generate, in terms of the
+                          -- size parameter of QuickCheck's Arbitrary instance
+                          -- for your data.
+scMaxSize    = undefined
+scMaxDepth   :: Maybe Int -- ^ How many levels into the structure of the failed
+                          -- value should we descend when reducing or
+                          -- generalizing?  Nothing means we go down to base
+                          -- types.
+scMaxDepth   = undefined
+
+scMinExtrap  :: Int       -- ^ Minimum number of times a property's precondition
+                          -- must be passed to generalize it.
+scMinExtrap  = undefined
+
+--------------------------------------------------------------------------------
 
 data Property
 
@@ -24,10 +62,11 @@ data Property
 
 data SubVal = forall a. SubTypes a => SubVal a
 
+type Size = Int
 type Idx = Int
 
 class Arbitrary a => SubTypes a where
-  size    :: a -> Idx
+  size    :: a -> Size
   index   :: a -> Idx -> Maybe SubVal
   replace :: a -> Idx -> SubVal -> a
 
@@ -39,16 +78,20 @@ reduce cex prop = reduce' 1
     case index cex idx of
       Nothing -> return cex
       Just v  -> do
-        vs <-newVals v
+        vs <- newVals v (getSize v) scMaxFailure
         case test cex idx vs prop of
           Nothing   -> reduce' (idx+1)
           Just cex' -> reduce cex' prop
 
-newVals :: SubVal -> IO [SubVal]
-newVals (SubVal a) =
-  sequence (replicate maxTries s)
+getSize :: SubVal -> Size
+getSize (SubVal a) = size a
+
+newVals :: SubVal -> Size -> Int -> IO [SubVal]
+newVals (SubVal a) sz tries =
+  sequence (replicate tries s)
   where
-  s = sizedArbitrary a >>= return . SubVal
+  s  =     sizedArbitrary sz a
+       >>= return . SubVal
 
 test :: SubTypes a
      => a -> Idx -> [SubVal]
@@ -83,7 +126,7 @@ reduce0 cex prop = reduce' 1
                    Nothing -> test' v idx
 
   test' v idx = do
-    vs <- newVals v
+    vs <- newVals v (getSize v) scMaxFailure
     case test cex idx vs prop of
       Nothing   -> reduce' (idx+1)
       Just cex' -> reduce0 cex' prop
@@ -105,32 +148,26 @@ extrapolate cex prop = extrapolate' 1 []
     case index cex idx of
       Nothing -> return idxs
       Just v  -> do
-        vs <- extrapVals v
+        vs <- newVals v scMaxSize scMaxSuccess
         if allFail cex idx vs prop
           then extrapolate' (idx+1) (idx:idxs)
           else extrapolate' (idx+1) idxs
-
-extrapVals :: SubVal -> IO [SubVal]
-extrapVals (SubVal a) =
-  sequence (replicate maxExtrap s)
-  where
-  s = unsizedArbitrary a >>= return . SubVal
 
 allFail :: SubTypes a
      => a -> Idx -> [SubVal]
      -> (a -> Property) -> Bool
 allFail cex idx vs prop =
-  (not (null res)) && and res
+  length res >= scMinExtrap && and res
   where
-  res  = catMaybes (map (fail prop) vals)
-  vals = map (replace cex idx) vs
+  res  = catMaybes (map go vs)
+  go   = fail prop . replace cex idx
 
 maxExtrap :: Int
 maxExtrap = 100
 
 --------------------------------------------------------------------------------
 
-data Tree = L | B Tree Tree
+-- data Tree = L | B Tree Tree
 
 -- instance SubTypes Tree where
 --   size L = 1

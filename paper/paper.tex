@@ -139,6 +139,8 @@ variety of Haskell programs.
 %% embedded domain-specific language, compiler, verification
 
 
+\todo{note constants are user-defined arguments}
+
 \section{Introduction}\label{sec:intro}
 The QuickCheck testing framework was a revolutionary step-forward in
 type-directed random testing~\cite{qc}.  Nowadays, QuickCheck is a standard
@@ -216,9 +218,10 @@ prop p = pre p ==> post p
 While \ttp{shrink} is user-defined and can have any type-correct implementation,
 it is typically defined using structural recursion for composite data types.
 For example, consider the \ttp{shrink} instances given to data types \ttp{A} and
-\ttp{B} in Figure~\ref{fig:initial}.  Indeed, because of the regular structure
-of \ttp{shrink} implementations, the principal motivation for one
-of Haskell's first generics package was for providing generic definitions for
+\ttp{B} in Figure~\ref{fig:initial}.\footnote{All examples and algorithms in
+  this paper are in Haskell~\cite{haskell98}}.  Indeed, because of the regular
+structure of \ttp{shrink} implementations, the principal motivation for one of
+Haskell's first generics package was for providing generic definitions for
 \ttp{shrink}~\cite{syb}.
 
 However, this straightforward approach to defining \ttp{shrink} instances may
@@ -487,9 +490,10 @@ QuickCheck's \ttp{Arbitrary} class is a super-class.\footnote{This presentation
 %
 \begin{code}
 type Idx = Int
+type Size = Int
 
 class Arbitrary a => SubTypes a where
-  size    :: a -> Idx
+  size    :: a -> Size
   index   :: a -> Idx -> Maybe SubVal
   replace :: a -> Idx -> SubVal -> a
 \end{code}
@@ -559,16 +563,20 @@ reduce cex prop = reduce' 1
     case index cex idx of
       Nothing -> return cex
       Just v  -> do
-        vs <- newVals v
+        vs <- newVals v (getSize v) scMaxFailure
         case test cex idx vs prop of
           Nothing   -> reduce' (idx+1)
           Just cex' -> reduce cex' prop
 
-newVals :: SubVal -> IO [SubVal]
-newVals (SubVal a) =
-  sequence (replicate max s)
+getSize :: SubVal -> Size
+getSize (SubVal a) = size a
+
+newVals :: SubVal -> Size -> Int -> IO [SubVal]
+newVals (SubVal a) sz tries =
+  sequence (replicate tries s)
   where
-  s = sizedArbitrary a >>= return . SubVal
+  s  =     sizedArbitrary sz a
+       >>= return . SubVal
 
 test :: SubTypes a
      => a -> Idx -> [SubVal]
@@ -606,7 +614,7 @@ sub-value.
 
 \ttp{sizedArbitrary} returns a value inside the \ttp{IO} monad since it depends
 on a random seed for generation (we could pass in the generator seed, but for
-simplicity, we assume one is generated locally).  The constant \ttp{maxTries} is
+simplicity, we assume one is generated locally).  The constant \ttp{scMaxFailure} is
 the maximum number of tries to discover a new counterexample by replacing
 \ttp{v} in \ttp{cex} and testing it.  The result of \ttp{pass prop cex'} for
 %
@@ -762,7 +770,7 @@ reduce0 cex prop = reduce' 1
                    Nothing -> test' v idx
 
   test' v idx = do
-    vs <- newVals v
+    vs <- newVals v scMaxFailure
     case test cex idx vs prop of
       Nothing   -> reduce' (idx+1)
       Just cex' -> reduce0 cex' prop
@@ -895,7 +903,19 @@ Compare the following formula to the counterexample in Figure~\ref{fig:div-cex}:
 \noindent
 Here, the formula claims that for all well-typed values \ttp{x} and \ttp{y}, the
 property fails.  Not only does the generalization assist the programmer's
-insight, but it reduces the sheer size of the counterexample, and it can do so significantly.
+insight, but it reduces the sheer size of the counterexample, and it can do so
+significantly.  We call the kind of formula just shown \emph{universal sub-value
+  generalization} and is implemented in SmartCheck.
+
+An extrapolation algorithm performs universal sub-value generalization.  The
+basic idea is as follows: for a counterexample \ttp{cex} and a property
+\ttp{prop}, a breadth-first search over the sub-values of the \ttp{cex} is
+performed.  For each sub-value, the algorithm generates new sub-values, replaces
+them in \ttp{cex} to create a list of new potential counterexamples.  If enough
+new counterexamples non-trivially fails \ttp{prop} (i.e., does not just fail the
+precondition), and non satisfy \ttp{prop}, then we extrapolate, claiming that
+for \emph{any} new value replacing that sub-value in \ttp{cex}, the property
+will fail.
 
 \begin{figure}
   \begin{code}
@@ -907,62 +927,49 @@ extrapolate cex prop = extrapolate' 1 []
     case index cex idx of
       Nothing -> return idxs
       Just v  -> do
-        vs <- extrapVals v
+        vs <- newVals v scMaxSize scMaxSuccess
         if allFail cex idx vs prop
           then extrapolate' (idx+1) (idx:idxs)
           else extrapolate' (idx+1) idxs
-
-extrapVals :: SubVal -> IO [SubVal]
-extrapVals (SubVal a) =
-  sequence (replicate maxExtrap s)
-  where
-  s = unsizedArbitrary a >>= return . SubVal
 
 allFail :: SubTypes a
      => a -> Idx -> [SubVal]
      -> (a -> Property) -> Bool
 allFail cex idx vs prop =
-  (not (null res)) && and res
+  length res >= scMinExtrap && and res
   where
-  res  = catMaybes (map (fail prop) vals)
-  vals = map (replace cex idx) vs
+  res  = catMaybes (map go vs)
+  go   = fail prop . replace cex idx
   \end{code}
   \caption{Universal sub-value generation algorithm.}
   \label{fig:universal}
 \end{figure}
 
-We call the kind of formula just shown \emph{universal sub-value generalization}
-and is implemented in SmartCheck.  The algorithm is shown in
-Figure~\ref{fig:universal}.  The algorithm is similar to the reduction algorithm
-in Figure~\ref{fig:reduction} (and in the implementation, the algorithms are
-generalized and combined).  The function \ttp{extrapolate} takes a
-counterexample \ttp{cex} and a property.  It returns a list of indexes to be
-universally quantified.  This algorithm also performs a breadth-first search
-over the sub-values of the counterexample.  For each sub-value, the algorithm
-generates new sub-values, replaces them in \ttp{cex}, and tests them.  If every
-new counterexample non-trivially fails (i.e., does not just fail the
-precondition) the property \ttp{prop}, then we extrapolate, claiming that for
-\emph{any} new value replacing that sub-value in \ttp{cex}, the property will
-fail.
+The extrapolation algorithm is shown in Figure~\ref{fig:universal}.  The
+algorithm is similar to the reduction algorithm in Figure~\ref{fig:reduction},
+and in the implementation, the algorithms are generalized and combined.  The
+function \ttp{extrapolate} returns a list of indexes to be generalized in the
+original counterexample.  New sub-values are generated by \ttp{newVals}, shown
+in Figure~\ref{fig:reduction}.  Here, we bound the size of values to generate by
+the constant \ttp{scMaxSize}, which is independent of the size of the particular
+sub-value.
 
-The function \ttp{extrapVals} generates the new sub-values, much like
-\ttp{newVal} in the reduction algorithm.  Here, \ttp{maxExtrap} well-typed
-values are generated, and \ttp{unsizedArbitrary} is the analogue of
-\ttp{sizedArbitrary}, but does not limit the size of values generated.
-
-In the definition of \ttp{allFail},
+The function \ttp{allFail} takes a counterexample \ttp{cex}, an index into
+\ttp{cex}, a list of new sub-values, and a property.  It returns true if enough
+new values pass the property's precondition and fail the property.  The function
 %
 \begin{code}
 fail :: (a -> Property) -> a -> Maybe Bool
 \end{code}
 %
 \noindent
-is the roughly the dual of \ttp{pass} in the reduction algorithm: it returns
-\ttp{Just True} if a value satisfies the property and passes the property's
-precondition \ttp{pre}, \ttp{Just False} if the value fails the property, and
-\ttp{Nothing} if the value fails \ttp{pre}.
+is the roughly the dual of \ttp{pass} in the reduction algorithm: \ttp{fail prop
+  cex} returns \ttp{Just True} if \ttp{cex} passes \ttp{prop}'s precondition but
+fails the property; \ttp{Just False} if \ttp{cex} non-trivially satisfies
+\ttp{prop}, and \ttp{Nothing} if \ttp{cex} fails \ttp{prop}'s precondition.  The
+constant \ttp{scMinExtrap} is the minimum number of \ttp{Just False} results
+required from \ttp{fail} to extrapolate from failed tests to a universal claim.
 
-Thus, 
 
 
 \subsection{Existential Sub-Value Generalization}
@@ -972,10 +979,12 @@ Thus,
 \begin{figure}[ht!]
   \begin{center}
     \includegraphics[scale=0.5]{Figs/cex-gen}
-  \end{center}
+   \end{center}
   \caption{Counterexample generalization.}
   \label{fig:cex-gen}
 \end{figure}
+
+\todo{check all option names}
 
 \subsection{Generalization Details}
 

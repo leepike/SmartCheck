@@ -99,7 +99,7 @@ scStdArgs = ScArgs { format       = PrintTree
                    , scMaxFailure = 100
                    , scMaxSize    = 10
                    , scMaxDepth   = Nothing
-                   , scMinExtrap  = 0
+                   , scMinExtrap  = 10
                    }
 
 --------------------------------------------------------------------------------

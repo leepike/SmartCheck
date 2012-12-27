@@ -53,10 +53,11 @@ extrapolate args d origProp ds = do
                  (scMaxSize args) origProp
 
   -- Control-flow.
+
+  -- None of the tries satisfy prop (but something passed the precondition).
+  -- Prevent recurring down this tree, since we can generalize.
   next _ (i, FailedProp) forest' idx idxs
-    -- None of the tries satisfy prop (but something passed the precondition).
-    -- Prevent recurring down this tree, since we can generalize.
-    | scMinExtrap args <= i =
+    | scMinExtrap args < i =
         nextIter (forestReplaceChildren forest' idx False) idx (idx : idxs)
   next _ _ forest' idx idxs = nextIter forest' idx idxs
 

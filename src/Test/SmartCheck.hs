@@ -1,9 +1,9 @@
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE ScopedTypeVariables #-} 
+{-# LANGUAGE ScopedTypeVariables #-}
 
 -- | Interface module.
 
-module Test.SmartCheck 
+module Test.SmartCheck
   ( smartCheck
   , runQC
   , module Test.SmartCheck.Types
@@ -39,9 +39,9 @@ smartCheck args propT = do
     -- Run standard QuickCheck or read in value.
     res <- if qc args then runQC (qcArgs args) prop'
              else do smartPrtLn "Input value to SmartCheck:"
-                     getLine >>= return . read
-    case res of 
-      Nothing -> smartPrtLn "No value to smart-shrink; done." 
+                     fmap Just (readLn :: IO a)
+    case res of
+      Nothing -> smartPrtLn "No value to smart-shrink; done."
       Just r  -> go r
 
     where
@@ -58,17 +58,17 @@ smartCheck args propT = do
 
       -- If we asked to extrapolate constructors, do so.
       cs  <- if constrGen args
-               then     constrsGen args d prop (concat . maybeToList $ fmap fst vs) 
+               then     constrsGen args d prop (concat . maybeToList $ fmap fst vs)
                     >>= return . Just
                else return Nothing
 
       -- If either kind of extrapolation pass yielded fruit, prettyprint it.
-      if nonEmpty d vs cs 
+      if nonEmpty d vs cs
         then output d (repls vs cs)
         else smartPrtLn "Could not extrapolate a new value."
 
       -- Ask the user if she wants to try again.
-      putStrLn $ "Attempt to find a new counterexample?\n" 
+      putStrLn $ "Attempt to find a new counterexample?\n"
                    ++ "  ('Enter' to continue;"
                    ++ " any character then 'Enter' to quit.)"
       s <- getLine
@@ -92,7 +92,7 @@ smartCheck args propT = do
                    Nothing        -> False
         csIdxs = case cs of
                    Just idxs -> not $ null idxs
-                   Nothing   -> False 
+                   Nothing   -> False
 
 ---------------------------------------------------------------------------------
 
@@ -104,7 +104,7 @@ runQC args prop = do
   case res of
     -- XXX C'mon, QuickCheck, let me grab the result in a sane way rather than
     -- parsing a string!
-    Q.Failure _ _ _ _ _ _ out -> do let ms = (lines out) !! 1 
+    Q.Failure _ _ _ _ _ _ out -> do let ms = (lines out) !! 1
                                     let m = (read ms) :: a
                                     return $ Just m
     _ -> return Nothing
@@ -114,11 +114,11 @@ runQC args prop = do
 
 repls :: Maybe ([Idx], b) -> Maybe [Idx] -> Replace Idx
 repls vs cs = Replace v c
-  where 
-  v = case vs of 
+  where
+  v = case vs of
         Nothing        -> []
         Just (idxs, _) -> idxs
-  c = case cs of 
+  c = case cs of
         Nothing    -> []
         Just idxs  -> idxs
 

@@ -93,8 +93,7 @@ newVals (SubVal a) sz tries =
   s  =     sizedArbitrary sz a
        >>= return . SubVal
 
-test :: SubTypes a
-     => a -> Idx -> [SubVal]
+test :: SubTypes a => a -> Idx -> [SubVal]
      -> (a -> Property) -> Maybe a
 test cex idx vs prop = go vs
   where
@@ -140,18 +139,25 @@ reduce0 cex prop = reduce' 1
 
 --------------------------------------------------------------------------------
 
+subTree :: SubTypes a => a -> Idx -> Idx -> Bool
+subTree _ _ _ = undefined
+
 extrapolate :: SubTypes a
        => a -> (a -> Property) -> IO [Idx]
 extrapolate cex prop = extrapolate' 1 []
   where
-  extrapolate' idx idxs =
-    case index cex idx of
-      Nothing -> return idxs
-      Just v  -> do
-        vs <- newVals v scMaxSize scMaxSuccess
-        if allFail cex idx vs prop
-          then extrapolate' (idx+1) (idx:idxs)
-          else extrapolate' (idx+1) idxs
+  extrapolate' idx idxs
+    | or (map (subTree cex idx) idxs) =
+      extrapolate' (idx+1) idxs
+  extrapolate' idx idxs
+    | otherwise                       =
+      case index cex idx of
+        Nothing -> return idxs
+        Just v  -> do
+          vs <- newVals v scMaxSize scMaxSuccess
+          if allFail cex idx vs prop
+            then extrapolate' (idx+1) (idx:idxs)
+            else extrapolate' (idx+1) idxs
 
 allFail :: SubTypes a
      => a -> Idx -> [SubVal]

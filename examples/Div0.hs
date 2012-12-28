@@ -19,22 +19,22 @@ data Exp = C Int
          | Div Exp Exp
   deriving (Read, Show, Typeable, Generic)
 
-instance SubTypes Exp 
+instance SubTypes Exp
 
 eval :: Exp -> Maybe Int
 eval (C i) = Just i
 eval (Add e0 e1) =
   liftM2 (+) (eval e0) (eval e1)
-eval (Div e0 e1) = 
-  let e = eval e1 in 
-  if e == Just 0 then Nothing 
+eval (Div e0 e1) =
+  let e = eval e1 in
+  if e == Just 0 then Nothing
     else liftM2 div (eval e0) e
 
 instance Arbitrary Exp where
   arbitrary = sized mkM
     where
     mkM 0 = liftM C arbitrary
-    mkM n = oneof [ liftM2 Add mkM' mkM' 
+    mkM n = oneof [ liftM2 Add mkM' mkM'
                   , liftM2 Div mkM' mkM' ]
       where mkM' = mkM =<< choose (0,n-1)
 
@@ -44,9 +44,9 @@ instance Arbitrary Exp where
 
 -- property: so long as 0 isn't in the divisor, we won't try to divide by 0.
 -- It's false: something might evaluate to 0 still.
-div_prop :: Exp -> Property
-div_prop e = divSubTerms e ==> eval e /= Nothing
--- div_prop e = property $ case x of
+prop_div :: Exp -> Property
+prop_div e = divSubTerms e ==> eval e /= Nothing
+-- prop_div e = property $ case x of
 --                           Nothing -> True
 --                           Just True -> True
 --                           _       -> False
@@ -62,15 +62,15 @@ divSubTerms (Div e0 e1)   = divSubTerms e0 && divSubTerms e1
 -- div0 (A _ _) = property False
 -- div0 _       = property True
 
--- test_prop m = case eval m of
+-- prop_test m = case eval m of
 --                 Nothing -> True
 --                 Just i -> i < 5
-              
+
 
 divTest :: IO ()
-divTest = smartCheck args div_prop
-  where 
-  args = scStdArgs { qcArgs  = stdArgs 
+divTest = smartCheck args prop_div
+  where
+  args = scStdArgs { qcArgs  = stdArgs
                                 -- { maxSuccess = 1000
                                 -- , maxSize    = 20  }
                    , format  = PrintString

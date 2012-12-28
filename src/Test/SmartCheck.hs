@@ -19,6 +19,7 @@ import qualified Test.QuickCheck as Q
 
 import Data.Maybe
 import Generics.Deriving
+import Control.Monad (liftM)
 
 ---------------------------------------------------------------------------------
 
@@ -58,8 +59,8 @@ smartCheck args propT = do
 
       -- If we asked to extrapolate constructors, do so.
       cs  <- if constrGen args
-               then     constrsGen args d prop (concat . maybeToList $ fmap fst vs)
-                    >>= return . Just
+               then let vs' = concat . maybeToList $ fmap fst vs in
+                    liftM Just $ constrsGen args d prop vs'
                else return Nothing
 
       -- If either kind of extrapolation pass yielded fruit, prettyprint it.
@@ -72,9 +73,9 @@ smartCheck args propT = do
                    ++ "  ('Enter' to continue;"
                    ++ " any character then 'Enter' to quit.)"
       s <- getLine
-      if (s == "")
+      if s == ""
         -- If so, then loop, with the new prop.
-        then smartCheck' (propApp vs $ prop') (d : ds)
+        then smartCheck' (propApp vs prop') (d:ds)
         else smartPrtLn "Done."
 
       where
@@ -87,8 +88,8 @@ smartCheck args propT = do
       nonEmpty d vs cs = vsIdxs || csIdxs
         where
         vsIdxs = case vs of
-                   Just (idxs, _) ->    (not $ matchesShapes args d ds idxs)
-                                     && (not $ null idxs)
+                   Just (idxs, _) ->    not (matchesShapes args d ds idxs)
+                                     && not (null idxs)
                    Nothing        -> False
         csIdxs = case cs of
                    Just idxs -> not $ null idxs
@@ -104,8 +105,8 @@ runQC args prop = do
   case res of
     -- XXX C'mon, QuickCheck, let me grab the result in a sane way rather than
     -- parsing a string!
-    Q.Failure _ _ _ _ _ _ out -> do let ms = (lines out) !! 1
-                                    let m = (read ms) :: a
+    Q.Failure _ _ _ _ _ _ out -> do let ms = lines out !! 1
+                                    let m  = read ms :: a
                                     return $ Just m
     _ -> return Nothing
 
@@ -118,11 +119,9 @@ repls vs cs = Replace v c
   v = case vs of
         Nothing        -> []
         Just (idxs, _) -> idxs
-  c = case cs of
-        Nothing    -> []
-        Just idxs  -> idxs
+  c = fromMaybe [] cs
 
 propApp :: Maybe (b, PropRedux a) -> PropRedux a
-propApp vs = maybe id snd vs
+propApp = maybe id snd
 
 ---------------------------------------------------------------------------------

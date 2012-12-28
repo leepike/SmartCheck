@@ -119,7 +119,7 @@ getAtIdx d Idx { level = l, column = c } maxDepth
 --------------------------------------------------------------------------------
 
 tooDeep :: Int -> Maybe Int -> Bool
-tooDeep l = maybe False ((>) l)
+tooDeep l = maybe False (l >)
 
 --------------------------------------------------------------------------------
 
@@ -142,25 +142,25 @@ sub :: SubStrat -> Forest a -> Idx -> a -> Forest a
 sub strat forest (Idx (0 :: Int) n) a =
   snd $ mapAccumL f 0 forest
   where
-  f i node | i == n = ( i+1, news )
-           | True   = ( i+1, node )
+  f i node | i == n    = ( i+1, news )
+           | otherwise = ( i+1, node )
 
     where
     news = case strat of
              Parent   -> Node a []
-             Children -> fmap (\_ -> a) (forest !! n)
+             Children -> fmap (const a) (forest !! n)
 
 sub strat forest idx a =
   snd $ mapAccumL findTree (column idx) forest
   where
   l = level idx - 1
   -- Invariant: not at the right level yet.
-  findTree n t =
-    if n < 0 -- Already found index
-      then (n, t)
-      else if n < len -- Big enough to index, so we climb down this one.
-             then (n-len, newTree)
-             else (n-len, t)
+  findTree n t
+    -- Already found index
+    | n < 0     = (n, t)
+    -- Big enough to index, so we climb down this one.
+    | n < len   = (n-len, newTree)
+    | otherwise = (n-len, t)
     where
     len = levelLength l t
     newTree = Node newRootLabel (sub strat (subForest t) (Idx l n) a)

@@ -50,9 +50,9 @@ renderWithVars format d idxs = do
     unless (constrsLen == 0) $ putStrLn "  there exist arguments x̅ s.t."
 
   prtVars kind len vs =
-    when (len > 0) $
-         (putStrLn $ "forall " ++ kind ++ " "
-      ++ unwords (take len vs) ++ ":")
+    when (len > 0)
+         (   putStrLn $ "forall " ++ kind ++ " "
+          ++ unwords (take len vs) ++ ":")
 
   vars str   = map (\(x,i) -> x ++ show i) (zip (repeat str) [0::Integer ..])
   valVars    = vars "x"
@@ -117,7 +117,7 @@ replaceWithVars format d idxs vars =
 stitchTree :: Tree String -> String
 stitchTree = stitch
   where
-  stitch (Node str forest) = str ++ " " ++ (unwords $ map stitchTree' forest)
+  stitch (Node str forest) = str ++ " " ++ unwords (map stitchTree' forest)
 
   stitchTree' (Node str []) = if isJust $ find isSpace str
                                 then '(' : str ++ ")"

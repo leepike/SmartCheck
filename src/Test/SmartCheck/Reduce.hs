@@ -15,6 +15,8 @@ import Data.Typeable
 import Data.Tree
 import Data.Maybe
 
+import Control.Monad (liftM)
+
 --------------------------------------------------------------------------------
 
 -- Smarter than shrinks.  Does substitution.  m is a value that failed QC that's
@@ -36,8 +38,7 @@ smartRun args res prop = do
 -- children.  We replace d whenever a successful shrink is found and try again.
 smartShrink :: forall a. SubTypes a => ScArgs -> a -> (a -> Q.Property) -> IO a
 smartShrink args d prop =
-  iter' d (mkForest d) (Idx 0 0) >>= return . fst
-
+  liftM fst $ iter' d (mkForest d) (Idx 0 0)
   where
   mkForest x = mkSubstForest x True
   notProp = Q.expectFailure . prop
@@ -118,7 +119,7 @@ resultToMaybe res =
 -- Note that if we have subValSize d idx == 0, then it is impossible to construct a
 -- *structurally* smaller value at hole idx.
 subValSize :: SubTypes a => a -> Idx -> Int
-subValSize d idx = maybe 0 id (fmap depth forestIdx)
+subValSize d idx = maybe 0 depth forestIdx
   where
   forestIdx :: Maybe [Tree Bool]
   forestIdx = fmap subForest $ getIdxForest (mkSubstForest d True) idx

@@ -43,7 +43,7 @@ extrapolate args d origProp ds = do
   forest = mkSubstForest d True
   iter'  = iter d test next origProp (scMaxDepth args)
   prop idxs newProp a =
-    (not $ matchesShapes args a (d : ds) idxs) Q.==> newProp a
+    not (matchesShapes args a (d : ds) idxs) Q.==> newProp a
 
   -- In this call to iterateArb, we want to claim we can extrapolate iff at
   -- least one test passes a precondition, and for every test in which the
@@ -61,7 +61,7 @@ extrapolate args d origProp ds = do
         nextIter (forestReplaceChildren forest' idx False) idx (idx : idxs)
   next _ _ forest' idx idxs = nextIter forest' idx idxs
 
-  nextIter f idx s = iter' f idx { column = column idx + 1 } s
+  nextIter f idx = iter' f idx { column = column idx + 1 }
 
 --------------------------------------------------------------------------------
 
@@ -82,7 +82,7 @@ matchesShape args a b idxs = test (subT a, subT b) && repIdxs
   where
   repIdxs = case foldl' f (Just b) idxs of
               Nothing -> False
-              Just b' -> and . map test $ zip (nextLevel a) (nextLevel b')
+              Just b' -> all test $ zip (nextLevel a) (nextLevel b')
 
   f mb idx = do
     b' <- mb

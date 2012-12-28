@@ -13,6 +13,7 @@ import Prelude hiding (max)
 import Generics.Deriving
 import qualified Data.Set as S
 import Data.List
+import Control.Monad (liftM)
 
 import qualified Test.QuickCheck as Q
 
@@ -39,7 +40,7 @@ constrsGen args d prop vs = do
 
   -- Check if this has been generalized already during extrapolating values.
   test x idx = do res <- extrapolateConstrs args x idx prop
-                  return $ (not $ idx `elem` vs) && res
+                  return $ idx `notElem` vs && res
 
   -- Control-flow.
   next _ res forest' idx idxs =
@@ -56,23 +57,21 @@ extrapolateConstrs :: (SubTypes a, Generic a, ConNames (Rep a))
   => ScArgs -> a -> Idx -> (a -> Q.Property) -> IO Bool
 extrapolateConstrs args a idx prop =
   recConstrs (S.singleton $ subConstr a idx (scMaxDepth args))
-
   where
   notProp = Q.expectFailure . prop
+  allConstrs = S.fromList (conNames a)
 
   recConstrs :: S.Set String -> IO Bool
   recConstrs constrs =
-    -- Check if every possible constructor is an element of constrs passed
-    -- in.
-    if S.fromList (conNames a) `S.isSubsetOf` constrs
+    let newConstr x = subConstr x idx (scMaxDepth args) `S.insert` constrs in
+    -- Check if every possible constructor is an element of constrs passed in.
+    if allConstrs `S.isSubsetOf` constrs
       then return True
       else do v <- arbSubset args a idx notProp constrs
               case v of
                 Result x      -> recConstrs (newConstr x)
                 FailedPreCond -> return False
                 FailedProp    -> return False
-      where
-        newConstr x = subConstr x idx (scMaxDepth args) `S.insert` constrs
 
 --------------------------------------------------------------------------------
 
@@ -85,10 +84,8 @@ arbSubset :: (SubTypes a, Generic a, ConNames (Rep a))
           => ScArgs -> a -> Idx -> (a -> Q.Property)
           -> S.Set String -> IO (Result a)
 arbSubset args a idx prop constrs =
-      iterateArbIdx a (idx, scMaxDepth args)
-                      (scMaxSuccess args) (scMaxSize args) prop'
-  >>= return . snd
-
+  liftM snd $ iterateArbIdx a (idx, scMaxDepth args)
+                (scMaxSuccess args) (scMaxSize args) prop'
   where
   prop' b = newConstr b Q.==> prop b
   -- Make sure b's constructor is a new one.
@@ -96,6 +93,7 @@ arbSubset args a idx prop constrs =
 
 --------------------------------------------------------------------------------
 
+-- | Get the constructor at an index in x.
 subConstr :: SubTypes a => a -> Idx -> Maybe Int -> String
 subConstr x idx max =
   case getAtIdx x idx max of

@@ -494,28 +494,25 @@ QuickCheck's \ttp{Arbitrary} class is a super-class.\footnote{This presentation
 type Idx = Int
 type Size = Int
 
+data SubVal =
+  forall a. SubTypes a => SubVal a
+
 class Arbitrary a => SubTypes a where
   size    :: a -> Size
   index   :: a -> Idx -> Maybe SubVal
   replace :: a -> Idx -> SubVal -> a
+  constr  :: a -> String
+  constrs :: a -> [String]
 \end{code}
 %
 \noindent
-\ttp{SubTypes} has three methods.  The \ttp{size} method returns the size of a
-value, \ttp{index} returns a sub-value at an breadth-first index in a value, and
-\ttp{replace} replaces a sub-value at a particular focus.  If the index is
-out-of-bounds (too large or negative), \ttp{index} return \ttp{Nothing}.  The
-method \ttp{replace} returns the original value for an out-of-bounds index or an
-incorrectly-typed replacement value.  The \ttp{SubVal} type is an existential
-data type, used as a generic container for sub-values from a counterexample.
-%
-\begin{code}
-data SubVal =
-  forall a. SubTypes a => SubVal a
-\end{code}
-%
-\noindent
-For example, consider a binary tree type
+\ttp{SubTypes} has five methods.  The \ttp{size} method returns the size of a
+value, \ttp{index} returns a sub-value at an breadth-first index in a value,
+\ttp{replace} replaces a sub-value at a particular focus, \ttp{constr} returns
+the constructor tagging the value, and \ttp{constrs} returns a list of unique
+identifiers for the constructors associated with each variant of the type.
+
+For example, consider a binary tree type:
 %
 \begin{code}
 data Tree = L | B Tree Tree
@@ -531,32 +528,60 @@ tree = B\sub{0} (B\sub{1} L\sub{3}
 \end{code}
 %
 \noindent
-Here are example applications of \ttp{SubTypes}; in the following, we show
-the indexes with respect to the \ttp{tree} value:
+Here are example applications of \ttp{SubTypes} methods; in the following, we
+show the indexes with respect to the \ttp{tree} value:
 %
 \begin{code}
 size tree = 9
 
 index tree 4 = (Just . SubVal) (B\sub{4} L\sub{6} L\sub{8})
-
 index tree 12 = Nothing
 
 replace tree 2 (SubVal L) =
   B\sub{0} (B\sub{1} L\sub{3}
         (B\sub{4} L\sub{6} L\sub{8}))
      L
+
+constr  tree = ["B"]
+constrs tree = ["B", "L"]
+constrs L    = ["B", "L"]
 \end{code}
 %
 \noindent
-We will sometimes refer to unwrapped value returned by \ttp{index a i} as the
-\emph{$i$th sub-value of $a$}, so for example, \ttp{B\sub{4} L\sub{6} L\sub{8}}
-is the 4th sub-value of \ttp{tree}.
+We will sometimes refer to the unwrapped value returned by \ttp{index a i} as
+the \emph{$i$th sub-value of $a$}, so for example, \ttp{B\sub{4} L\sub{6}
+  L\sub{8}} is the 4th sub-value of \ttp{tree}.  An invariant of \ttp{index} is
+that for any value \ttp{a}, consider the least $i \geq 0$ such that \ttp{index a
+  i == Nothing}.  For all $0 \leq j < i$, \ttp{index a j /= Nothing}.  We use
+this invariant as a termination case in recursive algorithms over the sub-values
+of a value.
+
+The method \ttp{replace} returns the original value for an out-of-bounds index
+or an incorrectly-typed replacement value.  The \ttp{SubVal} type is an
+existential data type, used as a generic container for sub-values from a
+counterexample.
+
+Finally, while \ttp{constr} returns a string representation of the constructor
+associated with the specific variant passed to it, \ttp{constrs} ignores the
+value and returns the same list of constructors for any value from the type.
+(In our implementation, \ttp{constrs} depends on GHC Generics~\cite{generics},
+which we describe in Section~\ref{sec:implementation}.  For simplicity, we omit
+here Generics-specific super-class constraints on the \ttp{SubTypes} class.)
 
 \begin{figure}[ht]
   \lstset{caption={}
 %         ,xleftmargin=5ex,firstnumber=0,numbers=left
          }
   \begin{code}
+getSize :: SubVal -> Size
+getSize (SubVal a) = size a
+
+newVals :: SubVal -> Size -> Int -> IO [SubVal]
+newVals (SubVal a) sz tries =
+  replicateM tries s
+  where
+  s  = liftM SubVal (sizedArbitrary sz a)
+
 reduce :: SubTypes a
        => a -> (a -> Property) -> IO a
 reduce cex prop = reduce' 1
@@ -565,20 +590,10 @@ reduce cex prop = reduce' 1
     case index cex idx of
       Nothing -> return cex
       Just v  -> do
-        vs <- newVals v (getSize v) scMaxFailure
+        vs <- newVals v (getSize v) scMaxReduce
         case test cex idx vs prop of
           Nothing   -> reduce' (idx+1)
           Just cex' -> reduce cex' prop
-
-getSize :: SubVal -> Size
-getSize (SubVal a) = size a
-
-newVals :: SubVal -> Size -> Int -> IO [SubVal]
-newVals (SubVal a) sz tries =
-  sequence (replicate tries s)
-  where
-  s  =     sizedArbitrary sz a
-       >>= return . SubVal
 
 test :: SubTypes a => a -> Idx -> [SubVal]
      -> (a -> Property) -> Maybe a
@@ -613,9 +628,11 @@ QuickCheck's \ttp{arbitrary} method, \ttp{sizedArbitrary} generates successfully
 larger counterexamples when generating new values with which to replace a
 sub-value.
 
+\todo{explain getSize}
+
 \ttp{sizedArbitrary} returns a value inside the \ttp{IO} monad since it depends
 on a random seed for generation (we could pass in the generator seed, but for
-simplicity, we assume one is generated locally).  The constant \ttp{scMaxFailure} is
+simplicity, we assume one is generated locally).  The constant \ttp{scMaxReduce} is
 the maximum number of tries to discover a new counterexample by replacing
 \ttp{v} in \ttp{cex} and testing it.  The result of \ttp{pass prop cex'} for
 %
@@ -771,7 +788,7 @@ reduce0 cex prop = reduce' 1
                    Nothing -> test' v idx
 
   test' v idx = do
-    vs <- newVals v scMaxFailure
+    vs <- newVals v (getSize v) scMaxReduce
     case test cex idx vs prop of
       Nothing   -> reduce' (idx+1)
       Just cex' -> reduce0 cex' prop
@@ -824,23 +841,21 @@ behavior.  Three flags that are relevant to the reduction algorithm are the
 following:
 %
 \begin{code}
-scMaxFailure :: Int
-scMaxSize    :: Int
-scMaxDepth   :: Maybe Int
+scMaxReduce :: Int
+scMaxSize   :: Int
+scMaxDepth  :: Maybe Int
 \end{code}
 %
 \noindent
-The ``\ttp{sc}'' prefix stands for \emph{S}mart\emph{C}heck and is used to
-prevent name clashes with QuickCheck's flags.  \ttp{scMaxFailure} controls the
-number of values generated by the reduction algorithm for each sub-value
-analyzed.  \ttp{scMaxSize} controls the maximum size of values generated to
-replace sub-values by the reduction algorithm.  Thus, new sub-values must be
-strictly smaller than the minimum of \ttp{scMaxSize} and the size of the
-sub-value being replaced.  (The size of the value is with respect to the
-\ttp{size} method in the \ttp{SubTypes} class.)  Finally, \ttp{scMaxDepth}
-determines the maximum depth in the counterexample the reduction algorithm
-should analyze.  A value of \ttp{Nothing} means that the counterexample should
-be exhaustively reduced, as the algorithm is presented in
+The \ttp{scMaxReduce} flag controls the number of values generated by the
+reduction algorithm for each sub-value analyzed.  \ttp{scMaxSize} controls the
+maximum size of values generated to replace sub-values by the reduction
+algorithm.  Thus, new sub-values must be strictly smaller than the minimum of
+\ttp{scMaxSize} and the size of the sub-value being replaced.  (The size of the
+value is with respect to the \ttp{size} method in the \ttp{SubTypes} class.)
+Finally, \ttp{scMaxDepth} determines the maximum depth in the counterexample the
+reduction algorithm should analyze.  A value of \ttp{Nothing} means that the
+counterexample should be exhaustively reduced, as the algorithm is presented in
 Figure~\ref{fig:reduction}.  For example, the depth of a list is determined by
 its length and the depth of the binary tree defined in Section~\ref{sec:reduct}
 is determined by the function \ttp{depth}:
@@ -920,30 +935,32 @@ will fail.
 
 \begin{figure}
   \begin{code}
+subTrees :: SubTypes a => a -> Idx -> [Idx] -> Bool
+subTrees cex idx = any (subTree cex idx)
+
 extrapolate :: SubTypes a
-       => a -> (a -> Property) -> IO [Idx]
+            => a -> (a -> Property) -> IO [Idx]
 extrapolate cex prop = extrapolate' 1 []
   where
   extrapolate' idx idxs
-    | or (map (subTree cex idx) idxs) =
-      extrapolate' (idx+1) idxs
-  extrapolate' idx idxs
-    | otherwise                       =
-      case index cex idx of
-        Nothing -> return idxs
-        Just v  -> do
-          vs <- newVals v scMaxSize scMaxSuccess
-          if allFail cex idx vs prop
-            then extrapolate' (idx+1) (idx:idxs)
-            else extrapolate' (idx+1) idxs
+    | subTrees cex idx idxs
+    = extrapolate' (idx+1) idxs
+  extrapolate' idx idxs =
+    case index cex idx of
+      Nothing -> return idxs
+      Just v  -> do
+        vs <- newVals v scMaxSize scMaxExtrap
+        extrapolate' (idx+1)
+          (if allFail cex idx vs prop
+             then idx:idxs else idxs)
 
 allFail :: SubTypes a
-     => a -> Idx -> [SubVal]
-     -> (a -> Property) -> Bool
+        => a -> Idx -> [SubVal]
+        -> (a -> Property) -> Bool
 allFail cex idx vs prop =
   length res >= scMinExtrap && and res
   where
-  res  = catMaybes (map go vs)
+  res  = mapMaybe go vs
   go   = fail prop . replace cex idx
   \end{code}
   \caption{Universal sub-value generation algorithm.}
@@ -1046,6 +1063,59 @@ forall values x .
 \end{code}
 %
 
+\begin{figure}
+  \begin{code}
+subConstr :: SubVal -> String
+subConstr (SubVal a) = constr a
+
+subConstrs :: SubVal -> [String]
+subConstrs (SubVal a) = constrs a
+
+sumTest :: SubTypes a
+          => a -> (a -> Property) -> [Idx] -> IO [Idx]
+sumTest cex prop exIdxs = sumTest' 1 []
+  where
+  sumTest' idx idxs
+    | subTrees cex idx (exIdxs ++ idxs)
+    = sumTest' (idx+1) idxs
+  sumTest' idx idxs =
+    case index cex idx of
+      Nothing -> return idxs
+      Just v  -> do
+        vs <- newVals v scMaxSize scConstrMax
+        sumTest' (idx+1)
+          (if constrFail cex idx vs prop
+                (subConstr v) (subConstrs v)
+             then idx:idxs else idxs)
+
+constrFail :: SubTypes a => a -> Idx -> [SubVal]
+  -> (a -> Property) -> String -> [String] -> Bool
+constrFail cex idx vs prop con allCons =
+  constrFail' [con] vs
+  where
+  constrFail' cons vs'
+    | length cons == length allCons
+    = True
+    | null vs'
+    = False
+    | go v == Just True
+    = constrFail' cs (tail vs')
+    | otherwise
+    = constrFail' cons (tail vs')
+
+    where
+    v  = head vs'
+    c' = subConstr v
+    cs = if c' `elem` allCons
+           then cons else c':cons
+
+  go = fail prop . replace cex idx
+  \end{code}
+  \caption{Universal sub-value generation algorithm.}
+  \label{fig:constrs}
+\end{figure}
+
+The algorithm 
 
 
 
@@ -1066,15 +1136,17 @@ forall values x .
 
 \todo{flags, optimizations}
 
-\section{Implementation}
+\section{Implementation}\label{sec:implementation}
 
 \todo{generics}
 
 \todo{GADTs? don't work}
+\todo{add lazy testing---proof value is unused}
 
 \section{Experiments}
 
 \todo{xmonad}
+\todo{use SC to test itself?}
 
 %-------------------------------------------------------------------------------
 
@@ -1091,6 +1163,8 @@ forall values x .
 \section{Conclusions}
 \label{sec:conclusions}
 
+
+\todo{future work: higher-kinded data, functions}
 
 \section*{Acknowledgements}
 \todo{Thank Rehger for comments/pointing to paper.}

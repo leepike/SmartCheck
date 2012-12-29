@@ -49,7 +49,7 @@ extrapolate args d origProp ds = do
   -- least one test passes a precondition, and for every test in which the
   -- precondition is passed, it fails.  We test values of all possible sizes, up
   -- to Q.maxSize.
-  test _ idx = iterateArbIdx d (idx, scMaxDepth args) (scMaxSuccess args)
+  test _ idx = iterateArbIdx d (idx, scMaxDepth args) (scMaxExtrap args)
                  (scMaxSize args) origProp
 
   -- Control-flow.

@@ -75,7 +75,7 @@ smartShrink args d prop =
       Just v  -> do
         hole <- testHole v
         if isJust hole then return hole
-          else do (_, r) <- iterateArb x v idx (scMaxFailure args)
+          else do (_, r) <- iterateArb x v idx (scMaxReduce args)
                               -- Maximum size of values to generate; the minimum
                               -- of the value at the current index and the
                               -- maxSize parameter.

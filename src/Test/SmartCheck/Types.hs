@@ -58,18 +58,6 @@ data ScArgs =
                                      --   you are expected to pass in data to
                                      --   analyze.)
                                      --------------
-         , extrap       :: Bool      -- ^ Should we extrapolate?
-                                     --------------
-         , constrGen    :: Bool      -- ^ Should we try to generalize
-                                     --   constructors?
-                                     --------------
-         , scMaxSuccess :: Int       -- ^ How hard (number of rounds) to look
-                                     --   for failures during the extrapolation
-                                     --   and constructor generalization stages.
-                                     --------------
-         , scMaxFailure :: Int       -- ^ How hard (number of rounds) to look
-                                     --   for failure in the reduction stage.
-                                     --------------
          , scMaxSize    :: Int       -- ^ Maximum size of data to generate, in
                                      --   terms of the size parameter of
                                      --   QuickCheck's Arbitrary instance for
@@ -81,25 +69,47 @@ data ScArgs =
                                      --   Nothing means we go down to base
                                      --   types.
                                      --------------
+         -- Reduction
+         , scMaxReduce  :: Int       -- ^ How hard (number of rounds) to look
+                                     --   for failure in the reduction stage.
+                                     --------------
+         -- Extrapolation
+         , extrap       :: Bool      -- ^ Should we extrapolate?
+                                     --------------
+         , scMaxExtrap  :: Int       -- ^ How hard (number of rounds) to look
+                                     --   for failures during the extrapolation
+                                     --   and constructor generalization stages.
+                                     --------------
          , scMinExtrap  :: Int       -- ^ Minimum number of times a property's
                                      -- precondition must be passed to
                                      -- generalize it.
+                                     --------------
+         -- Constructor generalization
+         , constrGen    :: Bool      -- ^ Should we try to generalize
+                                     --   constructors?
+                                     --------------
+         , scConstrMax    :: Int     -- ^ How hard (number of rounds) to look
+                                     -- for failing values with each
+                                     -- constructor.  For "wide" sum types, this
+                                     -- value should be increased.
                                      --------------
          } deriving (Show, Read)
 
 scStdArgs :: ScArgs
 scStdArgs = ScArgs { format       = PrintTree
                    , qcArgs       = Q.stdArgs
-                   --------------
                    , qc           = True
-                   , extrap       = True
-                   , constrGen    = True
-                   --------------
-                   , scMaxSuccess = 100
-                   , scMaxFailure = 100
                    , scMaxSize    = 10
                    , scMaxDepth   = Nothing
+                   ---------------------
+                   , scMaxReduce  = 100
+                   ---------------------
+                   , extrap       = True
+                   , scMaxExtrap  = 100
                    , scMinExtrap  = 10
+                   ---------------------
+                   , constrGen    = True
+                   , scConstrMax  = 100
                    }
 
 --------------------------------------------------------------------------------

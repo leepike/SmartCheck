@@ -8,7 +8,7 @@ module Paper where
 import Prelude hiding (fail)
 import Data.Maybe (mapMaybe)
 import Control.Monad (liftM, replicateM)
-import qualified Test.QuickCheck as Q
+import Test.QuickCheck
 
 --------------------------------------------------------------------------------
 
@@ -20,7 +20,7 @@ data Format = PrintTree | PrintString
 -- SmartCheck arguments
 format       :: Format    -- ^ How to show extrapolated formula
 format       = undefined
-qcArgs       :: Q.Args    -- ^ QuickCheck arguments
+qcArgs       :: Args    -- ^ QuickCheck arguments
 qcArgs       = undefined
 qc           :: Bool      -- ^ Should we run QuickCheck?  (If not, you are
                           -- expected to pass in data to analyze.)
@@ -57,14 +57,14 @@ scConstrMax  = undefined
 
 -- Types
 
-data Property
+-- data Property
 
 data SubVal = forall a. SubTypes a => SubVal a
 
 type Size = Int
 type Idx = Int
 
-class Q.Arbitrary a => SubTypes a where
+class Arbitrary a => SubTypes a where
   size    :: a -> Size
   index   :: a -> Idx -> Maybe SubVal
   replace :: a -> Idx -> SubVal -> a
@@ -163,14 +163,14 @@ extrapolate cex prop = extrapolate' 1 []
   extrapolate' idx idxs
     | subTrees cex idx idxs
     = extrapolate' (idx+1) idxs
-  extrapolate' idx idxs =
-    case index cex idx of
-      Nothing -> return idxs
-      Just v  -> do
-        vs <- newVals v scMaxSize scMaxExtrap
-        extrapolate' (idx+1)
-          (if allFail cex idx vs prop
-             then idx:idxs else idxs)
+    | otherwise
+    = case index cex idx of
+        Nothing -> return idxs
+        Just v  -> do
+          vs <- newVals v scMaxSize scMaxExtrap
+          extrapolate' (idx+1)
+            (if allFail cex idx vs prop
+               then idx:idxs else idxs)
 
 allFail :: SubTypes a
         => a -> Idx -> [SubVal]
@@ -196,15 +196,15 @@ sumTest cex prop exIdxs = sumTest' 1 []
   sumTest' idx idxs
     | subTrees cex idx (exIdxs ++ idxs)
     = sumTest' (idx+1) idxs
-  sumTest' idx idxs =
-    case index cex idx of
-      Nothing -> return idxs
-      Just v  -> do
-        vs <- newVals v scMaxSize scConstrMax
-        sumTest' (idx+1)
-          (if constrFail cex idx vs prop
-                (subConstr v) (subConstrs v)
-             then idx:idxs else idxs)
+    | otherwise
+    = case index cex idx of
+        Nothing -> return idxs
+        Just v  -> do
+          vs <- newVals v scMaxSize scConstrMax
+          sumTest' (idx+1)
+            (if constrFail cex idx vs prop
+                  (subConstr v) (subConstrs v)
+               then idx:idxs else idxs)
 
 constrFail :: SubTypes a => a -> Idx -> [SubVal]
   -> (a -> Property) -> String -> [String] -> Bool
@@ -217,16 +217,14 @@ constrFail cex idx vs prop con allCons =
     | null vs'
     = False
     | go v == Just True
-    = constrFail' cs (tail vs')
+    = constrFail' (c:cons) (tail vs')
     | otherwise
     = constrFail' cons (tail vs')
 
     where
     v  = head vs'
-    c' = subConstr v
-    cs = if c' `elem` allCons
-           then cons else c':cons
-
-  go = fail prop . replace cex idx
+    c  = subConstr v
+    go = fail prop' . replace cex idx
+    prop' a = c `notElem` cons ==> prop a
 
 --------------------------------------------------------------------------------

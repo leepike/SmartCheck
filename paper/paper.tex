@@ -466,6 +466,9 @@ presented in Section~\ref{sec:conclusions}.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Preliminaries}\label{sec:preliminaries}
 
+
+\todo{make clear that preconditions shouldn't be considered logical preconditions}
+
 To present the algorithms in the following sections, we provide some definitions
 here.  Our presentation simplifies the implementation
 (Section~\ref{sec:implementation}) somewhat to improve the presentation.
@@ -1021,7 +1024,35 @@ fails the property; \ttp{Just False} if \ttp{cex} non-trivially satisfies
 constant \ttp{scMinExtrap} is the minimum number of \ttp{Just False} results
 required from \ttp{fail} to extrapolate from failed tests to a universal claim.
 
-\todo{Add discussion here}
+\todo{Add discussion here, note may be overapprox, since testing}
+
+\subsection{Automated Precondition Strengthening}
+
+The extrapolation algorithm generalizes a counterexample, but in the
+``neighborhood'' of he original counterexample.  In particular, all
+generalizations are from the same variant as the original counterexample.  To
+help the programmer in the generalization step, we would also like a way to test
+the property again, ensuring we get counterexamples (if they exist) outside of
+the neighborhood of the original one.
+
+\begin{figure}[ht!]
+  \begin{center}
+    \includegraphics[scale=0.5]{Figs/cex-gen}
+   \end{center}
+  \caption{Counterexample generalization.}
+  \label{fig:cex-gen}
+\end{figure}
+
+Figure~\ref{fig:cex-gen} illustrates the situation in which we have some values
+and a property in the case that some values fail the property of the form
+(\ttp{pre ==> prop}).  Our goal is to find additional counterexamples in the
+shaded region, in which \ttp{pre} is satisfied, \ttp{prop} is not satisfied, and
+the counterexample is not already characterized by a universal sub-value
+generalization formula.
+
+\todo{talk about matches shape algorithm, real-eval-print}
+
+
 
 \subsection{Existential Sub-Value Generalization}
 
@@ -1160,19 +1191,6 @@ current constructor is not an element of constructors already seen.  Thus,
 \ttp{go v} returns \ttp{Just True} if \ttp{replace cex idx v} passes this
 precondition (and any other preconditions of \ttp{prop}), but fails the
 property.
-
-
-\subsection{Automated Invariant Strengthening}
-
-\begin{figure}[ht!]
-  \begin{center}
-    \includegraphics[scale=0.5]{Figs/cex-gen}
-   \end{center}
-  \caption{Counterexample generalization.}
-  \label{fig:cex-gen}
-\end{figure}
-
-\todo{check all option names}
 
 \subsection{Generalization Details}
 

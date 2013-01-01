@@ -65,11 +65,12 @@ type Size = Int
 type Idx = Int
 
 class Arbitrary a => SubTypes a where
-  size    :: a -> Size
-  index   :: a -> Idx -> Maybe SubVal
-  replace :: a -> Idx -> SubVal -> a
-  constr  :: a -> String
-  constrs :: a -> [String]
+  size     :: a -> Size
+  index    :: a -> Idx -> Maybe SubVal
+  replace  :: a -> Idx -> SubVal -> a
+  constr   :: a -> String
+  constrs  :: a -> [String]
+  baseType :: a -> Bool
 
 --------------------------------------------------------------------------------
 
@@ -228,3 +229,25 @@ constrFail cex idx vs prop con allCons =
     prop' a = c `notElem` cons ==> prop a
 
 --------------------------------------------------------------------------------
+
+-- matchesShapes :: SubTypes a => ScArgs -> a -> [a] -> [Idx] -> Bool
+-- matchesShapes args d ds idxs = foldl' f False ds
+--   where
+--   f True _   = True
+--   f False d' = matchesShape args d d' idxs
+
+matchesShape :: SubTypes a => a -> a -> [Idx] -> Bool
+matchesShape args a b idxs = test (subT a, subT b) && repIdxs
+  where
+  repIdxs = case foldl' f (Just b) idxs of
+              Nothing -> False
+              Just b' -> all test $ zip (nextLevel a) (nextLevel b')
+
+  f mb idx = do
+    b' <- mb
+    v  <- getAtIdx a idx (scMaxDepth args)
+    replace b' idx v
+
+  nextLevel x = map rootLabel (subTypes x)
+
+  test (SubT x, SubT y)  = baseType x || toConstr x == toConstr y

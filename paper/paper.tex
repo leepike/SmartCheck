@@ -480,22 +480,30 @@ type Size   = Int
 data SubVal = forall a. SubTypes a => SubVal a
 
 class Arbitrary a => SubTypes a where
-  size    :: a -> Size
-  index   :: a -> Idx -> Maybe SubVal
-  replace :: a -> Idx -> SubVal -> a
-  constr  :: a -> String
-  constrs :: a -> [String]
+  size     :: a -> Size
+  index    :: a -> Idx -> Maybe SubVal
+  replace  :: a -> Idx -> SubVal -> a
+  constr   :: a -> String
+  constrs  :: a -> [String]
+  baseType :: a -> Bool
 \end{code}
 %
 \noindent
 The \ttp{SubTypes} type class requires QuickCheck's \ttp{Arbitrary} as a
-super-class.  \ttp{SubTypes} has five methods.  The \ttp{size} method returns
-the size of a value, \ttp{index} returns a sub-value at an breadth-first index
-in a value, \ttp{replace} replaces a sub-value at a particular focus,
-\ttp{constr} returns the constructor tagging the value, and \ttp{constrs}
-returns a list of unique identifiers for the constructors associated with each
-variant of the type.
+super-class.  \ttp{SubTypes} has the following methods:
+\begin{itemize}
+\item \ttp{size} returns the size of a value,
+\item \ttp{index} returns a sub-value at an breadth-first index in a value,
+\item \ttp{replace} replaces a sub-value at a particular focus,
+\item \ttp{constr} returns the constructor tagging the value,
+\item \ttp{constrs} returns a list of unique identifiers for the constructors
+  associated with each variant of the type,
+\item \ttp{baseType} returns whether the type of the value is an ``interesting
+  type'', which generally means it has structure (e.g., a sum or product type).
+  We discuss the purpose of base types in Section~\ref{sec:base}.
+\end{itemize}
 
+\noindent
 For example, consider a binary tree type:
 %
 \begin{code}
@@ -529,6 +537,9 @@ replace tree 2 (SubVal L) =
 constr  tree = ["B"]
 constrs tree = ["B", "L"]
 constrs L    = ["B", "L"]
+
+baseType (3 :: Int) = True
+baseType L          = False
 \end{code}
 %
 \noindent
@@ -545,12 +556,15 @@ or an incorrectly-typed replacement value.  The \ttp{SubVal} type is an
 existential data type, used as a generic container for sub-values from a
 counterexample.
 
-Finally, while \ttp{constr} returns a string representation of the constructor
+While \ttp{constr} returns a string representation of the constructor
 associated with the specific variant passed to it, \ttp{constrs} ignores the
 value and returns the same list of constructors for any value from the type.
 (In our implementation, \ttp{constrs} depends on GHC Generics~\cite{generics},
 which we describe in Section~\ref{sec:implementation}.  For simplicity, we omit
 here Generics-specific super-class constraints on the \ttp{SubTypes} class.)
+
+Finally, \ttp{baseType} is true for our tree type but false for a structureless
+type, such as \ttp{Int}.
 
 % ------------------------------------------------------------------------------
 
@@ -834,7 +848,7 @@ that implements this optimization.  The function \ttp{testHole} tests the
 current sub-value and if it fails the property, the function tests the sub-value
 directly.
 
-\subsubsection{Base types}
+\subsubsection{Base types}\label{sec:base}
 
 The number of constructors in an algebraic data value primarily determines how
 large and understandable it is.  In our experience, the size of fields that come
@@ -1024,10 +1038,11 @@ fails the property; \ttp{Just False} if \ttp{cex} non-trivially satisfies
 constant \ttp{scMinExtrap} is the minimum number of \ttp{Just False} results
 required from \ttp{fail} to extrapolate from failed tests to a universal claim.
 
-\todo{Add discussion here, note may be overapprox, since testing}
+The extrapolation algorithm is unsound insofar as it extrapolations from a set
+of counterexamples to a universal claim, similar to QuickSpec~\cite{qs}.  By
+tuning the parameters, the risk of an unsound generalization is reduced.
 
 \subsection{Automated Precondition Strengthening}
-
 The extrapolation algorithm generalizes a counterexample, but in the
 ``neighborhood'' of he original counterexample.  In particular, all
 generalizations are from the same variant as the original counterexample.  To
@@ -1048,7 +1063,15 @@ and a property in the case that some values fail the property of the form
 (\ttp{pre ==> prop}).  Our goal is to find additional counterexamples in the
 shaded region, in which \ttp{pre} is satisfied, \ttp{prop} is not satisfied, and
 the counterexample is not already characterized by a universal sub-value
-generalization formula.
+generalization formula.  Iterating, we increasingly cover the shaded region
+with new formulas until no more uncovered counterexamples exist or the testing
+tool fails to find new counterexamples.
+
+\begin{figure}
+  
+  \caption{Shape matching algorithm.}
+  \label{fig:matches}
+\end{figure}
 
 \todo{talk about matches shape algorithm, real-eval-print}
 
@@ -1192,6 +1215,10 @@ current constructor is not an element of constructors already seen.  Thus,
 precondition (and any other preconditions of \ttp{prop}), but fails the
 property.
 
+Unlike universal sub-value generalization, existential sub-value generalization
+is sound.  The existential claim is only that for each variant, there exists at
+least one counterexample, so inductive reasoning is not required.
+
 \subsection{Generalization Details}
 
 \todo{flags, optimizations}
@@ -1207,6 +1234,7 @@ property.
 
 \todo{xmonad}
 \todo{use SC to test itself?}
+\todo{experiments? scale vs. broad data, linear data?}
 
 %-------------------------------------------------------------------------------
 
@@ -1223,6 +1251,7 @@ property.
 %-------------------------------------------------------------------------------
 \section{Conclusions}\label{sec:conclusions}
 
+\todo{Use Bayes' rule to do extrapolation?}
 
 \todo{future work: higher-kinded data, functions}
 

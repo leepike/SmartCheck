@@ -1042,7 +1042,7 @@ The extrapolation algorithm is unsound insofar as it extrapolations from a set
 of counterexamples to a universal claim, similar to QuickSpec~\cite{qs}.  By
 tuning the parameters, the risk of an unsound generalization is reduced.
 
-\subsection{Automated Precondition Strengthening}
+\subsection{Automated Precondition Strengthening}\label{sec:precondition}
 The extrapolation algorithm generalizes a counterexample, but in the
 ``neighborhood'' of he original counterexample.  In particular, all
 generalizations are from the same variant as the original counterexample.  To
@@ -1068,7 +1068,7 @@ with new formulas until no more uncovered counterexamples exist or the testing
 tool fails to find new counterexamples.
 
 \begin{figure}
-  
+
   \caption{Shape matching algorithm.}
   \label{fig:matches}
 \end{figure}
@@ -1223,12 +1223,63 @@ least one counterexample, so inductive reasoning is not required.
 
 \todo{flags, optimizations}
 
-\section{Implementation}\label{sec:implementation}
+\section{Implementation and Usage}\label{sec:implementation}
 
-\todo{generics}
+The implementation of SmartCheck is written in Haskell and is designed to test
+Haskell programs.  The source code is licensed BSD3 and is freely
+available.\footnote{\url{https://github.com/leepike/SmartCheck.git}}
 
-\todo{GADTs? don't work}
-\todo{add lazy testing---proof value is unused}
+SmartCheck generically operates over arbitrary algebraic data and so uses a
+generics library to encode generic traversals.  Specifically, SmartCheck uses
+``GHC Generics'', a recently-developed generics library for
+Haskell~\cite{generics}.  The generics library allows algebraic data types to
+automatically derive the type class \ttp{SubTypes} presented in
+Section~\ref{sec:preliminaries}.  One limitation with GHC Generics is that it
+does not (currently) support generalized algebraic data types~\cite{gadts}.
+
+The data type to be tested must derive the \ttp{Read}, \ttp{Show},
+\ttp{Typeable}, and \ttp{Generic} type classes.  Deriving \ttp{Typeable} and
+\ttp{Generic} require using the GHC language extensions \ttp{DeriveDataTypeable}
+and \ttp{DeriveGeneric}, respectively.  \ttp{Typeable} is used for dynamic
+typing in defining the \ttp{replace} method of \ttp{SubTypes} since it is
+unknown at compile-time whether the value to be replaced and replacing value
+have the same types.
+
+Then, the user simply declares, for a data type \ttp{D},
+%
+\begin{code}
+instance Subtypes D
+\end{code}
+%
+
+SmartCheck does not implement a counterexample discovery algorithm.  While any
+method can be used to discover an initial counterexample, SmartCheck by default
+uses QuickCheck to discover an initial counterexample.  If QuickCheck is used,
+instances for \ttp{Arbitrary} must be provided.
+
+A property may be a function taking any number of arguments, but SmartCheck only
+operates on a single input during testing, which is assumed to be the first
+argument to the function.  Our experience is that often a program operates over
+one large structure together with smaller inputs.  While multiple inputs could
+be analyzed simultaneously by SmartCheck, it is not clear how to clearly
+represent multiple large counterexamples to the user---the implementation
+currently prints to standard out.  (In future work, a web-based interface could help.)
+
+A read-eval-print loop is presented to the user, allowing her to iterate shrink
+and generalize counterexamples, and then generate new counterexamples after
+strengthening the property's precondition as described in
+Figure~\ref{sec:precondition}.
+
+SmartCheck is executed using
+%
+\begin{code}
+> smartCheck args prop
+\end{code}
+%
+\noindent
+where \ttp{args} are the arguments passed in, and \ttp{prop} is the property
+being tested.  The arguments is a record type that includes the values described
+above to control SmartCheck's behavior.
 
 \section{Experiments}\label{sec:experiments}
 
@@ -1248,12 +1299,17 @@ least one counterexample, so inductive reasoning is not required.
   \url{http://stackoverflow.com/questions/14006005/idiomatic-way-to-shrink-a-record-in-quickcheck}}
 \cite{}
 
-%-------------------------------------------------------------------------------
-\section{Conclusions}\label{sec:conclusions}
+\todo{stuff from SC repo}
 
+%-------------------------------------------------------------------------------
+\section{Conclusions and Future Work}\label{sec:conclusions}
+
+\todo{how to display counterexamples}
 \todo{Use Bayes' rule to do extrapolation?}
 
 \todo{future work: higher-kinded data, functions}
+
+\todo{add lazy testing---proof value is unused}
 
 \section*{Acknowledgements}
 \todo{Thank Rehger for comments/pointing to paper.}

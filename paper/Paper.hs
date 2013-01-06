@@ -3,6 +3,8 @@
 -- | Model of the SmartCheck algorithms explained in the paper.  We leave a
 -- number of functions undefined here.
 
+-- Limit: col 46
+
 module Paper where
 
 import Prelude hiding (fail)
@@ -97,21 +99,23 @@ subTree _ _ _ = undefined
 getSize :: SubVal -> Size
 getSize (SubVal a) = size a
 
-newVals :: SubVal -> Size -> Int -> IO [SubVal]
+newVals :: SubVal -> Size
+        -> Int -> IO [SubVal]
 newVals (SubVal a) sz tries =
   replicateM tries s
   where
   s  = liftM SubVal (sizedArbitrary sz a)
 
 reduce :: SubTypes a
-       => a -> (a -> Property) -> IO a
+  => a -> (a -> Property) -> IO a
 reduce cex prop = reduce' 1
   where
   reduce' idx =
     case index cex idx of
       Nothing -> return cex
       Just v  -> do
-        vs <- newVals v (getSize v) scMaxReduce
+        vs <- newVals v (getSize v)
+                scMaxReduce
         case test cex idx vs prop of
           Nothing   -> reduce' (idx+1)
           Just cex' -> reduce cex' prop
@@ -129,7 +133,7 @@ test cex idx vs prop = go vs
 --------------------------------------------------------------------------------
 
 reduce0 :: forall a . SubTypes a
-        => a -> (a -> Property) -> IO a
+  => a -> (a -> Property) -> IO a
 reduce0 cex prop = reduce' 1
   where
   reduce' idx =
@@ -154,11 +158,12 @@ reduce0 cex prop = reduce' 1
 
 --------------------------------------------------------------------------------
 
-subTrees :: SubTypes a => a -> Idx -> [Idx] -> Bool
+subTrees :: SubTypes a
+  => a -> Idx -> [Idx] -> Bool
 subTrees cex idx = any (subTree cex idx)
 
 extrapolate :: SubTypes a
-            => a -> (a -> Property) -> IO [Idx]
+  => a -> (a -> Property) -> IO [Idx]
 extrapolate cex prop = extrapolate' 1 []
   where
   extrapolate' idx idxs
@@ -174,8 +179,8 @@ extrapolate cex prop = extrapolate' 1 []
                then idx:idxs else idxs)
 
 allFail :: SubTypes a
-        => a -> Idx -> [SubVal]
-        -> (a -> Property) -> Bool
+  => a -> Idx -> [SubVal]
+  -> (a -> Property) -> Bool
 allFail cex idx vs prop =
   length res >= scMinExtrap && and res
   where
@@ -191,7 +196,7 @@ subConstrs :: SubVal -> [String]
 subConstrs (SubVal a) = constrs a
 
 sumTest :: SubTypes a
-          => a -> (a -> Property) -> [Idx] -> IO [Idx]
+  => a -> (a -> Property) -> [Idx] -> IO [Idx]
 sumTest cex prop exIdxs = sumTest' 1 []
   where
   sumTest' idx idxs
@@ -201,14 +206,16 @@ sumTest cex prop exIdxs = sumTest' 1 []
     = case index cex idx of
         Nothing -> return idxs
         Just v  -> do
-          vs <- newVals v scMaxSize scConstrMax
+          vs <- newVals v scMaxSize
+                  scConstrMax
           sumTest' (idx+1)
             (if constrFail cex idx vs prop
                   (subConstr v) (subConstrs v)
                then idx:idxs else idxs)
 
-constrFail :: SubTypes a => a -> Idx -> [SubVal]
-  -> (a -> Property) -> String -> [String] -> Bool
+constrFail :: SubTypes a
+  => a -> Idx -> [SubVal] -> (a -> Property)
+  -> String -> [String] -> Bool
 constrFail cex idx vs prop con allCons =
   constrFail' [con] vs
   where
@@ -237,17 +244,25 @@ constrFail cex idx vs prop con allCons =
 --   f False d' = matchesShape args d d' idxs
 
 matchesShape :: SubTypes a => a -> a -> [Idx] -> Bool
-matchesShape args a b idxs = test (subT a, subT b) && repIdxs
+matchesShape a b idxs = match (a, b) && repIdxs
   where
-  repIdxs = case foldl' f (Just b) idxs of
-              Nothing -> False
-              Just b' -> all test $ zip (nextLevel a) (nextLevel b')
 
-  f mb idx = do
+  -- Says that every value v at index idx from a can be put into b at the same
+  -- idx and its type-correct.
+  --
+  -- If we can do that, then we take the resulting value (b with a's idxes in
+  -- it) and a, and get all the immediate children, and we test if they have the
+  -- same constructors (or are base types).
+  --
+  -- XXX why are we only taking the immediate subchildren?
+  repIdxs = case foldl go (Just b) idxs of
+              Nothing -> False
+              Just b' -> all match $ zip (nextLevel a) (nextLevel b')
+
+  go mb idx = do
     b' <- mb
-    v  <- getAtIdx a idx (scMaxDepth args)
+    v  <- index a idx
     replace b' idx v
 
-  nextLevel x = map rootLabel (subTypes x)
-
-  test (SubT x, SubT y)  = baseType x || toConstr x == toConstr y
+  nextLevel x  = map rootLabel (subTypes x)
+  match (x, y) = baseType x || toConstr x == toConstr y

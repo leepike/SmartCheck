@@ -75,16 +75,16 @@ matchesShapes args d ds idxs = foldl' f False ds
 
 -- | Are the value's constructors the same (for algebraic constructors only
 -- (e.g., omits Int)), and all the direct children constructors the same (for
--- algebraic constructors only, while ignoring differences in all values at
+-- algebraic constructors only), while ignoring differences in all values at
 -- holes indexed by the indexes.
 matchesShape :: SubTypes a => ScArgs -> a -> a -> [Idx] -> Bool
 matchesShape args a b idxs = test (subT a, subT b) && repIdxs
   where
-  repIdxs = case foldl' f (Just b) idxs of
+  repIdxs = case foldl' go (Just b) idxs of
               Nothing -> False
               Just b' -> all test $ zip (nextLevel a) (nextLevel b')
 
-  f mb idx = do
+  go mb idx = do
     b' <- mb
     v  <- getAtIdx a idx (scMaxDepth args)
     replace b' idx v

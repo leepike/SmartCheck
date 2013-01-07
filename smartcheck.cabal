@@ -19,6 +19,7 @@ Library
                      Test.SmartCheck.ConstructorGen,
                      Test.SmartCheck.DataToTree,
                      Test.SmartCheck.Extrapolate,
+                     Test.SmartCheck.Matches,
                      Test.SmartCheck.Reduce,
                      Test.SmartCheck.Render,
                      Test.SmartCheck.SmartGen,

@@ -6,15 +6,13 @@ module Test.SmartCheck.Extrapolate
   ) where
 
 import Test.SmartCheck.Args
+import Test.SmartCheck.Matches
 import Test.SmartCheck.Types
 import Test.SmartCheck.DataToTree
 import Test.SmartCheck.SmartGen
 import Test.SmartCheck.Render
 
 import qualified Test.QuickCheck as Q
-
-import Data.Tree
-import Data.List
 
 --------------------------------------------------------------------------------
 
@@ -63,35 +61,5 @@ extrapolate args d origProp ds = do
   next _ _ forest' idx idxs = nextIter forest' idx idxs
 
   nextIter f idx = iter' f idx { column = column idx + 1 }
-
---------------------------------------------------------------------------------
-
--- | Finds any two distinct values that match.  INVARIANT: the ds are all
--- unequal, and d /= any ds.
-matchesShapes :: SubTypes a => ScArgs -> a -> [a] -> [Idx] -> Bool
-matchesShapes args d ds idxs = foldl' f False ds
-  where
-  f True _   = True
-  f False d' = matchesShape args d d' idxs
-
--- | Are the value's constructors the same (for algebraic constructors only
--- (e.g., omits Int)), and all the direct children constructors the same (for
--- algebraic constructors only), while ignoring differences in all values at
--- holes indexed by the indexes.
-matchesShape :: SubTypes a => ScArgs -> a -> a -> [Idx] -> Bool
-matchesShape args a b idxs = test (subT a, subT b) && repIdxs
-  where
-  repIdxs = case foldl' go (Just b) idxs of
-              Nothing -> False
-              Just b' -> all test $ zip (nextLevel a) (nextLevel b')
-
-  go mb idx = do
-    b' <- mb
-    v  <- getAtIdx a idx (scMaxDepth args)
-    replace b' idx v
-
-  nextLevel x = map rootLabel (subTypes x)
-
-  test (SubT x, SubT y)  = baseType x || toConstr x == toConstr y
 
 --------------------------------------------------------------------------------

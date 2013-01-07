@@ -171,6 +171,7 @@ data SubT = forall a. (Q.Arbitrary a, SubTypes a)
 subT :: (Q.Arbitrary a, SubTypes a) => a -> SubT
 subT = SubT
 
+-- Would require SubT to derive Eq.
 -- instance Eq SubT where
 --   SubT a == SubT b = cast a == Just b
 

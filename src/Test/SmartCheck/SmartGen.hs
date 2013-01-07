@@ -118,8 +118,10 @@ resultify prop a = do
                            else FailedProp
 
   where
-  get b r |     b &&      P.expect r    = Result a -- expected to pass and we did
-          | not b && not (P.expect r)   = Result a -- expected failure and got it
+  get b r |     b &&      P.expect r    = Result a -- expected to pass and we
+                                                   -- did
+          | not b && not (P.expect r)   = Result a -- expected failure and got
+                                                   -- it
           | otherwise                   = FailedProp -- We'll just discard it.
 
   Q.MkGen { Q.unGen = f } = prop a :: Q.Gen P.Prop

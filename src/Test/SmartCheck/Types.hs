@@ -14,6 +14,7 @@ module Test.SmartCheck.Types
   , SubTypes(..)
   , Idx(..)
   , Subst(..)
+  , Replace(..)
   , errorMsg
   , replaceChild'
   , toConstr'
@@ -33,13 +34,17 @@ import Data.Complex
 import qualified Test.QuickCheck as Q
 
 -------------------------------------------------------------------------------
--- Types synonyms
--------------------------------------------------------------------------------
 
 type PropRedux a = (a -> Q.Property) -> a -> Q.Property
 
 -------------------------------------------------------------------------------
--- User-defined subtypes of data
+
+-- | We track indicies/strings, etc. for values (subterms) and constructors
+-- separately.
+data Replace a = Replace { unVals :: [a], unConstrs :: [a] }
+  deriving (Show, Read, Eq)
+
+--------------------------------------------------------------------------------
 
 --------------------------------------------------------------------------------
 -- Result type

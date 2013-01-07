@@ -26,13 +26,6 @@ smartPrtLn = putStrLn . (smartPrefix ++)
 
 --------------------------------------------------------------------------------
 
--- | We track indicies/strings, etc. for values (subterms) and constructors
--- separately.
-data Replace a = Replace { unVals :: [a], unConstrs :: [a] }
-  deriving (Show, Read, Eq)
-
---------------------------------------------------------------------------------
-
 -- only print if variable list is non-empty.
 renderWithVars :: SubTypes a => Format -> a -> Replace Idx -> IO ()
 renderWithVars format d idxs = do

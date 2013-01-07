@@ -16,7 +16,7 @@ import Data.List
 import Data.Char
 import Control.Monad
 
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 smartPrefix :: String
 smartPrefix = "*** "
@@ -24,14 +24,14 @@ smartPrefix = "*** "
 smartPrtLn :: String -> IO ()
 smartPrtLn = putStrLn . (smartPrefix ++)
 
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 -- | We track indicies/strings, etc. for values (subterms) and constructors
 -- separately.
 data Replace a = Replace { unVals :: [a], unConstrs :: [a] }
   deriving (Show, Read, Eq)
 
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 -- only print if variable list is non-empty.
 renderWithVars :: SubTypes a => Format -> a -> Replace Idx -> IO ()
@@ -62,7 +62,7 @@ renderWithVars format d idxs = do
   valsLen    = length (unVals idxs')
   constrsLen = length (unConstrs idxs')
 
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 type VarRepl = Either String String
 
@@ -110,7 +110,7 @@ replaceWithVars format d idxs vars =
   zipRepl =    zip (unVals vars)    (unVals idxs)
             ++ zip (unConstrs vars) (unConstrs idxs)
 
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 -- | Make a string out a Tree of Strings.  Put parentheses around complex
 -- subterms, where "complex" means we have two or more items (i.e., there's a
@@ -125,4 +125,4 @@ stitchTree = stitch
                                 else str
   stitchTree' node = '(' : stitch node ++ ")"
 
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------

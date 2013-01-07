@@ -9,6 +9,8 @@ module Tests where
 
 import qualified Test.QuickCheck as Q
 
+import Data.Maybe
+import Data.Typeable
 import Data.Tree
 import Control.Monad
 import GHC.Generics
@@ -33,35 +35,55 @@ instance Q.Arbitrary a => Q.Arbitrary (Tree a) where
 instance Q.Arbitrary Idx where
   arbitrary = liftM2 Idx Q.arbitrary Q.arbitrary
 
+--------------------------------------------------------------------------------
+
+-- Just to prevent us from getting too many Nothings from indexing too deeply.
 d :: Maybe Int
 d = Just 5
 
-prop_getReplaceIdem :: Tree Int -> Q.NonNegative Int -> Q.NonNegative Int -> Bool
-prop_getReplaceIdem t (Q.NonNegative i) (Q.NonNegative j) =
-  let x = getAtIdx t idx d in
+--------------------------------------------------------------------------------
+
+-- If you take from v a sub-value v' at index i, then replace v' at index i, you
+-- get v back.
+prop_getReplaceIdem ::
+  Tree Int -> Q.NonNegative Int -> Q.NonNegative Int -> Bool
+prop_getReplaceIdem v (Q.NonNegative i) (Q.NonNegative j) =
+  let x = getAtIdx v idx d in
   case x of
     Nothing -> True
     Just st -> rep st
   where
   idx = Idx i j
-  rep (SubT t') = replaceAtIdx t idx t' == Just t
+  rep (SubT v') = replaceAtIdx v idx v' == Just v
 
--- prop_forestTreeEq :: Tree Int -> Q.Positive Int -> Q.NonNegative Int -> Bool
--- prop_forestTreeEq t (Q.Positive i) (Q.NonNegative j) =
---   case getAtIdx t idx d of
---     Nothing -> isNothing idf
---     Just t' -> extract t'
---   where
---   idf = getIdxForest [t] idx
---   extract (SubT t') = case cast t' :: Maybe (Tree Int) of
---                         Nothing -> False
---                         Just t_ -> Just t_ == idf
---   idx = Idx i j
+--------------------------------------------------------------------------------
 
+-- Morally, getAtIdx v idx Nothing == rootLable $ getIdxForest (subTypes v) idx
+-- That is, they return the same value, except getIdxForest returns the whole
+-- tree.
+prop_forestTreeEq :: Tree Int -> Q.Positive Int -> Q.NonNegative Int -> Bool
+prop_forestTreeEq v (Q.Positive i) (Q.NonNegative j) =
+  let mx = getAtIdx v idx Nothing :: Maybe SubT in
+  let my = getIdxForest (subTypes v) idx :: Maybe (Tree SubT) in
+  (isNothing mx && isNothing my) || go mx my == Just True
+  where
+  -- Hack! Since SubTypes doesn't derive Eq.
+  exEq (SubT x) (SubT y) = show x == show y
+  idx = Idx i j
+  go a b = do
+   x <- a
+   y <- b
+   return $ exEq x (rootLabel y)
+
+--------------------------------------------------------------------------------
+
+-- Some random values.
 vals :: IO ()
 vals = Q.sample (Q.resize 5 Q.arbitrary :: Q.Gen (Tree Int))
 
 main :: IO ()
 main = do
   Q.quickCheck prop_getReplaceIdem
---  Q.quickCheck prop_forestTreeEq
+  Q.quickCheck prop_forestTreeEq
+
+--------------------------------------------------------------------------------

@@ -9,20 +9,21 @@ Maintainer:          leepike@gmail.com
 Copyright:           copyright, Lee Pike 2012.
 Category:            Testing
 Build-type:          Simple
-Extra-source-files:  
+Extra-source-files:
 
 Cabal-version:       >=1.10
 
 Library
   Exposed-modules:   Test.SmartCheck,
-                     Test.SmartCheck.Reduce,
-                     Test.SmartCheck.Extrapolate,
-                     Test.SmartCheck.Types,
-                     Test.SmartCheck.SmartGen,
+                     Test.SmartCheck.Args,
+                     Test.SmartCheck.ConstructorGen,
                      Test.SmartCheck.DataToTree,
+                     Test.SmartCheck.Extrapolate,
+                     Test.SmartCheck.Reduce,
                      Test.SmartCheck.Render,
-                     Test.SmartCheck.ConstructorGen
-  
+                     Test.SmartCheck.SmartGen,
+                     Test.SmartCheck.Types
+
   Build-depends:     base >= 4.0,
                      QuickCheck >= 2.4.2,
                      mtl >= 2.0.1.0,
@@ -45,8 +46,8 @@ Library
 
     --enable-library-profiling
 
-  
-  -- Other-modules:       
-  
-  -- Build-tools:         
-  
+
+  -- Other-modules:
+
+  -- Build-tools:
+

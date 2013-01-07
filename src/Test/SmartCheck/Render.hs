@@ -6,7 +6,8 @@ module Test.SmartCheck.Render
   , Replace(..)
   ) where
 
-import Test.SmartCheck.Types hiding (format)
+import Test.SmartCheck.Types
+import Test.SmartCheck.Args hiding (format)
 import Test.SmartCheck.DataToTree
 
 import Data.Maybe

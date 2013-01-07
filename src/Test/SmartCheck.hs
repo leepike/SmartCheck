@@ -6,9 +6,11 @@
 module Test.SmartCheck
   ( smartCheck
   , runQC
-  , module Test.SmartCheck.Types
+  , SubTypes
+  , module Test.SmartCheck.Args
   ) where
 
+import Test.SmartCheck.Args
 import Test.SmartCheck.Types
 import Test.SmartCheck.Reduce
 import Test.SmartCheck.Extrapolate

@@ -5,6 +5,7 @@ module Test.SmartCheck.Extrapolate
   , matchesShapes
   ) where
 
+import Test.SmartCheck.Args
 import Test.SmartCheck.Types
 import Test.SmartCheck.DataToTree
 import Test.SmartCheck.SmartGen

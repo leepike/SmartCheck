@@ -4,6 +4,7 @@ module Test.SmartCheck.Reduce
   (smartRun
   ) where
 
+import Test.SmartCheck.Args
 import Test.SmartCheck.Types
 import Test.SmartCheck.SmartGen
 import Test.SmartCheck.DataToTree

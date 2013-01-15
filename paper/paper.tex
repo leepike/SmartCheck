@@ -823,14 +823,14 @@ the occurrence of the error, we might have a counterexample like the following:
 \medskip%
 \begin{sloppypar}
 \noindent%
-\ttp{Add (Div (C 5) (C (-12))) (Add (Add (C 2) (C 4)) (Add (C 7) (Div (C 3) (Add
-(C (-5)) (C 5)))))}
+\ttp{Add (Div (C 5) (C (-12))) (Add (Add (C 2) (C 4)) (Add (C 7) (Div (Add (C 7)
+  (C 3)) (Add (C (-5)) (C 5)))))}
 \end{sloppypar}
 \medskip%
-In the counterexample, the culprit is a deeply-buried sub-value,
+In the counterexample, the culprit is a buried sub-value,
 %
 \begin{code}
-Div (C 3) (Add (C (-5)) (C 5))
+Div (Add (C 7) (C 3)) (Add (C (-5)) (C 5))
 \end{code}
 %
 Thus, when attempting to shrink an \ttp{Exp} value, it pays to test whether a
@@ -981,7 +981,7 @@ Finally, \ttp{scMaxDepth} determines the maximum depth in the counterexample the
 reduction algorithm should analyze.  A value of \ttp{Nothing} means that the
 counterexample should be exhaustively reduced, as the algorithm is presented in
 Figure~\ref{fig:reduction}.  For example, the depth of a list is determined by
-its length and the depth of the binary tree defined in Section~\ref{sec:reduct}
+its length, and the depth of the binary tree defined in Section~\ref{sec:reduct}
 is determined by the function \ttp{depth}:
 %
 \begin{code}
@@ -1019,43 +1019,48 @@ The generalization step is an important under-appreciated step in the debugging
 process.  For counterexamples that are large, deeply-nested values, the
 generalization step can be difficult.  One way we might help the programmer is
 to provide her not with a single counterexample but with a quantified formula
-that characterizes a set of counterexamples.  Doing so has two benefits.  First,
-it already generalizes a counterexample, perhaps helping the programmer's
-insight in the generalization step.  Second, it reduces the noise in favor of
-the signal by abstracting away portions of large counterexample that are
-irrelevant to why it violates the property.
+that characterizes a set of counterexamples.  In particular, a formula reduces
+the noise in favor of the signal by abstracting away portions of large
+counterexample that are irrelevant to why it violates the property.
 
-The characterization of counterexamples that most helps the programmer seems to
-should strike a middle ground.  At the one extreme, a single counterexample is
-can be thought of as a closed formula containing only literals that
-under-approximates the set of counterexamples.  At the other extreme, the
-property itself being tested is a formula that over-approximates the failing
+The characterization of counterexamples that most helps the programmer should
+strike a middle ground.  A single counterexample is too specific.  On the other
+hand, the property itself is a formula that over-approximates the failing
 inputs.  We describe two kinds of formula that fall between these two extremes.
 
 \subsection{Universal Sub-Value Generalization}\label{sec:universal}
 An example best explains the first kind of quantified formulas we generate.
-Compare the following formula to the counterexample in Figure~\ref{fig:div-cex}:
+Recall the calculator language from Section~\ref{sec:subval}.  Recall the
+culprit buried within a counterexample, causing it to result in a
+division-by-zero error:
 %
 \begin{code}
-\ttp{forall x, y . Div (Div x (Div (C 2) (C 13))) y}
+Div (Add (C 7) (C 3)) (Add (C (-5)) (C 5))
 \end{code}
 %
 \noindent
-Here, the formula claims that for all well-typed values \ttp{x} and \ttp{y}, the
-property fails.  Not only does the generalization assist the programmer's
-insight, but it reduces the sheer size of the counterexample, and it can do so
-significantly.  We call the kind of formula just shown \emph{universal sub-value
-  generalization} and is implemented in SmartCheck.
+Notice that any value substituted in the dividend results in an error.  We can
+quantify the error then as follows:
+%
+\begin{code}
+forall x . Div x (Add (C (-5)) (C 5))
+\end{code}
+%
+\noindent
+Not only does the generalization assist the programmer's insight, but it reduces
+the sheer size of the counterexample, and it can do so significantly.  We call
+the kind of formula just shown \emph{universal sub-value generalization} and is
+implemented in SmartCheck.
 
 An extrapolation algorithm performs universal sub-value generalization.  The
 basic idea is as follows: for a counterexample \ttp{cex} and a property
 \ttp{prop}, a breadth-first search over the sub-values of the \ttp{cex} is
 performed.  For each sub-value, the algorithm generates new sub-values, replaces
 them in \ttp{cex} to create a list of new potential counterexamples.  If enough
-new counterexamples non-trivially fails \ttp{prop} (i.e., does not just fail the
-precondition), and non satisfy \ttp{prop}, then we extrapolate, claiming that
-for \emph{any} new value replacing that sub-value in \ttp{cex}, the property
-will fail.
+new counterexamples non-trivially fail \ttp{prop} (i.e., fail the property's
+consequent but satisfy its antecendent), then we extrapolate, claiming that for
+\emph{any} new value replacing that sub-value in \ttp{cex}, the property will
+fail.
 
 \begin{figure}
   \begin{code}
@@ -1096,16 +1101,24 @@ algorithm is similar to the reduction algorithm in Figure~\ref{fig:reduction},
 and in the implementation, the algorithms are generalized and combined.  The
 function \ttp{extrapolate} returns a list of indexes to be generalized in the
 original counterexample.  In the recursive function \ttp{extrapolate'}, there is
-a function guard in which a call to \ttp{subTree}
+a function guard in which a call
+%
+\begin{code}
+subTree cex idx0 idx1
+\end{code}
+%
+\noindent
+where \ttp{subTree} has the type
 %
 \begin{code}
 subTree :: SubTypes a => a -> Idx -> Idx -> Bool
 \end{code}
 %
-\ttp{subTree cex idx0 idx1} is true if in \ttp{cex}, the value at index
-\ttp{idx0} is a child of index \ttp{idx1}, in a tree representation of the
-data.  This prevents the algorithm from trying to generalize sub-values that are
-abstracted away already since their parents have been generalized.
+\noindent
+is true if in \ttp{cex}, the value at index \ttp{idx0}, is a child of index
+\ttp{idx1}, in a tree representation of the data.  This prevents the algorithm
+from trying to generalize sub-values that are abstracted away already since
+their parents have been generalized.
 
 New sub-values are generated by \ttp{newVals}, shown in
 Figure~\ref{fig:reduction}.  Here, we bound the size of values to generate by
@@ -1121,12 +1134,13 @@ fail :: (a -> Property) -> a -> Maybe Bool
 \end{code}
 %
 \noindent
-is the roughly the dual of \ttp{pass} in the reduction algorithm: \ttp{fail prop
-  cex} returns \ttp{Just True} if \ttp{cex} passes \ttp{prop}'s precondition but
-fails the property; \ttp{Just False} if \ttp{cex} non-trivially satisfies
-\ttp{prop}, and \ttp{Nothing} if \ttp{cex} fails \ttp{prop}'s precondition.  The
-constant \ttp{scMinExtrap} is the minimum number of \ttp{Just False} results
-required from \ttp{fail} to extrapolate from failed tests to a universal claim.
+is the roughly the dual of \ttp{pass} in the reduction algorithm: (\ttp{fail
+  prop cex}) returns (\ttp{Just True}) if \ttp{cex} passes \ttp{prop}'s
+precondition but fails the property; (\ttp{Just False}) if \ttp{cex}
+non-trivially satisfies \ttp{prop}, and \ttp{Nothing} if \ttp{cex} fails
+\ttp{prop}'s precondition.  The constant \ttp{scMinExtrap} is the minimum number
+of \ttp{Just False} results required from \ttp{fail} to extrapolate from failed
+tests to a universal claim.
 
 The extrapolation algorithm is unsound insofar as it extrapolations from a set
 of counterexamples to a universal claim, similar to QuickSpec~\cite{qs}.  By
@@ -1173,32 +1187,18 @@ Sum types denote choice in a data type.  Sometimes, a property over a sum type
 fails because there is a bug for some of the variants but not others.  For
 example, recall the calculator language from Section~\ref{sec:subval}.  The
 property \ttp{prop\_div} fails only for values that contain a variant tagged
-with the \ttp{Div} constructor.  For example, consider the following counterexample:
+with the \ttp{Div} constructor.  Recall again the generalized counterexample
+from Section~\ref{sec:generalization}:
 %
 \begin{code}
-Div (Add (C 20) (C 30))
-    (Add (C 89) (C -89))
+forall x . Div x (Add (C (-5)) (C 5))
 \end{code}
 %
 \noindent
-The counterexample fails because the divsor evaluates to zero.  Using universal
-sub-value generalization described above, the counterexample is generalized as
-follows:
-%
-\begin{code}
-forall x . Div x (Add (C 89) (C -89))
-\end{code}
-%
-\noindent
-So we know there is something particular about the \ttp{Add (C 89) (C -89)},
-because there are some values that we can replace this sub-value with in the
-original counterexample causing it to satisfy the property.  But we might wonder
-if there is something special about variants tagged by the \ttp{Add}
-constructor, or might we finding failing sub-values with the other variants
-tagged by the constructors \ttp{C} and \ttp{Div}?  If so, then we know there is
-not some bug being triggered by \ttp{Add} variants specifically, so it is more
-likely that the bug involves how the second field of the \ttp{Div} variant is
-evaluated.
+Because the divisor does not generalize, we know there is something special
+about it that causes failure.  But we might wonder if there is something special
+about variants tagged by the \ttp{Add} constructor, or might we finding failing
+sub-values with the other variants.
 
 We therefore introduce another kind of generalization we call \emph{existential
   sub-value generalization}.  In this generalization, if there a counterexample
@@ -1206,15 +1206,15 @@ containing every possible variant as a sub-value, then we abstract it.  For
 example, the following all characterize counterexamples:
 %
 \begin{code}
-forall x . Div x (Add (C 89) (C -89))
+forall x . Div x (Add (C (-5)) (C 5))
 forall x . Div x (C 0)
 forall x . Div x (Div (C 0) (C 1))
 \end{code}
 %
 \noindent
 Because there are only three variants in the type, we have found counterexamples
-built from each of them in the second field of the outermost \ttp{Div}
-constructor.  We therefore return a formula like the following:
+built from each of them in the divisor.  We therefore return a formula like the
+following:
 %
 \begin{code}
 forall values x .

@@ -12,6 +12,7 @@ module Test.SmartCheck
 
 import Test.SmartCheck.Args
 import Test.SmartCheck.Types
+import Test.SmartCheck.Matches
 import Test.SmartCheck.Reduce
 import Test.SmartCheck.Extrapolate
 import Test.SmartCheck.Render
@@ -19,65 +20,67 @@ import Test.SmartCheck.ConstructorGen
 
 import qualified Test.QuickCheck as Q
 
-import Data.Maybe
 import Generics.Deriving
-import Control.Monad (liftM)
 
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 -- | Main interface function.
 smartCheck :: forall a b. ( Read a, Q.Arbitrary a, SubTypes a
                           , Generic a, ConNames (Rep a), Q.Testable b )
     => ScArgs -> (a -> b) -> IO ()
 smartCheck args propT = do
-  smartPrtLn ("If any stage takes too long to reduce, try reducing the standard "
-                ++ "arguments (see Types.hs).")
+  smartPrtLn $
+    "If any stage takes too long to reduce, try reducing the standard "
+      ++ "arguments (see Args.hs)."
   smartCheck' prop []
 
   where
   prop a = Q.property $ propT a
 
-  smartCheck' :: (a -> Q.Property) -> [a] -> IO ()
+  smartCheck' :: (a -> Q.Property) -> [(a, Replace Idx)] -> IO ()
   smartCheck' prop' ds = do
     -- Run standard QuickCheck or read in value.
     res <- if qc args then runQC (qcArgs args) prop'
              else do smartPrtLn "Input value to SmartCheck:"
                      fmap Just (readLn :: IO a)
-    case res of
-      Nothing -> smartPrtLn "No value to smart-shrink; done."
-      Just r  -> go r
+    maybe (smartPrtLn "No value to smart-shrink; done.") go res
 
     where
     go r = do
       -- Run the smart reduction algorithm.
       d   <- smartRun args r prop'
       -- If we asked to extrapolate values, do so.
-      vs  <- if extrap args
-                then -- Extrapolate with the original property to see if we get
-                     -- a previously-visited value back.
-                     do (idxs, prop_) <- extrapolate args d prop ds
-                        return $ Just (idxs, prop_)
-                else return Nothing
+      valIdxs <- if extrap args
+                   then -- Extrapolate with the original property to see if we
+                        -- get a previously-visited value back.
+                        extrapolate args d prop
+                   else return []
 
-      -- If we asked to extrapolate constructors, do so.
-      cs  <- if constrGen args
-               then let vs' = concat . maybeToList $ fmap fst vs in
-                    liftM Just $ constrsGen args d prop vs'
-               else return Nothing
+      -- If we asked to extrapolate constructors, do so, again with the original
+      -- property.
+      csIdxs <- if constrGen args
+                  then constrsGen args d prop valIdxs
+                  else return []
+
+      let replIdxs = Replace valIdxs csIdxs
 
       -- If either kind of extrapolation pass yielded fruit, prettyprint it.
-      if nonEmpty d vs cs
-        then output d (repls vs cs)
-        else smartPrtLn "Could not extrapolate a new value."
+      if (extrap args && null valIdxs) || (constrGen args && null csIdxs)
+        then smartPrtLn "Could not extrapolate a new value."
+        else output d replIdxs
 
       -- Ask the user if she wants to try again.
       putStrLn $ "Attempt to find a new counterexample?\n"
                    ++ "  ('Enter' to continue;"
                    ++ " any character then 'Enter' to quit.)"
       s <- getLine
+
+      let oldVals  = (d,replIdxs):ds
+      let matchesProp a = not (matchesShapes a oldVals) Q.==> prop' a
+
       if s == ""
         -- If so, then loop, with the new prop.
-        then smartCheck' (propApp vs prop') (d:ds)
+        then smartCheck' matchesProp oldVals
         else smartPrtLn "Done."
 
       where
@@ -87,17 +90,7 @@ smartCheck args propT = do
         smartPrtLn "Extrapolated value:"
         renderWithVars (format args) d repl
 
-      nonEmpty d vs cs = vsIdxs || csIdxs
-        where
-        vsIdxs = case vs of
-                   Just (idxs, _) ->    not (matchesShapes args d ds idxs)
-                                     && not (null idxs)
-                   Nothing        -> False
-        csIdxs = case cs of
-                   Just idxs -> not $ null idxs
-                   Nothing   -> False
-
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 runQC :: forall a. (Show a, Read a, Q.Arbitrary a)
       => Q.Args -> (a -> Q.Property) -> IO (Maybe a)
@@ -112,18 +105,4 @@ runQC args prop = do
                                     return $ Just m
     _ -> return Nothing
 
----------------------------------------------------------------------------------
--- Helpers
-
-repls :: Maybe ([Idx], b) -> Maybe [Idx] -> Replace Idx
-repls vs cs = Replace v c
-  where
-  v = case vs of
-        Nothing        -> []
-        Just (idxs, _) -> idxs
-  c = fromMaybe [] cs
-
-propApp :: Maybe (b, PropRedux a) -> PropRedux a
-propApp = maybe id snd
-
----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------

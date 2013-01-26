@@ -110,19 +110,15 @@ replace d idx SubT { unSubT = v } = replaceAtIdx d idx v
 resultify :: (a -> Q.Property) -> a -> IO (Result a)
 resultify prop a = do
   P.MkRose r _ <- res fs
-  return $ case P.ok r of -- result of test case (True ==> passed)
-             Nothing -> FailedPreCond -- Failed precondition (discard)
-             Just b  ->  if notExceptionFail r then get b r
-                           -- If failed because of an exception, just say we
-                           -- failed.
-                           else FailedProp
-
+  return $ maybe FailedPreCond -- Failed precondition (discard)
+                 -- If failed because of an exception, just say we failed.
+                 (\b -> if notExceptionFail r then get b r else FailedProp)
+                 (P.ok r) -- result of test case (True ==> passed)
   where
-  get b r |     b &&      P.expect r    = Result a -- expected to pass and we
-                                                   -- did
-          | not b && not (P.expect r)   = Result a -- expected failure and got
-                                                   -- it
-          | otherwise                   = FailedProp -- We'll just discard it.
+  get b r
+    | b &&      P.expect r      = Result a -- expected to pass and we did
+    | not b && not (P.expect r) = Result a -- expected failure and got it
+    | otherwise                 = FailedProp -- We'll just discard it.
 
   Q.MkGen { Q.unGen = f } = prop a :: Q.Gen P.Prop
   fs  = P.unProp $ f err err       :: P.Rose P.Result
@@ -162,13 +158,13 @@ iter d test nxt prop maxLevel forest idx idxs
                    nxt d tries forest idx idxs
   where
   -- Location is w.r.t. the forest, not the original data value.
+  l          = level idx
   levels     = breadthLevels forest
   done       = length levels <= l || tooDeep l maxLevel
   nextLevel  = length (levels !! l) <= column idx
   atFalse    = not $ (levels !! l) !! column idx
   iter'      = iter d test nxt prop maxLevel forest
                  idx { level = l + 1, column = 0 } idxs
-  l          = level idx
 
 --------------------------------------------------------------------------------
 

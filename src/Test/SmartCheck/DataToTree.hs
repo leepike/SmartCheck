@@ -1,4 +1,3 @@
-{-# LANGUAGE Rank2Types #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Test.SmartCheck.DataToTree

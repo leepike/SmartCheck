@@ -87,9 +87,7 @@ smartShrink args d prop =
     where
     testHole :: SubT -> IO (Maybe a)
     testHole SubT { unSubT = v } =
-      case cast v :: Maybe a of
-        Just v' -> extractAndTest v'
-        Nothing -> return Nothing
+      maybe (return Nothing) extractAndTest (cast v :: Maybe a)
       where
       extractAndTest :: a -> IO (Maybe a)
       extractAndTest y = do

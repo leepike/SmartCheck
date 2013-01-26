@@ -3,7 +3,6 @@
 module Test.SmartCheck.Render
   ( renderWithVars
   , smartPrtLn
-  , Replace(..)
   ) where
 
 import Test.SmartCheck.Types

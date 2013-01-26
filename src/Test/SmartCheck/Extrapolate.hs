@@ -2,11 +2,9 @@
 
 module Test.SmartCheck.Extrapolate
   ( extrapolate
-  , matchesShapes
   ) where
 
 import Test.SmartCheck.Args
-import Test.SmartCheck.Matches
 import Test.SmartCheck.Types
 import Test.SmartCheck.DataToTree
 import Test.SmartCheck.SmartGen
@@ -30,19 +28,16 @@ extrapolate :: SubTypes a
             => ScArgs            -- ^ Arguments
             -> a                 -- ^ Current failed value
             -> (a -> Q.Property) -- ^ Original property
-            -> [a]               -- ^ Previous failed values
-            -> IO ([Idx], PropRedux a)
-extrapolate args d origProp ds = do
+            -> IO ([Idx])
+extrapolate args d origProp = do
   putStrLn ""
   smartPrtLn "Extrapolating values ..."
   (_, idxs) <- iter' forest (Idx 0 0) []
-  return (idxs, prop idxs)
+  return idxs
 
   where
   forest = mkSubstForest d True
   iter'  = iter d test next origProp (scMaxDepth args)
-  prop idxs newProp a =
-    not (matchesShapes args a (d : ds) idxs) Q.==> newProp a
 
   -- In this call to iterateArb, we want to claim we can extrapolate iff at
   -- least one test passes a precondition, and for every test in which the

@@ -7,8 +7,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Test.SmartCheck.Types
-  ( PropRedux
-  , SubT(..)
+  ( SubT(..)
   , subT
   , Result(..)
   , SubTypes(..)
@@ -35,16 +34,10 @@ import qualified Test.QuickCheck as Q
 
 -------------------------------------------------------------------------------
 
-type PropRedux a = (a -> Q.Property) -> a -> Q.Property
-
--------------------------------------------------------------------------------
-
--- | We track indicies/strings, etc. for values (subterms) and constructors
--- separately.
+-- | Nominally, a list for value generalization indexes and existential
+-- generalization.
 data Replace a = Replace { unVals :: [a], unConstrs :: [a] }
   deriving (Show, Read, Eq)
-
---------------------------------------------------------------------------------
 
 --------------------------------------------------------------------------------
 -- Result type
@@ -362,34 +355,6 @@ instance (Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes [a] where
   showForest    = if baseType (undefined :: a) then showForest'
                     else gsf . from
 
--- -- We treat String specially: we don't want to rewrite them.  (This is open for
--- -- revision...)
--- instance SubTypes String  where
---   baseType _    = True
-
--- -- original
--- instance (Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes [a] where
---   subTypes      = concatMap subTypes
---   baseType _    = True
---   replaceChild  = replaceChild'
---   toConstr      = toConstr'
--- --  toConstrAndBase = toConstrAndBase'
---   showForest    = showForest'
-
--- instance (Ord a, Q.Arbitrary a, Q.Arbitrary b) => Q.Arbitrary (M.Map a b) where
---   arbitrary = do
---     ls <- Q.arbitrary :: Q.Gen [(a, b)]
---     return $ M.fromList ls
-
--- instance (Ord a, Q.Arbitrary a, SubTypes a, Typeable a, Q.Arbitrary b, SubTypes b, Typeable b)
---            => SubTypes (M.Map a b) where
---   subTypes      = concatMap subTypes . M.toList
---   baseType _    = True
---   replaceChild  = replaceChild'
---   toConstr      = toConstr'
--- --  toConstrAndBase = toConstrAndBase'
---   showForest    = showForest'
-
 instance (Integral a, Q.Arbitrary a, SubTypes a, Typeable a)
   => SubTypes (Ratio a) where
   subTypes _    = []
@@ -442,23 +407,6 @@ replaceChild' _ (Node Subst _ : _) b = cast b
 
 showForest' :: Show a => a -> Forest String
 showForest' _ = []
-
--- getSize' :: a -> Int
--- getSize' _ = 0
-
--------------------------------------------------------------------------------
-
--- -- | For data d, returns the length of (subTypes d).
--- getSize :: (Generic a, GST (Rep a)) => a -> Int
--- getSize = gsz . from
-
--------------------------------------------------------------------------------
-
--- addSpace :: String -> String -> String
--- addSpace a b = if null b then a else a ++ ' ': b
-
--- parens :: String -> String
--- parens a = '(' : a ++ ")"
 
 -------------------------------------------------------------------------------
 

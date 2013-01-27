@@ -34,8 +34,10 @@ matchesShape a (b, Replace idxVals idxConstrs)
   where
   foldEqConstrs :: (Tree SubT, Tree SubT) -> Bool
   foldEqConstrs (Node (SubT l0) sts0, Node (SubT l1) sts1)
-    | toConstr l0 == toConstr l1 = all foldEqConstrs (zip sts0 sts1)
+    -- Don't need a baseType test, since they don't ever appear in subTypes.
+    | toConstr l0 == toConstr l1 = next
     | otherwise                  = False
+    where next = all foldEqConstrs (zip sts0 sts1)
 
   bSub :: Idx -> Maybe SubT
   bSub idx = getAtIdx b idx Nothing

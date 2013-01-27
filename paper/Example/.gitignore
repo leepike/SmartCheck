@@ -1,0 +1,4 @@
+*.out
+*.hi
+*.o
+init.log

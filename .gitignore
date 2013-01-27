@@ -2,3 +2,5 @@
 cabal-dev
 dist
 examples/qc-overwhelm
+cabal.config
+packages*

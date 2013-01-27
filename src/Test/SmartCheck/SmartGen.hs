@@ -26,9 +26,9 @@ iterateArbIdx :: SubTypes a
               => a -> (Idx, Maybe Int) -> Int -> Int
               -> (a -> Q.Property) -> IO (Int, Result a)
 iterateArbIdx d (idx, max) tries sz prop =
-  case getAtIdx d idx max of
-    Nothing  -> errorMsg "iterateArb 0"
-    Just ext -> iterateArb d ext idx tries sz prop
+  maybe (errorMsg "iterateArb 0")
+        (\ext -> iterateArb d ext idx tries sz prop)
+        (getAtIdx d idx max)
 
 -- | Replace the hole in d indexed by idx with a bunch of random values, and
 -- test the new d against the property.  Returns the first new d (the full d but
@@ -76,14 +76,14 @@ iterateArb d ext idx tries max prop = do
     (size, g0) = randomR (0, currMax) g
     s = sample ext g size
     sample SubT { unSubT = v } = newVal v
-    rec res' = iterateArb' res' g0 (try + 1)
-                 -- XXX what ratio is right to increase size of values?  This
-                 -- gives us exponentail growth, but remember we're randomly
-                 -- chosing within the range of [0, max], so many values are
-                 -- significantly smaller than the max.  Plus we reset the size
-                 -- whenever we get a value that's too big.  Note the need for
-                 -- (+ 1), since we seed with 0.
-                 ((currMax + 1) * 2)
+    rec res' =
+      iterateArb' res' g0 (try + 1)
+        -- XXX what ratio is right to increase size of values?  This gives us
+        -- exponentail growth, but remember we're randomly chosing within the
+        -- range of [0, max], so many values are significantly smaller than the
+        -- max.  Plus we reset the size whenever we get a value that's too big.
+        -- Note the need for (+ 1), since we seed with 0.
+        ((currMax + 1) * 2)
 
 --------------------------------------------------------------------------------
 

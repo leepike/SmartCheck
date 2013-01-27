@@ -1,6 +1,7 @@
-TARGETS=qcNone.out qc10.out qc20.out feat.out sc.out
+#TARGETS=qcNone.out qc10.out qc20.out feat.out sc.out
+TARGETS=qcNone.out qc10.out feat.out sc.out
 LOG=init.log
-REPS=100
+RNDS=20
 SRC=InitEx
 
 all : $(TARGETS)
@@ -9,9 +10,13 @@ all : $(TARGETS)
 	ghc --make -O2 -D$* -o $@ $<
 	echo "*******************" >> $(LOG)
 	echo $@ >> $(LOG)
-	./$@ $(REPS)
+	./$@ $(RNDS)
 
 .PHONY : clean
 clean :
 	rm -f $(TARGETS)
 	rm -f $(SRC).o $(SRC).hi
+
+.PHONY : veryclean
+veryclean : clean
+	rm -f $(LOG)

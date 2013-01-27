@@ -33,7 +33,7 @@ import Test.Feat
 -- Container so that we don't have base types.
 
 -----------------------------------------------------------------
-data A = A Int16 | Nil
+data A = A Int16
   deriving (Read, Show, Typeable, Generic)
 
 data B = B [A] [A] [A] [A]
@@ -146,8 +146,6 @@ runSC = do
     Nothing -> return Nothing
     Just r  -> liftM Just $ smartRun scStdArgs r prop_qc
 
--- smartCheck scStdArgs {scMaxExtrap = 20, format = PrintString }prop_qc
-
 --------------------------------------------------------------------------------
 
 size :: B -> Int
@@ -169,3 +167,6 @@ main = do
 #if defined(qcNone) || defined(qc10) || defined(qc20)
   test rnds (runQC stdArgs prop_qc)
 #endif
+
+smtChk :: IO ()
+smtChk = smartCheck scStdArgs {scMaxExtrap = 20, format = PrintString } prop_qc

@@ -29,7 +29,6 @@ Library
                      QuickCheck >= 2.4.2,
                      mtl >= 2.0.1.0,
                      random >= 1.0.1.1,
---                     uniplate >= 1.6.6,
                      containers >= 0.4,
                      generic-deriving >= 1.2.1,
                      ghc-prim
@@ -45,10 +44,20 @@ Library
     -caf-all
     -fno-warn-orphans
 
-    --enable-library-profiling
-
-
-  -- Other-modules:
-
-  -- Build-tools:
-
+executable sc-regression
+  Main-is:           Tests.hs
+  Other-modules:     Div0,
+                     MutualRecData,
+                     Heap_Program,
+                     LambdaCalc
+  Hs-source-dirs:    examples
+  Build-depends:     base >= 4.0,
+                     smartcheck,
+                     QuickCheck >= 2.4.2,
+                     mtl >= 2.0.1.0,
+                     random >= 1.0.1.1,
+                     containers >= 0.4,
+                     generic-deriving >= 1.2.1,
+                     ghc-prim
+  Default-language:  Haskell2010
+  Ghc-options:       -Wall

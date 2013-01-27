@@ -65,9 +65,9 @@ smartCheck args propT = do
       let replIdxs = Replace valIdxs csIdxs
 
       -- If either kind of extrapolation pass yielded fruit, prettyprint it.
-      if (extrap args && null valIdxs) || (constrGen args && null csIdxs)
-        then smartPrtLn "Could not extrapolate a new value."
-        else output d replIdxs
+      if not $ null (valIdxs ++ csIdxs)
+        then output d replIdxs
+        else smartPrtLn "Could not extrapolate a new value."
 
       -- Ask the user if she wants to try again.
       putStrLn $ "Attempt to find a new counterexample?\n"

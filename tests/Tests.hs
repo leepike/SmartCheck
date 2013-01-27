@@ -38,8 +38,8 @@ instance Q.Arbitrary Idx where
 --------------------------------------------------------------------------------
 
 -- Just to prevent us from getting too many Nothings from indexing too deeply.
-d :: Maybe Int
-d = Just 5
+dep :: Maybe Int
+dep = Just 5
 
 --------------------------------------------------------------------------------
 
@@ -48,7 +48,7 @@ d = Just 5
 prop_getReplaceIdem ::
   Tree Int -> Q.NonNegative Int -> Q.NonNegative Int -> Bool
 prop_getReplaceIdem v (Q.NonNegative i) (Q.NonNegative j) =
-  let x = getAtIdx v idx d in
+  let x = getAtIdx v idx dep in
   case x of
     Nothing -> True
     Just st -> rep st
@@ -58,7 +58,8 @@ prop_getReplaceIdem v (Q.NonNegative i) (Q.NonNegative j) =
 
 --------------------------------------------------------------------------------
 
--- Morally, getAtIdx v idx Nothing == rootLable $ getIdxForest (subTypes v) idx
+-- Morally, getAtIdx v idx Nothing == rootLabel $ getIdxForest (subTypes v) idx
+--
 -- That is, they return the same value, except getIdxForest returns the whole
 -- tree.
 prop_forestTreeEq :: Tree Int -> Q.Positive Int -> Q.NonNegative Int -> Bool
@@ -67,7 +68,7 @@ prop_forestTreeEq v (Q.Positive i) (Q.NonNegative j) =
   let my = getIdxForest (subTypes v) idx :: Maybe (Tree SubT) in
   (isNothing mx && isNothing my) || go mx my == Just True
   where
-  -- Hack! Since SubTypes doesn't derive Eq.
+  -- XXX Hack! Since SubTypes doesn't derive Eq.
   exEq (SubT x) (SubT y) = show x == show y
   idx = Idx i j
   go a b = do
@@ -76,6 +77,10 @@ prop_forestTreeEq v (Q.Positive i) (Q.NonNegative j) =
    return $ exEq x (rootLabel y)
 
 --------------------------------------------------------------------------------
+-- Prop:
+-- null (subTypes v) iff null (showForest v)
+--------------------------------------------------------------------------------
+
 
 -- Some random values.
 vals :: IO ()

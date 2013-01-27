@@ -1,4 +1,4 @@
-module Tests where
+module Main where
 
 import Div0
 import MutualRecData

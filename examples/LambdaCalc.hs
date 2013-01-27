@@ -6,7 +6,6 @@
 module LambdaCalc where
 
 import Data.List
-import Data.Tree
 import Data.Typeable
 
 import Control.Monad
@@ -25,7 +24,7 @@ data Expr
         deriving (Eq, Read, Show, Typeable, Generic)
 
 freeVars :: Expr -> [Sym]
-freeVars (Var s) = [s]
+freeVars (Var v) = [v]
 freeVars (App f a) = freeVars f `union` freeVars a
 freeVars (Lam i e) = freeVars e \\ [i]
 
@@ -44,37 +43,41 @@ subst v x b = sub b
                 Lam i (sub e)
         fvx = freeVars x
         cloneSym e i = loop i
-           where loop i' = if i' `elem` vars then loop (i ++ "'") else i'
-                 vars = fvx ++ freeVars e
+           where loop i' = if i' `elem` vs then loop (i ++ "'") else i'
+                 vs = fvx ++ freeVars e
 
 substVar :: Sym -> Sym -> Expr -> Expr
-substVar s s' e = subst s (Var s') e
+substVar v v' e = subst v (Var v') e
 
 alphaEq :: Expr -> Expr -> Bool
 alphaEq (Var v)   (Var v')    = v == v'
 alphaEq (App f a) (App f' a') = alphaEq f f' && alphaEq a a'
-alphaEq (Lam s e) (Lam s' e') = alphaEq e (substVar s' s e')
+alphaEq (Lam v e) (Lam v' e') = alphaEq e (substVar v' v e')
 alphaEq _ _ = False
 
 nf :: Expr -> Expr
 nf ee = spine ee []
   where spine (App f a) as = spine f (a:as)
-        spine (Lam s e) [] = Lam s (nf e)
-        spine (Lam s e) (a:as) = spine (subst s a e) as
+        spine (Lam v e) [] = Lam v (nf e)
+        spine (Lam v e) (a:as) = spine (subst v a e) as
         spine f as = app f as
         app f as = foldl App f (map nf as)
 
 betaEq :: Expr -> Expr -> Bool
 betaEq e1 e2 = alphaEq (nf e1) (nf e2)
 
+z,s,m,n :: Expr
 [z,s,m,n] = map (Var . (:[])) "zsmn"
+app2 :: Expr -> Expr -> Expr -> Expr
 app2 f x y = App (App f x) y
+zero, one, two, three, plus :: Expr
 zero  = Lam "s" $ Lam "z" z
 one   = Lam "s" $ Lam "z" $ App s z
 two   = Lam "s" $ Lam "z" $ App s $ App s z
 three = Lam "s" $ Lam "z" $ App s $ App s $ App s z
 plus  = Lam "m" $ Lam "n" $ Lam "s" $ Lam "z" $ app2 m s (app2 n s z)
 
+test0 :: Bool
 test0 = betaEq (app2 plus one two) three
 
 ---------------------------------------------------------------------------------
@@ -91,12 +94,13 @@ instance Arbitrary Expr where
   arbitrary = sized mkE
     where
     mkE 0 = liftM Var vars
-    mkE n = oneof [ liftM2 App (liftM2 Lam vars mkE') mkE'
+    mkE x = oneof [ liftM2 App (liftM2 Lam vars mkE') mkE'
                   , liftM2 Lam vars mkE'
                   ]
       where
-      mkE' = mkE =<< choose (0, n-1)
+      mkE' = mkE =<< choose (0, x-1)
 
+vars :: Gen [Char]
 vars = oneof $ map return ["x", "y", "z"]
 
 instance Arbitrary Pr where
@@ -108,7 +112,7 @@ instance Arbitrary Pr where
 -- prop0 :: Pr -> Property
 -- prop0 (Pr (e0, e1)) = alphaEq e0 e1 ==> betaEq e0 e1
 
--- if you do a beta reduction to nf 
+-- if you do a beta reduction to nf
 prop1 :: Pr -> Property
 prop1 (Pr e0 e1) = -- Timeout due to possible non-termination
   within 1000 $ alphaEq e0 e1 ==> betaEq e0 (substVar "x" "y" e1)
@@ -123,6 +127,7 @@ lambdaTest = smartCheck args prop1
 ---------------------------------------------------------------------------------
 -- Cruft
 
+{-
 nonDet = App x x
   where
   x = Lam "x" (App (Var "x") (Var "x"))
@@ -133,3 +138,4 @@ xx = (App (Lam "`" (App (Lam "\SI" (Var "f"))
                              (Var "3UC")))))
 
 aa (Pr a b) = alphaEq a b
+-}

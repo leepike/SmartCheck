@@ -86,8 +86,8 @@
 
 \usepackage{ifthen}
 \newboolean{submission}  %set to true for the submission version
-%\setboolean{submission}{false}
-\setboolean{submission}{true}
+\setboolean{submission}{false}
+%\setboolean{submission}{true}
 \ifthenelse
 {\boolean{submission}}
 { \newcommand{\todo}[1]{ } } %hide todo
@@ -145,6 +145,8 @@ freely available.
 \todo{thread args through}
 \todo{termination for each algorithm}
 \todo{fromMaybe over pattern matching?}
+\todo{show quantification in intro}
+\todo{benchmark feat}
 
 \section{Introduction}\label{sec:intro}
 The QuickCheck testing framework was a revolutionary step-forward in
@@ -235,9 +237,9 @@ For example, consider again Figure~\ref{fig:initial}.  The data type \ttp{B} is
 a product type over lists of 16-bit signed integers, wrapped by a constructor.
 Consider the property \ttp{prop} in the figure, stating that if the sum of each
 list in a field of \ttp{B} is less than 16, then the sum of the four fields is
-less than 64.  The property seems reasonable at first glance, until
-one realizes that due to underflow, the property can be violated.  For example,
-consider the value
+less than 64.  The property seems reasonable at first glance, until one realizes
+that due to underflow, the property can be violated.  For example, consider the
+value
 %
 \begin{code}
 B [A (-32769)] [] [] []
@@ -464,7 +466,7 @@ This paper, and the library it describes, makes the following contributions:
 \end{itemize}
 
 \noindent
-In Section~\ref{experiments}, we discuss some of our experiences with using
+In Section~\ref{sec:experiments}, we discuss some of our experiences with using
 SmartCheck, including checking properties from Xmonad.
 
 %% \noindent Moreover, the inability to quickly uncover understandable
@@ -775,6 +777,7 @@ counterexamples, the only construct in which variable capture is possible.
 
 \subsubsection{Base Types}\label{sec:base}
 
+\todo{correspond to dimension 0 from\cite{agata}}
 The number of constructors in an algebraic data value primarily determines how
 large and understandable it is.  In our experience, the size of fields that come
 from primitive types, like \ttp{Int} or \ttp{Char}, have less of a role in
@@ -1206,9 +1209,9 @@ containing every possible variant as a sub-value, then we abstract it.  For
 example, the following all characterize counterexamples:
 %
 \begin{code}
-forall x . Div x (Add (C (-5)) (C 5))
-forall x . Div x (C 0)
-forall x . Div x (Div (C 0) (C 1))
+Div (C 7) (Add (C (-5)) (C 5))
+Div (Add (C 3) (C 2)) (C 0)
+Div (C (-2)) (Div (C 0) (C 1))
 \end{code}
 %
 \noindent
@@ -1387,9 +1390,35 @@ above to control SmartCheck's behavior.
 
 \todo{shrink paper rehger pointed to ``Automatic isolation of compiler errors'' from 1994}
 
-\todo{avoid complexities
-  \url{http://stackoverflow.com/questions/14006005/idiomatic-way-to-shrink-a-record-in-quickcheck}}
-\cite{}
+Closely related to SmartCheck is the recent Haskell library Feat.  Feat
+enumerates algebraic data types in Haskell and indexing them
+quickly~\cite{feat}.  For example, Feat returns the $10^{1000}$ value in the
+enumeration of lists of Booleans in under a second.  Feat combines some of the
+advantages of SmallCheck and QuickCheck: 
+
+Feat provides a functional representation of enumerations,
+allowing for fast indexing of large values in an enumeration.
+
+
+\todo{avoid complexities \url{http://stackoverflow.com/questions/14006005/idiomatic-way-to-shrink-a-record-in-quickcheck}%
+%
+The SYB paper:%
+  \url{http://research.microsoft.com/en-us/um/people/simonpj/Papers/hmap/index.htm}%
+  Has shrink example%
+%
+* QuickSpec:%
+  \url{http://www.cse.chalmers.se/~nicsma/quickspec.pdf}%
+%
+\url{http://blog.regehr.org/archives/697} --- check out C-reduce (Regehr) and Delta%
+  debugging (\url{http://www.st.cs.uni-saarland.de/dd/}).  C-reduce is in PLDI.%
+%
+* Also check out \url{http://www.whyprogramsfail.com/}%
+%
+* GenCheck \url{https://github.com/JacquesCarette/GenCheck}%
+%
+* Dart-check: \url{http://code.google.com/p/dart-immutable/} (and G+ post by Paul%
+  Brauner)%
+}
 
 \todo{stuff from SC repo}
 

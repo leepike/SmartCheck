@@ -1,6 +1,9 @@
 {-# LANGUAGE ScopedTypeVariables, TemplateHaskell, DeriveDataTypeable, StandaloneDeriving #-}
 {-# LANGUAGE DeriveGeneric #-}
 
+{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 -- Copied from QuickCheck2's examples.
 
 module Heap_Program where
@@ -9,7 +12,6 @@ module Heap_Program where
 -- imports
 
 import Test.QuickCheck
-import Test.QuickCheck.All
 import Test.QuickCheck.Poly
 
 import Data.List
@@ -18,7 +20,6 @@ import Data.List
   )
 import Data.Typeable
 
-import qualified Data.Tree as T
 import GHC.Generics
 
 import qualified Test.SmartCheck as SC
@@ -38,16 +39,16 @@ heapProgramTest :: IO ()
 heapProgramTest = SC.smartCheck SC.scStdArgs (\h -> property (prop_ToSortedList h))
 
 instance SC.SubTypes OrdA
-instance (SC.SubTypes a, Ord a, Arbitrary a, Generic a) 
+instance (SC.SubTypes a, Ord a, Arbitrary a, Generic a)
          => SC.SubTypes (Heap a)
-instance (SC.SubTypes a, Arbitrary a, Generic a) 
+instance (SC.SubTypes a, Arbitrary a, Generic a)
          => SC.SubTypes (HeapP a)
-instance (SC.SubTypes a, Ord a, Arbitrary a, Generic a) 
+instance (SC.SubTypes a, Ord a, Arbitrary a, Generic a)
          => SC.SubTypes (HeapPP a)
 
 -- instance (Ord a, Arbitrary a, Data a, Show a) => SC.SubTypes (Heap a) where
 --   subTypes Nil = []
---   subTypes (Node x h0 h1) = 
+--   subTypes (Node x h0 h1) =
 --     [ T.Node (SC.subT x) []
 --     , T.Node (SC.subT h0) (SC.subTypes h0)
 --     , T.Node (SC.subT h1) (SC.subTypes h1)
@@ -56,20 +57,20 @@ instance (SC.SubTypes a, Ord a, Arbitrary a, Generic a)
 -- instance (Arbitrary a, Data a, Show a) => SC.SubTypes (HeapP a) where
 --   subTypes Empty = []
 --   subTypes (Unit a) = [ T.Node (SC.subT a) [] ]
---   subTypes (Insert i h)      = 
+--   subTypes (Insert i h)      =
 --     [ T.Node (SC.subT i) []
---     , T.Node (SC.subT h) (SC.subTypes h) 
+--     , T.Node (SC.subT h) (SC.subTypes h)
 --     ]
---   subTypes (SafeRemoveMin h) = 
+--   subTypes (SafeRemoveMin h) =
 --     [ T.Node (SC.subT h) (SC.subTypes h) ]
---   subTypes (Merge h0 h1)     = 
---     [ T.Node (SC.subT h0) (SC.subTypes h0) 
---     , T.Node (SC.subT h1) (SC.subTypes h1) 
+--   subTypes (Merge h0 h1)     =
+--     [ T.Node (SC.subT h0) (SC.subTypes h0)
+--     , T.Node (SC.subT h1) (SC.subTypes h1)
 --     ]
 --   subTypes (FromList a) = [ T.Node (SC.subT a) [] ]
 
 -- instance (Ord a, Arbitrary a, Data a, Show a) => SC.SubTypes (HeapPP a) where
---   subTypes (HeapPP hp h) = 
+--   subTypes (HeapPP hp h) =
 --     [ T.Node (SC.subT hp) (SC.subTypes hp)
 --     , T.Node (SC.subT h) (SC.subTypes h)
 --     ]
@@ -113,13 +114,13 @@ Nil `merge` h2  = h2
 h1@(Node x h11 h12) `merge` h2@(Node y h21 h22)
   | x <= y    = Node x (h12 `merge` h2) h11
   | otherwise = Node y (h22 `merge` h1) h21
-        
+
 fromList :: Ord a => [a] -> Heap a
 fromList xs = merging [ unit x | x <- xs ]
  where
   merging []  = empty
   merging [h] = h
-  merging hs  = merging (sweep hs) 
+  merging hs  = merging (sweep hs)
 
   sweep []         = []
   sweep [h]        = [h]
@@ -243,7 +244,7 @@ prop_ToSortedList (HeapPP _ h) =
   h ==? xs && xs == sort xs
  where
   xs = toSortedList h
-  
+
 --------------------------------------------------------------------------
 -- main
 

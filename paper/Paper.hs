@@ -3,12 +3,13 @@
 -- | Model of the SmartCheck algorithms explained in the paper.  We leave a
 -- number of functions undefined here.
 
--- Limit: col 46
+-- Limit: col 50
 
 module Paper where
 
 import Prelude hiding (fail)
 import Data.Maybe (mapMaybe)
+import Data.Tree
 import Control.Monad (liftM, replicateM)
 import Test.QuickCheck
 
@@ -20,47 +21,35 @@ data Format = PrintTree | PrintString
   deriving (Eq, Read, Show)
 
 -- SmartCheck arguments
-format       :: Format    -- ^ How to show extrapolated formula
-format       = undefined
-qcArgs       :: Args    -- ^ QuickCheck arguments
-qcArgs       = undefined
-qc           :: Bool      -- ^ Should we run QuickCheck?  (If not, you are
-                          -- expected to pass in data to analyze.)
-qc           = undefined
-scMaxSize    :: Int       -- ^ Maximum size of data to generate, in terms of the
-                          -- size parameter of QuickCheck's Arbitrary instance
-                          -- for your data.
-scMaxSize    = undefined
-scMaxDepth   :: Maybe Int -- ^ How many levels into the structure of the failed
-                          -- value should we descend when reducing or
-                          -- generalizing?  Nothing means we go down to base
-                          -- types.
-scMaxDepth   = undefined
-scMaxReduce  :: Int       -- ^ How hard (number of rounds) to look for failure
-                          -- in the reduction stage.
-scMaxReduce  = undefined
-extrap       :: Bool      -- ^ Should we extrapolate?
-extrap       = undefined
-scMaxExtrap  :: Int       -- ^ How hard (number of rounds) to look for failures
-                          -- during the extrapolation and constructor
-                          -- generalization stages.
-scMaxExtrap  = undefined
-scMinExtrap  :: Int       -- ^ Minimum number of times a property's precondition
-                          -- must be passed to generalize it.
-scMinExtrap  = undefined
-constrGen    :: Bool      -- ^ Should we try to generalize constructors?
-constrGen    = undefined
-scConstrMax  :: Int       -- ^ How hard (number of rounds) to look for failing
-                          -- values with each constructor.  For "wide" sum
-                          -- types, this value should be increased.
-scConstrMax  = undefined
-
+data ScArgs = ScArgs {
+    format       :: Format    -- ^ How to show extrapolated formula
+  , qcArgs       :: Args    -- ^ QuickCheck arguments
+  , qc           :: Bool      -- ^ Should we run QuickCheck?  (If not, you are
+                              -- expected to pass in data to analyze.)
+  , scMaxSize    :: Int       -- ^ Maximum size of data to generate, in terms of
+                              -- the size parameter of QuickCheck's Arbitrary
+                              -- instance for your data.
+  , scMaxDepth   :: Maybe Int -- ^ How many levels into the structure of the
+                              -- failed value should we descend when reducing or
+                              -- generalizing?  Nothing means we go down to base
+                              -- types.
+  , scMaxReduce  :: Int       -- ^ How hard (number of rounds) to look for
+                              -- failure in the reduction stage.
+  , extrap       :: Bool      -- ^ Should we extrapolate?
+  , scMaxExtrap  :: Int       -- ^ How hard (number of rounds) to look for
+                              -- failures during the extrapolation and
+                              -- constructor generalization stages.
+  , scMinExtrap  :: Int       -- ^ Minimum number of times a property's
+                              -- precondition must be passed to generalize it.
+  , constrGen    :: Bool      -- ^ Should we try to generalize constructors?
+  , scConstrMax  :: Int       -- ^ How hard (number of rounds) to look for
+                              -- failing values with each constructor.  For
+                              -- "wide" sum types, this value should be
+                              -- increased.
+}
 --------------------------------------------------------------------------------
 
 -- Types
-
--- data Property
-
 data SubVal = forall a. SubTypes a => SubVal a
 
 type Size = Int
@@ -70,9 +59,10 @@ class Arbitrary a => SubTypes a where
   size     :: a -> Size
   index    :: a -> Idx -> Maybe SubVal
   replace  :: a -> Idx -> SubVal -> a
+  subVals  :: a -> Tree SubVal
   constr   :: a -> String
   constrs  :: a -> [String]
-  baseType :: a -> Bool
+--  baseType :: a -> Bool
 
 --------------------------------------------------------------------------------
 
@@ -88,7 +78,8 @@ fail _ _ = Just True
 cast :: SubTypes a => a -> Maybe b
 cast _ = undefined
 
-sizedArbitrary :: forall a. SubTypes a => Size -> a -> IO a
+sizedArbitrary ::
+  forall a . SubTypes a => Size -> a -> IO a
 sizedArbitrary sz _ = return (undefined sz :: a)
 
 subTree :: SubTypes a => a -> Idx -> Idx -> Bool
@@ -99,26 +90,22 @@ subTree _ _ _ = undefined
 getSize :: SubVal -> Size
 getSize (SubVal a) = size a
 
-newVals :: SubVal -> Size
-        -> Int -> IO [SubVal]
-newVals (SubVal a) sz tries =
-  replicateM tries s
-  where
+newVals :: Size -> Int -> SubVal -> IO [SubVal]
+newVals sz tries (SubVal a) =
+  replicateM tries s where
   s  = liftM SubVal (sizedArbitrary sz a)
 
 reduce :: SubTypes a
-  => a -> (a -> Property) -> IO a
-reduce cex prop = reduce' 1
+  => ScArgs -> (a -> Property) -> a -> IO a
+reduce args prop cex = reduce' 1
   where
-  reduce' idx =
-    case index cex idx of
-      Nothing -> return cex
-      Just v  -> do
-        vs <- newVals v (getSize v)
-                scMaxReduce
-        case test cex idx vs prop of
-          Nothing   -> reduce' (idx+1)
-          Just cex' -> reduce cex' prop
+  reduce' idx
+    | Just v <- index cex idx
+    = do vs <- newVals (getSize v)
+                 (scMaxReduce args) v
+         maybe (reduce' (idx+1)) (reduce args prop)
+               (test cex idx vs prop)
+    | otherwise = return cex
 
 test :: SubTypes a => a -> Idx -> [SubVal]
      -> (a -> Property) -> Maybe a
@@ -132,57 +119,51 @@ test cex idx vs prop = go vs
 
 --------------------------------------------------------------------------------
 
-reduce0 :: forall a . SubTypes a
-  => a -> (a -> Property) -> IO a
-reduce0 cex prop = reduce' 1
+reduceOpt :: forall a . SubTypes a
+  => ScArgs -> (a -> Property) -> a -> IO a
+reduceOpt args prop cex = reduce' 1
   where
-  reduce' idx =
-    case index cex idx of
-      Nothing -> return cex
-      Just v  -> case testHole v of
-                   Just v' -> reduce0 v' prop
-                   Nothing -> test' v idx
+  reduce' idx
+    | Just v <- index cex idx
+    = maybe (test' v idx) (reduceOpt args prop)
+            (testHole v)
+    | otherwise = return cex
 
   test' v idx = do
-    vs <- newVals v (getSize v) scMaxReduce
-    case test cex idx vs prop of
-      Nothing   -> reduce' (idx+1)
-      Just cex' -> reduce0 cex' prop
+    vs <- newVals (getSize v) (scMaxReduce args) v
+    maybe (reduce' (idx+1)) (reduceOpt args prop)
+          (test cex idx vs prop)
 
-  testHole (SubVal a) =
-    case cast a :: Maybe a of
-      Nothing -> Nothing
-      Just a' ->
-        if pass prop a' then Nothing
-          else Just a'
+  testHole (SubVal a) = do
+    a' <- cast a :: Maybe a
+    if pass prop a' then Nothing else Just a'
 
 --------------------------------------------------------------------------------
 
-subTrees :: SubTypes a
-  => a -> Idx -> [Idx] -> Bool
+subTrees :: SubTypes a => a -> Idx -> [Idx] -> Bool
 subTrees cex idx = any (subTree cex idx)
 
 extrapolate :: SubTypes a
-  => a -> (a -> Property) -> IO [Idx]
-extrapolate cex prop = extrapolate' 1 []
+  => ScArgs -> a -> (a -> Property) -> IO [Idx]
+extrapolate args cex prop = extrapolate' 1 []
   where
   extrapolate' idx idxs
     | subTrees cex idx idxs
     = extrapolate' (idx+1) idxs
-    | otherwise
-    = case index cex idx of
-        Nothing -> return idxs
-        Just v  -> do
-          vs <- newVals v scMaxSize scMaxExtrap
-          extrapolate' (idx+1)
-            (if allFail cex idx vs prop
-               then idx:idxs else idxs)
+    | Just v <- index cex idx = mkNewVals v
+    | otherwise = return idxs
+    where
+    mkNewVals v = do
+      vs <- newVals (scMaxSize args)
+                    (scMaxExtrap args) v
+      extrapolate' (idx+1)
+        (if allFail args cex idx vs prop
+           then idx:idxs else idxs)
 
-allFail :: SubTypes a
-  => a -> Idx -> [SubVal]
-  -> (a -> Property) -> Bool
-allFail cex idx vs prop =
-  length res >= scMinExtrap && and res
+allFail :: SubTypes a => ScArgs -> a -> Idx
+  -> [SubVal] -> (a -> Property) -> Bool
+allFail args cex idx vs prop =
+  length res >= scMinExtrap args && and res
   where
   res  = mapMaybe go vs
   go   = fail prop . replace cex idx
@@ -195,40 +176,36 @@ subConstr (SubVal a) = constr a
 subConstrs :: SubVal -> [String]
 subConstrs (SubVal a) = constrs a
 
-sumTest :: SubTypes a
-  => a -> (a -> Property) -> [Idx] -> IO [Idx]
-sumTest cex prop exIdxs = sumTest' 1 []
+sumTest :: SubTypes a => ScArgs -> a
+  -> (a -> Property) -> [Idx] -> IO [Idx]
+sumTest args cex prop exIdxs = sumTest' 1 []
   where
   sumTest' idx idxs
     | subTrees cex idx (exIdxs ++ idxs)
     = sumTest' (idx+1) idxs
-    | otherwise
-    = case index cex idx of
-        Nothing -> return idxs
-        Just v  -> do
-          vs <- newVals v scMaxSize
-                  scConstrMax
-          sumTest' (idx+1)
-            (if constrFail cex idx vs prop
-                  (subConstr v) (subConstrs v)
-               then idx:idxs else idxs)
+    | Just v <- index cex idx = fromSumTest v
+    | otherwise = return idxs
+    where
+    fromSumTest v = do
+      vs <- newVals (scMaxSize args)
+              (scConstrMax args) v
+      sumTest' (idx+1)
+        (if constrFail cex idx vs prop
+           (subConstr v) (subConstrs v)
+           then idx:idxs else idxs)
 
-constrFail :: SubTypes a
-  => a -> Idx -> [SubVal] -> (a -> Property)
-  -> String -> [String] -> Bool
+constrFail :: SubTypes a => a -> Idx -> [SubVal]
+  -> (a -> Property) -> String -> [String] -> Bool
 constrFail cex idx vs prop con allCons =
   constrFail' [con] vs
   where
   constrFail' cons vs'
-    | length cons == length allCons
-    = True
-    | null vs'
-    = False
+    | length cons == length allCons = True
+    | null vs'                      = False
     | go v == Just True
     = constrFail' (c:cons) (tail vs')
     | otherwise
     = constrFail' cons (tail vs')
-
     where
     v  = head vs'
     c  = subConstr v
@@ -237,32 +214,33 @@ constrFail cex idx vs prop con allCons =
 
 --------------------------------------------------------------------------------
 
--- matchesShapes :: SubTypes a => ScArgs -> a -> [a] -> [Idx] -> Bool
--- matchesShapes args d ds idxs = foldl' f False ds
---   where
---   f True _   = True
---   f False d' = matchesShape args d d' idxs
+matchesShapes :: SubTypes a
+  => a -> [(a,[Idx])] -> Bool
+matchesShapes d = any (matchesShape d)
 
-matchesShape :: SubTypes a => a -> a -> [Idx] -> Bool
-matchesShape a b idxs = match (a, b) && repIdxs
+--------------------------------------------------------------------------------
+
+-- | At each index that we generalize (either value generalization or
+-- constructor generalization), we replace that value from b into a.  At this
+-- point, we check for constructor equality between the two values, decending
+-- their structures.
+matchesShape :: SubTypes a => a -> (a, [Idx]) -> Bool
+matchesShape a (b, idxs)
+  | constr a /= constr b = False
+  | Just a' <- aRepl
+  = let x = subForest (subVals a') in
+    let y = subForest (subVals b)  in
+    all foldEqConstrs (zip x y)
+  | otherwise = False
   where
-
-  -- Says that every value v at index idx from a can be put into b at the same
-  -- idx and its type-correct.
-  --
-  -- If we can do that, then we take the resulting value (b with a's idxes in
-  -- it) and a, and get all the immediate children, and we test if they have the
-  -- same constructors (or are base types).
-  --
-  -- XXX why are we only taking the immediate subchildren?
-  repIdxs = case foldl go (Just b) idxs of
-              Nothing -> False
-              Just b' -> all match $ zip (nextLevel a) (nextLevel b')
-
-  go mb idx = do
-    b' <- mb
-    v  <- index a idx
-    replace b' idx v
-
-  nextLevel x  = map rootLabel (subTypes x)
-  match (x, y) = baseType x || toConstr x == toConstr y
+  updateA idx d =
+    fmap (replace d idx) (index b idx)
+  aRepl = foldl go (Just a) idxs where
+    go ma idx | Just x <- ma = updateA idx x
+              | otherwise    = Nothing
+  foldEqConstrs ( Node (SubVal l0) sts0
+                , Node (SubVal l1) sts1 )
+    -- Don't need a baseType test, since they don't ever appear in subTypes.
+    | constr l0 == constr l1 = next
+    | otherwise              = False
+    where next = all foldEqConstrs (zip sts0 sts1)

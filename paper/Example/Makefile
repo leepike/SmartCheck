@@ -1,8 +1,8 @@
 #TARGETS=qcNone.out qc10.out qc20.out feat.out sc.out
-TARGETS=qcNone.out qc10.out feat.out sc.out
+TARGETS=qcNone.out #qc10.out feat.out sc.out
 LOG=init.log
-RNDS=20
-SRC=InitEx
+RNDS=100
+SRC=InitEx2
 
 all : $(TARGETS)
 

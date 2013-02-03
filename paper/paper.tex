@@ -79,7 +79,7 @@
 
 %% \include{math}
 
-\newenvironment{code}{\begin{alltt}}{\end{alltt}}
+\newenvironment{code}{\begin{alltt}\small}{\end{alltt}}
 %% \newenvironment{cols}{\begin{tabular}{m{3.6cm}|m{3.6cm}}{Haskell} &
 
 \newcommand{\ttp}[1]{\texttt{#1}}
@@ -140,13 +140,10 @@ freely available.
 %% \keywords
 %% embedded domain-specific language, compiler, verification
 
-\todo{define variant, tag}
-\todo{note constants are user-defined arguments, other simplifications}
-\todo{thread args through}
+\todo{complexity of each algorithm}
 \todo{termination for each algorithm}
-\todo{fromMaybe over pattern matching?}
 \todo{show quantification in intro}
-\todo{benchmark feat}
+\todo{benchmark feat -- send to author}
 
 \section{Introduction}\label{sec:intro}
 The QuickCheck testing framework was a revolutionary step-forward in
@@ -172,45 +169,30 @@ smaller :: a -> [a]
 \end{code}
 %
 \noindent
-The purpose of \ttp{smaller} is to generate strictly smaller values (according to
-some measure) from a given counterexample to attempt to find a smaller
-counterexample.  Today, \ttp{smaller} is called \ttp{shrink}.
+The purpose of \ttp{smaller} is to generate strictly smaller values (according
+to some measure) from a given counterexample.  These new values are then tested
+to attempt to find a smaller counterexample.  Today, \ttp{smaller} is called
+\ttp{shrink}.
 
 \begin{figure}[ht]
 \begin{code}
-data A = A Int16 deriving Show
+data N a = N a
+type I   = [N Int16]
+data T   = T (N Word8) I I I I
 
-data B = B [A] [A] [A] [A] deriving Show
+toList :: T -> [[Int16]]
+toList (T w i0 i1 i2 i3) =
+  [go w] : (map . map) go [i0, i1, i2, i3]
+  where go (N i) = fromIntegral i
 
--- QuickCheck instances
-instance Arbitrary A where
-  arbitrary    = liftM A arbitrary
-  shrink (A i) = map A (shrink i)
+pre :: T -> Bool
+pre t = all ((>) 256 . sum) (toList t)
 
-instance Arbitrary B where
-  arbitrary = liftM4 B arbitrary arbitrary
-                       arbitrary arbitrary
-  shrink (B a b c d) =
-    [ B w x y z | w <- shrink a
-                , x <- shrink b
-                , y <- shrink c
-                , z <- shrink d ]
+post :: T -> Bool
+post t = (sum . concat) (toList t) < 5 * 256
 
--- Predicates for defining properties
-add :: [A] -> Int16
-add = sum . map (\(\backslash\)(A i) -> i)
-
-pre :: B -> Bool
-pre (B a b c d) =
-  all (\(\backslash\) -> add x < 16) [a, b, c, d]
-
-post :: B -> Bool
-post (B a b c d) =
-  add a + add b + add c + add d < 64
-
--- Property
-prop :: B -> Property
-prop p = pre p ==> post p
+prop :: T -> Property
+prop t = pre t ==> post t
 \end{code}
   \caption{QuickCheck and SmallCheck for a product-type input.}
   \label{fig:initial}
@@ -218,46 +200,61 @@ prop p = pre p ==> post p
 
 While \ttp{shrink} is user-defined and can have any type-correct implementation,
 it is typically defined using structural recursion for composite data types.
-For example, consider the \ttp{shrink} instances given to data types \ttp{A} and
-\ttp{B} in Figure~\ref{fig:initial}.\footnote{All examples and algorithms in
-  this paper are presented in Haskell~\cite{haskell98}.}  For \ttp{A}, we map
-the constructor \ttp{A} over a list of new \ttp{Int16}s returned by
-\ttp{shrink}; for \ttp{B}, we use Haskell's list comprehension notation to
-return a list of new values.  Indeed, because of the regular structure of
-\ttp{shrink} implementations, the principal motivation for one of Haskell's
-first generics package was for providing generic definitions for
-\ttp{shrink}~\cite{syb}.
-
-However, this straightforward approach to defining \ttp{shrink} instances may
-either miss minimal counterexamples, be too inefficient to be practical, or
-both.\footnote{For a recent real-world case, see the user question posed on
-  StackOverflow:
+Indeed, because of the regular structure of \ttp{shrink} implementations, the
+principal motivation for one of Haskell's first generics package was for
+providing generic definitions for \ttp{shrink}~\cite{syb}.  However, simple
+structural recursion may either miss smaller counterexamples, be too inefficient
+to be practical, or both.\footnote{For a recent real-world case, see the user
+  question posed on StackOverflow:
   \url{http://stackoverflow.com/questions/8788542/how-do-i-get-good-small-shrinks-out-of-quickcheck}.}
-For example, consider again Figure~\ref{fig:initial}.  The data type \ttp{B} is
-a product type over lists of 16-bit signed integers, wrapped by a constructor.
-Consider the property \ttp{prop} in the figure, stating that if the sum of each
-list in a field of \ttp{B} is less than 16, then the sum of the four fields is
-less than 64.  The property seems reasonable at first glance, until one realizes
-that due to underflow, the property can be violated.  For example, consider the
-value
+
+Consider the example in Figure~\ref{fig:initial}.\footnote{All examples and
+  algorithms in this paper are presented in Haskell.  We strive to use idiomatic
+  Haskell, and only rely on the language extensions of existential type
+  quantification and scoped type variables.~\cite{haskell98}.}  Data type
+\ttp{T} is a product type containing four lists of \ttp{Int16}s and a single
+\ttp{Word8}.  For our purposes, it is not important what \ttp{T} models, but
+for concreteness, suppose it models the values in four linked lists in an
+operating system, together with an 8-bit status register.
+
+Now suppose we are modeling some program that serializes values of type \ttp{T}.
+The input to the program satisfies the invariant \ttp{pre}, that the sum of
+values in each list of \ttp{Int16}s is less than or equal to 256 (and by
+definition, the \ttp{Word8} value is less than or equal to 256).  Assuming this,
+we want to show \ttp{post} holds, that the sum of all the values from \ttp{T} is
+less than $5 * 256$.  At first glance, the property seems reasonable, but we
+have forgotten about underflows.  For example, the value
 %
 \begin{code}
-B [A (-32769)] [] [] []
+T (N 10) [N (-20000)] [N (-20000)] [] []
+\end{code}
+%
+fails \ttp{prop} (\ttp{==>} is implication from the QuickCheck library).
+Unfortunately, a typical counterexample returned by QuickCheck is not quite so
+simple.  With standard settings, it returns a value containing just under 70
+\ttp{N} constructors, and sometimes values contain over 100 constructors.  Thus,
+it pays to define \ttp{shrink}!
+
+A typical definition of \ttp{shrink} for a data type like \ttp{T} is to take the
+cross-product of shrunk values over the arguments to the constructor \ttp{T}.
+This can be expressed using Haskell's list-comprehension notation:
+%
+\begin{code}
+shrink (T w i0 i1 i2 i3) =
+  [ T a b c d e | a <- shrink w,  b <- shrink i0
+                , c <- shrink i1, d <- shrink i2
+                , e <- shrink i3 ]
 \end{code}
 %
 \noindent
-Without shrinking, QuickCheck finds large examples to the property; on average,
-QuickCheck returns a value contains 70 \ttp{Int16} values!
-
-Thus, it pays to define \ttp{shrink}.  Unfortunately, even for a simple property
-and program like this one, the definition for \ttp{shrink} given in
-Figure~\ref{fig:initial} produces an intractable number of potential
-counterexamples to test; with the definitions and property provided (together
-with QuickCheck's default \ttp{Arbitrary} instance for lists), the list of
-potential counterexamples generated by \ttp{shrink} can contain more than
-$10^{10}$ elements \todo{true?}.  This is an enormous state space to search for a smaller
-example and can cause the shrinking phase to take orders-of-magnitude more time
-than the counterexample discovery phase.
+The result of (\ttp{shrink t}) with this definition is null if any list
+contained in \ttp{t} is null.  Still, for typical counterexamples returned by
+QuickCheck that do not contain empty lists, together with QuickCheck's default
+\ttp{Arbitrary} instances, the length of potential counterexamples returned by
+\ttp{shrink} can easily exceed $10^{10}$, which is an intractable number of
+tests for QuickCheck to analyze.  The time complexity is compounded by the
+shrink stage being recursive, so when a new smaller counterexample is found, it
+is also shrunk.  In practice, QuickCheck appears to loop indefinitely.
 
 It is not always straightforward to determine how to make a more efficient
 implementation for \ttp{shrink}.  Shrinking presents a programmer's dilemma:
@@ -269,35 +266,30 @@ Typically, a programmer tries a brute-force approach to reduce the number of
 potential counterexamples; for example, she may try to truncate lists using the
 (\ttp{take n}) function that returns the first $n$ elements of a list.  The
 trade-off is quicker shrinking with a lower probability of finding a smaller
-counterexample.  For example, redefining shrink for type \ttp{B} as follows
+counterexample.  For example, we might redefine shrink as follows:
 %
-
-%% \begin{minipage}{\columnwidth}
-%% \lstset{ caption={Truncated shrinking function for data type \ttp{B}.}
-%%        , label=lst:newshrink
-%%        , captionpos=b }
-%% \begin{lstlisting}
-
-\begin{figure}[ht]
+%\begin{figure}[ht]
 \begin{code}
 len = 10
 
-shrink (B a b c d) =
-  [ B w x y z | w <- tk a, x <- tk b
-              , y <- tk c, z <- tk d ]
+shrink (T w i0 i1 i2 i3) =
+  [ T a b c d e | a <- tk w
+                , b <- tk i0, c <- tk i1
+                , d <- tk i2, e <- tk i3 ]
   where tk x = take len (shrink x)
 \end{code}
-  \caption{Truncated shrinking function for data type \ttp{B}.}
-  \label{lst:newshrink}
-\end{figure}
+%%   \caption{Truncated shrinking function for data type \ttp{B}.}
+%%   \label{lst:newshrink}
+%% \end{figure}
 
 %% \end{lstlisting}
 %% \end{minipage}
 %
 \noindent
-controls the exponential blowup of the input-space by taking the first ten
-elements of each list, so the cross product is limited to 10,000 elements.  The
-downside is that potentially smaller counterexamples may be omitted.
+let us call this version ``truncated shrink''.  Truncating the controls the
+blowup of the input-space; the number of possible new values is $10^5$ in this
+case.  While truncation controls the blowup, the downside is that potentially
+smaller counterexamples may be omitted.
 
 The programmer might ask herself: ``What if we omit the need for shrinking
 counterexamples altogether?''  SmallCheck is another testing framework for
@@ -309,71 +301,89 @@ bound.  While SmallCheck is effective for testing many programs and properties
 counterexamples to even relatively simple properties may be infeasible to
 discover due to input-space explosion.
 
-\begin{figure}
-  \begin{code}
-instance Serial Int16 where
-  series d = drawnFrom [(-d')..d']
-    where d' = fromIntegral d
+%% \begin{figure}
+%%   \begin{code}
+%% instance Serial Int16 where
+%%   series d = drawnFrom [(-d')..d']
+%%     where d' = fromIntegral d
 
-instance Serial A where series = cons1 A
-instance Serial B where series = cons4 B
-  \end{code}
-  \caption{SmallCheck instances for the data types in
-    Figure~\ref{fig:initial}.}
-  \label{fig:smallshrink}
-\end{figure}
+%% instance Serial A where series = cons1 A
+%% instance Serial B where series = cons4 B
+%%   \end{code}
+%%   \caption{SmallCheck instances for the data types in
+%%     Figure~\ref{fig:initial}.}
+%%   \label{fig:smallshrink}
+%% \end{figure}
 
 With SmallCheck, a property is checked up to a depth set by the user that
-measures how large values are.  For example, for type \ttp{Int}, the depth $d$
-is defined as the integers in the list enumerating from $-d$ to $d$ (i.e.,
-\ttp{[(-d)..d]}).  For a product type, SmallCheck must check values produced by
-taking the cross-product of the type's fields at a given depth.
-Figure~\ref{fig:smallshrink} contains functions for generating Lazy SmallCheck
-(a variant of SmallCheck) tests by defining instances for the \ttp{Serial}
-class.  For the property \ttp{prop} defined above (suitably redefined to use
-SmallCheck's types), SmallCheck must check to depth 16 to find the first
-counterexample.  Unfortunately, after a couple hours of testing, Lazy SmallCheck
-is still checking values at depth six, and the number of tests scales
-exponentially with respect to the depth.\footnote{All tests in this paper are
-  performed on a four-core Pentium~i7 running at 2.7GHz with 8GB RAM on
-  Fedora~16.  This test, and others unless noted, are performed using
-  interpreted Haskell under GHC 7.4.2.\todo{redo tests?}}
+measures how large values are (typically, the depth is a number of constructors
+in the value).  For a product type, SmallCheck must check values produced by
+taking the cross-product of the type's fields at a given depth.  SmallCheck is
+unable to enumerate all possible values of type \ttp{T} to discover a
+counterexample, due to combinatorial explosion.  (A related library named Feat
+combines some aspects of SmallCheck and QuickCheck~\cite{feat}; we discuss it
+more in the related work (Section~\ref{sec:related}).
+
+%% is unable to verify the property from Figure~\ref{fig:initial}, for much the
+%% same reason that \ttp{shrink} is inefficient
+
+%% For the property \ttp{prop} defined in Figure~\ref{fig:initial} (suitably
+%% redefined to use SmallCheck's types).
+
+%% to depth 16 to find the first counterexample.  Unfortunately, after a couple
+%% hours of testing, Lazy SmallCheck is still checking values at depth six, and
+%% the number of tests scales with respect to the depth.\footnote{All tests in
+%% this paper are performed on a four-core Pentium~i7 running at 2.7GHz with 8GB
+%% RAM on Fedora~16.  This test, and others unless noted, are performed using
+%% interpreted Haskell under GHC 7.4.2.\todo{redo tests?}}
+
+%% For example, for type \ttp{Int}, the depth $d$ is defined as the integers in
+%% the list enumerating from $-d$ to $d$ (i.e., \ttp{[(-d)..d]}).
+%% Figure~\ref{fig:smallshrink} contains functions for generating Lazy
+%% SmallCheck (a variant of SmallCheck) tests by defining instances for the
+%% \ttp{Serial} class.
 
 Finally, even if we could overcome the problems described above with QuickCheck
 and SmallCheck, we are left with two others.
 \begin{itemize}
-  \item First, after discovering a counterexample to some property, say with
-    type
+  \item A counterexample is usually representative of other counterexamples, but
+    that generalization is left to the user to discover for herself.  For
+    example, consider the counterexample presented earlier:
 %
 \begin{code}
-prop :: B -> Bool
+T (N 10) [N (-20000)] [N (-20000)] [] []
 \end{code}
 %
 \noindent
-one might wish to search for different counterexamples to \ttp{prop}.  Ideally,
-the testing framework would automatically add a predicate characterizing (and
-perhaps generalizing) a counterexample
+For any \ttp{Word8}, the counterexample still holds.  Thus, we can be more
+informative and return a quantified formula rather than a single counterexample:
 %
 \begin{code}
-cex :: B -> Bool
+forall x . T x [N (-20000)] [N (-20000)] [] []
 \end{code}
 %
 \noindent
-as a precondition to \ttp{prop} to define a new property
-\begin{code}
-prop' b = not (cex b) ==> prop b
-\end{code}
-%
-\noindent
-where \ttp{==>} is QuickCheck's implication operator that discards tests that
-violate the precondition.
+Such a formula has the added benefit of replacing a potentially large sub-term
+of a composite data type value with a quantifier, reducing the sheer size of the term.
 
-  \item Second, and more generally, a counterexample is usually representative
-    of other counterexamples, but that generalization is left to the user to
-    discover for herself.  Really, what would be useful would be not just a
-    minimal counterexample, but a quantified formula characterizing a set of
-    counterexamples.  Such a formula has the added benefit of replacing a
-    potentially large sub-term of a composite data type value with a quantifier.
+  \item Second, during testing, it is sometimes helpful to cover the input space
+    and by discovering different counterexamples to \ttp{prop}.  In the example
+    in Figure~\ref{fig:initial}, one counterexample is fairly representative of
+    others, but this is not true in general (e.g., consider properties about
+    abstract syntax trees).  Ideally, the testing framework would automatically
+    add a predicate characterizing a counterexample as the precondition to
+    \ttp{prop} that strengthens the property.  That is, for a specific
+    counterexample \ttp{ex}, we have a predicate \ttp{predEx} that holds if its
+    argument is another counterexample that is similar to (i.e., some
+    generalization of) \ttp{ex}.  Then we test against a new property
+%
+\begin{code}
+prop' a = not (cex a) ==> prop a
+\end{code}
+%
+%% \noindent
+%% where \ttp{==>} is QuickCheck's implication operator that discards tests that
+%% violate the precondition.
 \end{itemize}
 
 \begin{table}[ht]
@@ -403,29 +413,28 @@ Mean size & 70 & 34 & 32 & 5\\
 Motivated by these limitations of QuickCheck and SmallCheck, we have developed
 \emph{SmartCheck}.  SmartCheck extends QuickCheck to efficiently and generically
 find small counterexamples as well as generalize them as described in the
-preceding paragraph.  To motivate the benefit of SmartCheck, consider the table
-in Table~\ref{table:results}, giving the results for using QuickCheck and
+preceding paragraph.  To motivate the benefit of SmartCheck, consider
+Table~\ref{table:results}, giving the results for using QuickCheck and
 SmartCheck on the program shown in Figure~\ref{fig:initial} (we omit SmallCheck,
 since as we noted, it is not even feasible for an example like this).  In the
 first three columns, the results of using QuickCheck to generate counterexamples
 are shown.  The first column contains the results of using QuickCheck without
 shrinking to provide a baseline.  The next two columns show the result of using
-QuickCheck with definitions of \ttp{shrink} that limit the lists of fields of
-\ttp{B} to 10 (Figure~\ref{lst:newshrink}) and 20 elements
-(Figure~\ref{lst:newshrink}, with \ttp{len = 20}), respectively.  (With the
-original definition for shrink from Figure~\ref{fig:initial}, some
-counterexamples cause QuickCheck to not return during the shrinking phase after
-hours of computation, so we omit these.)
+QuickCheck with definitions of truncated \ttp{shrink} that limit the number of
+smaller values to 10 and 20 elements, respectively.  (With the original
+definition for shrink from Figure~\ref{fig:initial}, some counterexamples cause
+QuickCheck to not return during the shrinking phase after hours of computation,
+so we omit these.)
 
-  In each row, we show the maximum, mean, and median
-number of seconds required by QuickCheck to generate a counterexample over 100
-runs.  In the last row, we show the mean size of the final value returned,
-measured by the taking the cumulative length of the lists of the fields of
-\ttp{B}.  Notice that while typically counterexamples are returned in a fraction
-of a second, there are outliers taking 21 seconds and 125 seconds for the two
-tests.  Both tests roughly cut the size of the counterexample in half;
-increasing the number of potential counterexamples can result in a significant
-performance penalty for this example without much benefit.
+In each row, we show the maximum, mean, and median number of seconds required by
+QuickCheck to generate a counterexample over 100 runs.  In the last row, we show
+the mean size of the final value returned, measured by the taking the cumulative
+length of the lists of the fields of \ttp{B}.  Notice that while typically
+counterexamples are returned in a fraction of a second, there are outliers
+taking 21 seconds and 125 seconds for the two tests.  Both tests roughly cut the
+size of the counterexample in half; increasing the number of potential
+counterexamples can result in a significant performance penalty for this example
+without much benefit.
 
 In the last column are the results for SmartCheck.  Not only does it execute
 faster than QuickCheck with shrinking, it has significantly smaller outliers.
@@ -453,7 +462,7 @@ This paper, and the library it describes, makes the following contributions:
 
 \item an approach to generically strengthen a property with a precondition that
   characterizes an already-discovered counterexample for the purpose of finding
-  new, dissimilar counterexamples(Section~\ref{sec:generalization});
+  new, dissimilar counterexamples (Section~\ref{sec:generalization});
 
 \item an implementation based on generic programming that is not only more
   efficient that hand-written \ttp{shrink} instances in many cases but that
@@ -642,13 +651,13 @@ random sampling vertexes in the graph is possible but too inefficient, as we saw
 from the example in the introduction.
 
 \subsection{Reduction Algorithm Overview}\label{sec:reduct}
-The algorithm we present for efficiently searching for new counterexamples can
-be thought of as a recursive breadth-first traversal over the structure of the
-current counterexample value, where the value is represented as a tree.  At each
-node, during the traversal, we generate arbitrary \emph{structurally} smaller
-sub-values and build a new value from that, leaving the remainder of the tree
-unchanged.  Intuitively, by a \emph{structurally smaller value}, we mean one
-with fewer constructors.  We continue until we reach a fixed-point.
+The algorithm we present for efficiently searching for new counterexamples is an
+instance of greedy breadth-first search over a tree structures, representing a
+value.  At each node, during the traversal, we generate arbitrary
+\emph{structurally} smaller sub-values and build a new value from that, leaving
+the remainder of the tree unchanged.  Intuitively, by a \emph{structurally
+  smaller value}, we mean one with fewer constructors.  We continue until we
+reach a fixed-point.
 
 
 \begin{figure}[ht]
@@ -732,7 +741,10 @@ to the next sub-value of \ttp{cex} and continue.  However, if a new smaller
 counterexample \ttp{cex'} is found, we start a new breadth-first traversal of
 \ttp{cex'}, attempting to shrink it further.  The algorithm is guaranteed to
 terminate: intuitively, the measure for the function is that either the index
-increases or the size of the counterexample being evaluated decreases.
+increases or the size of the counterexample being evaluated decreases.  The
+complexity of the algorithm is $\Omega(n^2)$, where $n$ is the number of
+constructors in the counterexample.  The analysis assumes generating new
+sub-values and testing them is done in constant time.
 
 \subsection{Reduction Algorithm Details}
 Having describe the reduction algorithm, there are two important details about
@@ -1159,7 +1171,7 @@ the neighborhood of the original one.
 
 \begin{figure}[ht!]
   \begin{center}
-    \includegraphics[scale=0.5]{Figs/cex-gen}
+    \includegraphics[scale=0.49]{Figs/cex-gen}
    \end{center}
   \caption{Counterexample generalization.}
   \label{fig:cex-gen}
@@ -1175,7 +1187,29 @@ with new formulas until no more uncovered counterexamples exist or the testing
 tool fails to find new counterexamples.
 
 \begin{figure}
+  \begin{code}
+matchesShapes :: SubTypes a => a -> [(a,([Idx],[Idx]))] -> Bool
+matchesShapes d = any (matchesShape d)
 
+matchesShape :: SubTypes a => a -> (a, ([Idx],[Idx])) -> Bool
+matchesShape a (b, (idxVals, idxConstrs))
+  | constr a /= constr b = False
+  | Just a' <- aRepl         = let x = subForest (subVals a') in
+                               let y = subForest (subVals b) in
+                               all foldEqConstrs (zip x y)
+  | otherwise                = False
+
+  where
+  foldEqConstrs :: (Tree SubVal, Tree SubVal) -> Bool
+  foldEqConstrs (Node (SubVal l0) sts0, Node (SubVal l1) sts1)
+    | constr l0 == constr l1 = next
+    | otherwise              = False
+    where next = all foldEqConstrs (zip sts0 sts1)
+
+  updateA idx d = fmap (replace d idx) (index b idx)
+  aRepl = foldl go (Just a) (idxVals ++ idxConstrs)
+    where go ma idx = maybe Nothing (updateA idx) ma
+  \end{code}
   \caption{Shape matching algorithm.}
   \label{fig:matches}
 \end{figure}
@@ -1388,13 +1422,30 @@ above to control SmartCheck's behavior.
 %-------------------------------------------------------------------------------
 \section{Related Work}\label{sec:related}
 
-\todo{shrink paper rehger pointed to ``Automatic isolation of compiler errors'' from 1994}
+\todo{shrink paper rehger pointed to ``Automatic isolation of compiler errors''
+  from 1994}
+\todo{\url{http://www.cs.utah.edu/~regehr/papers/pldi12-preprint.pdf}}
+\url{http://blog.regehr.org/archives/697} --- check out C-reduce (Regehr) and Delta%
+  debugging (\url{http://www.st.cs.uni-saarland.de/dd/}).  C-reduce is in PLDI.%
 
-Closely related to SmartCheck is the recent Haskell library Feat.  Feat
-enumerates algebraic data types in Haskell and indexing them
-quickly~\cite{feat}.  For example, Feat returns the $10^{1000}$ value in the
-enumeration of lists of Booleans in under a second.  Feat combines some of the
-advantages of SmallCheck and QuickCheck: 
+Related to SmartCheck is the recent Haskell library Feat~\cite{feat}.  Feat
+provides automated enumerations of algebraic data types in Haskell, allowing for
+fast access to very large indexes.  For example, from the enumeration of
+(\ttp{[Bool]})
+%
+\begin{code}
+[[],[False],[True],[False,False],[False,True] ...
+\end{code}
+%
+\noindent
+Accessing the $10^{1000}$th element takes under $0.1$ seconds in interpreted
+Haskell.  Feat combines some advantages of SmallCheck and QuickCheck, since the
+user can choose to exhaustively test an enumeration up to some depth, like with
+SmallCheck, or she can create a uniform distribution of test cases up to some
+depth.  
+
+
+combines some of the advantages of SmallCheck and QuickCheck:
 
 Feat provides a functional representation of enumerations,
 allowing for fast indexing of large values in an enumeration.
@@ -1409,8 +1460,6 @@ The SYB paper:%
 * QuickSpec:%
   \url{http://www.cse.chalmers.se/~nicsma/quickspec.pdf}%
 %
-\url{http://blog.regehr.org/archives/697} --- check out C-reduce (Regehr) and Delta%
-  debugging (\url{http://www.st.cs.uni-saarland.de/dd/}).  C-reduce is in PLDI.%
 %
 * Also check out \url{http://www.whyprogramsfail.com/}%
 %
@@ -1419,6 +1468,9 @@ The SYB paper:%
 * Dart-check: \url{http://code.google.com/p/dart-immutable/} (and G+ post by Paul%
   Brauner)%
 }
+%
+\url{http://www.haskell.org/haskellwiki/Research_papers/Testing_and_correctness}
+
 
 \todo{stuff from SC repo}
 

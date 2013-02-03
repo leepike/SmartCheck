@@ -71,11 +71,11 @@ scStdArgs = ScArgs { format       = PrintTree
                    , scMaxReduce  = 100
                    ---------------------
                    , extrap       = True
-                   , scMaxExtrap  = 100
+                   , scMaxExtrap  = 20
                    , scMinExtrap  = 10
                    ---------------------
                    , constrGen    = True
-                   , scConstrMax  = 100
+                   , scConstrMax  = 20
                    }
 
 --------------------------------------------------------------------------------

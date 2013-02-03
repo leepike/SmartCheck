@@ -91,10 +91,10 @@ add :: [A] -> Int16
 add = sum . map (\(A i) -> i)
 
 pre :: B -> Bool
-pre (B a b c d) = all (\x -> add x < 16) [a, b, c, d]
+pre (B a b c d) = all (\x -> add x < 5000) [a, b, c, d]
 
 post :: B -> Bool
-post (B a b c d) = add a + add b + add c + add d < 64
+post (B a b c d) = add a + add b + add c + add d < 20000
 
 prop_qc :: B -> Property
 prop_qc p = pre p ==> post p
@@ -169,4 +169,4 @@ main = do
 #endif
 
 smtChk :: IO ()
-smtChk = smartCheck scStdArgs {scMaxExtrap = 20, format = PrintString } prop_qc
+smtChk = smartCheck scStdArgs {scMaxExtrap = 30, scMinExtrap = 25, format = PrintString } prop_qc

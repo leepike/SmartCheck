@@ -62,7 +62,7 @@ class Arbitrary a => SubTypes a where
   subVals  :: a -> Tree SubVal
   constr   :: a -> String
   constrs  :: a -> [String]
---  baseType :: a -> Bool
+  baseType :: a -> Bool
 
 --------------------------------------------------------------------------------
 
@@ -218,13 +218,12 @@ matchesShapes :: SubTypes a
   => a -> [(a,[Idx])] -> Bool
 matchesShapes d = any (matchesShape d)
 
---------------------------------------------------------------------------------
-
 -- | At each index that we generalize (either value generalization or
 -- constructor generalization), we replace that value from b into a.  At this
 -- point, we check for constructor equality between the two values, decending
 -- their structures.
-matchesShape :: SubTypes a => a -> (a, [Idx]) -> Bool
+matchesShape :: SubTypes a
+  => a -> (a, [Idx]) -> Bool
 matchesShape a (b, idxs)
   | constr a /= constr b = False
   | Just a' <- aRepl

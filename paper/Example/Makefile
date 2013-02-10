@@ -1,5 +1,5 @@
-#TARGETS=qcNone.out qc10.out qc20.out feat.out sc.out
-TARGETS=qcNone.out #qc10.out feat.out sc.out
+#TARGETS=qcNone.out qc10.out qc20.out feat.out qcjh.out sc.out
+TARGETS=qcjh.out sc.out
 LOG=init.log
 RNDS=100
 SRC=InitEx2

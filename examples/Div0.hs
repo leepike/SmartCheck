@@ -38,9 +38,9 @@ instance Arbitrary Exp where
                   , liftM2 Div mkM' mkM' ]
       where mkM' = mkM =<< choose (0,n-1)
 
-  shrink (C i)       = map C (shrink i)
-  shrink (Add e0 e1) = [e0, e1]
-  shrink (Div e0 e1) = [e0, e1]
+  -- shrink (C i)       = map C (shrink i)
+  -- shrink (Add e0 e1) = [e0, e1]
+  -- shrink (Div e0 e1) = [e0, e1]
 
 -- property: so long as 0 isn't in the divisor, we won't try to divide by 0.
 -- It's false: something might evaluate to 0 still.

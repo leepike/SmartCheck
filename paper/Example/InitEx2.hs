@@ -84,7 +84,14 @@ instance Arbitrary T where
 
 #if defined(qcNone) || defined(sc) || defined(feat)
   shrink _ = []
-#else
+#endif
+#ifdef qcjh
+  shrink (T w i0 i1 i2 i3) =
+    let xs = shrink (w, i0, i1, i2, i3) in
+    let go (w', i0', i1', i2', i3') = T w' i0' i1' i2' i3' in
+    map go xs
+#endif
+#if defined(qc10) || defined(qc20)
   shrink (T w i0 i1 i2 i3) =
     [ T a b c d e | a <- tk w
                   , b <- tk i0, c <- tk i1
@@ -135,18 +142,21 @@ test rnds run = do
   let app str = appendFile logFile (str ++ "\n")
   let avg vals = sum vals / fromIntegral rnds'
   let med vals = sort vals !! (rnds' `div` 2)
+  let stdDev vals = sqrt (avg distances)
+        where
+        distances = map (\x -> (x - m)^2) vals
+        m = avg vals
 
   app "***************"
   print res
   let times = fst $ unzip res'
   let szs :: [Double]
       szs = map fromIntegral (snd $ unzip res')
-  app $ "Num  : " ++ show rnds'
-  app $ "Max  : " ++ show (maximum times) ++ ", " ++ show (maximum szs)
-  app $ "Avg  : " ++ show (avg times) ++ ", " ++ show (avg szs)
-  app $ "Med  : " ++ show (med times) ++ ", " ++ show (med szs)
-  -- app $ "Size : " ++ show (fromIntegral (sum szs) /
-  --                             fromIntegral rnds' :: Double)
+  app $ "Num     : " ++ show rnds'
+  app $ "std dev : " ++ show (stdDev $ map (fromRational . toRational) times)
+                     ++ ", " ++ show (stdDev szs)
+  app $ "Avg     : " ++ show (avg times) ++ ", " ++ show (avg szs)
+  app $ "Med     : " ++ show (med times) ++ ", " ++ show (med szs)
 
   app ""
   app ""
@@ -189,7 +199,7 @@ main = do
 #ifdef sc
   test rnds runSC
 #endif
-#if defined(qcNone) || defined(qc10) || defined(qc20)
+#if defined(qcNone) || defined(qc10) || defined(qc20) || defined(qcjh)
   test rnds (runQC stdArgs prop)
 #endif
 

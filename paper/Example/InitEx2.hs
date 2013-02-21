@@ -86,10 +86,10 @@ instance Arbitrary T where
   shrink _ = []
 #endif
 #ifdef qcjh
-  shrink (T w i0 i1 i2 i3) =
-    let xs = shrink (w, i0, i1, i2, i3) in
-    let go (w', i0', i1', i2', i3') = T w' i0' i1' i2' i3' in
-    map go xs
+  shrink (T w i0 i1 i2 i3) = map go xs
+    where xs = shrink (w, i0, i1, i2, i3)
+          go (w', i0', i1', i2', i3') =
+            T w' i0' i1' i2' i3'
 #endif
 #if defined(qc10) || defined(qc20)
   shrink (T w i0 i1 i2 i3) =
@@ -134,34 +134,67 @@ prop_sc t = pre t S.==> post t
 -- Testing
 --------------------------------------------------------------------------------
 
-test :: Int -> IO (Maybe T) -> IO ()
-test rnds run = do
+test :: FilePath -> Int -> IO (Maybe T) -> IO ()
+test f rnds run = do
   res <- replicateM rnds (test' run)
-  let res' = catMaybes res
-  let rnds' = length res'
-  let app str = appendFile logFile (str ++ "\n")
-  let avg vals = sum vals / fromIntegral rnds'
-  let med vals = sort vals !! (rnds' `div` 2)
-  let stdDev vals = sqrt (avg distances)
-        where
-        distances = map (\x -> (x - m)^2) vals
-        m = avg vals
-
-  app "***************"
-  print res
+  let res'        = catMaybes res
+  let rnds'       = length res'
+  let app str     = appendFile logFile (str ++ "\n")
+  let avg vals    = sum vals / fromIntegral rnds'
+  let med vals    = sort vals !! (rnds' `div` 2)
   let times = fst $ unzip res'
   let szs :: [Double]
       szs = map fromIntegral (snd $ unzip res')
+  let stdDev vals = sqrt (avg distances)
+        where
+        distances = map (\x -> (x - m)^(2::Integer)) vals
+        m = avg vals
+  let percentile n vals = sort vals !! ((rnds' `div` 100) * n)
+  -- http://en.wikipedia.org/wiki/Median_absolute_deviation
+  let medAbsDev vals = med (map dist vals)
+        where dist v = abs (v - median)
+              median = med vals
+
+  app "***************"
+  print res
   app $ "Num     : " ++ show rnds'
   app $ "std dev : " ++ show (stdDev $ map (fromRational . toRational) times)
                      ++ ", " ++ show (stdDev szs)
   app $ "Avg     : " ++ show (avg times) ++ ", " ++ show (avg szs)
   app $ "Med     : " ++ show (med times) ++ ", " ++ show (med szs)
-
+  app $ "75%     : " ++ show (percentile 75 times) ++ ", " ++ show (percentile 75 szs)
+  app $ "95%     : " ++ show (percentile 95 times) ++ ", " ++ show (percentile 95 szs)
+  app $ "99%     : " ++ show (percentile 99 times) ++ ", " ++ show (percentile 99 szs)
+  app $ "MAD     : " ++ show (medAbsDev times) ++ ", " ++ show (medAbsDev szs)
   app ""
   app ""
 
-type Res = Maybe (NominalDiffTime, Int)
+  appendFile (f ++ "_time.csv") (mkCSV $ plot 50 times)
+--  appendFile (f ++ "_timelog.csv") (mkCSV $ plot rnds (map (log . (+1)) times))
+  appendFile (f ++ "_vals.csv") (mkCSV $ plot 200 szs)
+--  appendFile (f ++ "_valslog.csv") (mkCSV $ plot rnds (map (log . (+100)) szs))
+
+-- For gnuplot ---------------------------------------
+mkCSV :: Show a => [(a,a)] -> String
+mkCSV [] = "\n"
+mkCSV ((x,y):rst) = show x ++ ", " ++ show y ++ "\n" ++ mkCSV rst
+
+-- Make 100 compartments to put data in.
+plot :: Int -> [Double] -> [(Double,Double)]
+plot comparts vals = filter (\(_,n) -> n /= 0.0) $ cz vs (min' + compartSz, 0)
+  where
+  vs          = sort vals
+  (min',max') = (head vs, last vs)
+  compartSz   = (max' - min') / comparts
+
+  -- Count how many values are in each compartment.  (1st element is top of
+  -- compartment, 2nd is how many seen.)
+  cz :: [Double] -> (Double,Double) -> [(Double,Double)]
+  cz [] _ = []
+  cz (v:vs') (c,n) | v <= c    = cz vs' (c,n+1)
+                   | otherwise = (c,n) : cz (v:vs') (c + compartSz, 0)
+
+type Res = Maybe (Double, Int)
 
 test' :: IO (Maybe T) -> IO Res
 test' run = do
@@ -172,7 +205,7 @@ test' run = do
   print diff
   case res of
     Nothing -> return Nothing
-    Just r  -> return $ Just (diff, size r)
+    Just r  -> return $ Just (fromRational $ toRational diff, size r)
 
 runSC :: IO (Maybe T)
 runSC = do
@@ -191,16 +224,17 @@ logFile = "init.log"
 
 main :: IO ()
 main = do
-  [arg] <- getArgs
-  let rnds = read arg :: Int
+  [file', rnds'] <- getArgs
+  let rnds = read rnds' :: Int
+  let file  = read file' :: String
 #ifdef feat
-  test rnds (runQC stdArgs {maxSuccess = 10000} prop)
+  test file rnds (runQC stdArgs {maxSuccess = 10000} prop)
 #endif
 #ifdef sc
-  test rnds runSC
+  test file rnds runSC
 #endif
 #if defined(qcNone) || defined(qc10) || defined(qc20) || defined(qcjh)
-  test rnds (runQC stdArgs prop)
+  test file rnds (runQC stdArgs prop)
 #endif
 
 smtChk :: IO ()

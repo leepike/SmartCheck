@@ -50,7 +50,7 @@ smartCheck args propT = do
       -- Run the smart reduction algorithm.
       d   <- smartRun args r prop'
       -- If we asked to extrapolate values, do so.
-      valIdxs <- if extrap args
+      valIdxs <- if runForall args
                    then -- Extrapolate with the original property to see if we
                         -- get a previously-visited value back.
                         extrapolate args d prop
@@ -58,7 +58,7 @@ smartCheck args propT = do
 
       -- If we asked to extrapolate constructors, do so, again with the original
       -- property.
-      csIdxs <- if constrGen args
+      csIdxs <- if runExists args
                   then constrsGen args d prop valIdxs
                   else return []
 

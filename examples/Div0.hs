@@ -73,7 +73,7 @@ divTest = smartCheck args prop_div
                                 -- { maxSuccess = 1000
                                 -- , maxSize    = 20  }
                    , format  = PrintString
-                   , extrap  = True
+                   , runForall  = True
                    }
 
 -- Get the minimal offending sub-value.

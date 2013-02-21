@@ -86,7 +86,7 @@ arbSubset :: (SubTypes a, Generic a, ConNames (Rep a))
           -> S.Set String -> IO (Result a)
 arbSubset args a idx prop constrs =
   liftM snd $ iterateArbIdx a (idx, scMaxDepth args)
-                (scConstrMax args) (scMaxSize args) prop'
+                (scMaxExists args) (scMaxSize args) prop'
   where
   prop' b = newConstr b Q.==> prop b
   -- Make sure b's constructor is a new one.

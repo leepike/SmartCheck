@@ -65,7 +65,7 @@ prop_p :: B -> Property
 prop_p p = pre p ==> test p
 
 main :: IO ()
-main = smartCheck scStdArgs { extrap = False, constrGen = False } prop_p
+main = smartCheck scStdArgs { runForall = False, constrGen = False } prop_p
   -- smartCheck scStdArgs { format = PrintString 
   --                      , scMaxDepth = Just 20
   --                      } 

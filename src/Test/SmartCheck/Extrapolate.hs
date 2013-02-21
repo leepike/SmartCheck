@@ -43,7 +43,7 @@ extrapolate args d origProp = do
   -- least one test passes a precondition, and for every test in which the
   -- precondition is passed, it fails.  We test values of all possible sizes, up
   -- to Q.maxSize.
-  test _ idx = iterateArbIdx d (idx, scMaxDepth args) (scMaxExtrap args)
+  test _ idx = iterateArbIdx d (idx, scMaxDepth args) (scMaxForall args)
                  (scMaxSize args) origProp
 
   -- Control-flow.
@@ -51,7 +51,7 @@ extrapolate args d origProp = do
   -- None of the tries satisfy prop (but something passed the precondition).
   -- Prevent recurring down this tree, since we can generalize.
   next _ (i, FailedProp) forest' idx idxs
-    | scMinExtrap args < i =
+    | scMinForall args < i =
         nextIter (forestReplaceChildren forest' idx False) idx (idx : idxs)
   next _ _ forest' idx idxs = nextIter forest' idx idxs
 

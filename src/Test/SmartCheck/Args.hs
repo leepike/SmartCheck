@@ -38,21 +38,21 @@ data ScArgs =
                                      --   for failure in the reduction stage.
                                      --------------
          -- Extrapolation
-         , extrap       :: Bool      -- ^ Should we extrapolate?
+         , runForall    :: Bool      -- ^ Should we extrapolate?
                                      --------------
-         , scMaxExtrap  :: Int       -- ^ How hard (number of rounds) to look
+         , scMaxForall  :: Int       -- ^ How hard (number of rounds) to look
                                      --   for failures during the extrapolation
                                      --   and constructor generalization stages.
                                      --------------
-         , scMinExtrap  :: Int       -- ^ Minimum number of times a property's
+         , scMinForall  :: Int       -- ^ Minimum number of times a property's
                                      -- precondition must be passed to
                                      -- generalize it.
                                      --------------
          -- Constructor generalization
-         , constrGen    :: Bool      -- ^ Should we try to generalize
+         , runExists    :: Bool      -- ^ Should we try to generalize
                                      --   constructors?
                                      --------------
-         , scConstrMax    :: Int     -- ^ How hard (number of rounds) to look
+         , scMaxExists  :: Int     -- ^ How hard (number of rounds) to look
                                      -- for failing values with each
                                      -- constructor.  For "wide" sum types, this
                                      -- value should be increased.
@@ -70,12 +70,12 @@ scStdArgs = ScArgs { format       = PrintTree
                    ---------------------
                    , scMaxReduce  = 100
                    ---------------------
-                   , extrap       = True
-                   , scMaxExtrap  = 20
-                   , scMinExtrap  = 10
+                   , runForall    = True
+                   , scMaxForall  = 20
+                   , scMinForall  = 10
                    ---------------------
-                   , constrGen    = True
-                   , scConstrMax  = 20
+                   , runExists    = True
+                   , scMaxExists  = 20
                    }
 
 --------------------------------------------------------------------------------

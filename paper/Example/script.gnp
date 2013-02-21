@@ -1,0 +1,23 @@
+set title ""
+# set term latex
+# set output "plot.tex"
+# set term wxt
+set autoscale
+set xlabel "Data size (constructors)"
+set ylabel "Samples observed"
+plot \
+'qcNone_vals.csv' using 1:2:(1.0) smooth acsplines  title 'QC (none)', \
+'sc_vals.csv'     using 1:2:(1.0) smooth acsplines  title 'SmartCheck', \
+'qc10_vals.csv'   using 1:2:(1.0) smooth acsplines  title 'QC (trunc)', \
+'qcjh_vals.csv'   using 1:2:(1.0) smooth acsplines  title 'QC (tuple)', \
+'feat_vals.csv'   using 1:2:(1.0) smooth acsplines  title 'Feat'
+
+
+# plot \
+# 'qcNone_time.csv' using 1:2:(1.0) smooth acsplines  title 'QC (none)', \
+# 'sc_time.csv'     using 1:2:(1.0) smooth acsplines  title 'SmartCheck'
+
+# plot \
+# 'feat_time.csv'   using 1:2:(1.0) smooth acsplines  title 'Feat', \
+# 'qc10_time.csv'   using 1:2:(1.0) smooth acsplines  title 'QC (trunc)', \
+# 'qcjh_time.csv'   using 1:2:(1.0) smooth acsplines  title 'QC (tuple)'

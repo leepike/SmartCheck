@@ -35,14 +35,14 @@ data ScArgs = ScArgs {
                               -- types.
   , scMaxReduce  :: Int       -- ^ How hard (number of rounds) to look for
                               -- failure in the reduction stage.
-  , extrap       :: Bool      -- ^ Should we extrapolate?
-  , scMaxExtrap  :: Int       -- ^ How hard (number of rounds) to look for
+  , runForall    :: Bool      -- ^ Should we extrapolate?
+  , scMaxForall  :: Int       -- ^ How hard (number of rounds) to look for
                               -- failures during the extrapolation and
                               -- constructor generalization stages.
-  , scMinExtrap  :: Int       -- ^ Minimum number of times a property's
+  , scMinForall  :: Int       -- ^ Minimum number of times a property's
                               -- precondition must be passed to generalize it.
-  , constrGen    :: Bool      -- ^ Should we try to generalize constructors?
-  , scConstrMax  :: Int       -- ^ How hard (number of rounds) to look for
+  , runExists    :: Bool      -- ^ Should we try to generalize constructors?
+  , scMaxExists  :: Int       -- ^ How hard (number of rounds) to look for
                               -- failing values with each constructor.  For
                               -- "wide" sum types, this value should be
                               -- increased.
@@ -155,7 +155,7 @@ extrapolate args cex prop = extrapolate' 1 []
     where
     mkNewVals v = do
       vs <- newVals (scMaxSize args)
-                    (scMaxExtrap args) v
+                    (scMaxForall args) v
       extrapolate' (idx+1)
         (if allFail args cex idx vs prop
            then idx:idxs else idxs)
@@ -163,7 +163,7 @@ extrapolate args cex prop = extrapolate' 1 []
 allFail :: SubTypes a => ScArgs -> a -> Idx
   -> [SubVal] -> (a -> Property) -> Bool
 allFail args cex idx vs prop =
-  length res >= scMinExtrap args && and res
+  length res >= scMinForall args && and res
   where
   res  = mapMaybe go vs
   go   = fail prop . replace cex idx
@@ -188,7 +188,7 @@ sumTest args cex prop exIdxs = sumTest' 1 []
     where
     fromSumTest v = do
       vs <- newVals (scMaxSize args)
-              (scConstrMax args) v
+              (scMaxExists args) v
       sumTest' (idx+1)
         (if constrFail cex idx vs prop
            (subConstr v) (subConstrs v)
@@ -240,6 +240,6 @@ matchesShape a (b, idxs)
   foldEqConstrs ( Node (SubVal l0) sts0
                 , Node (SubVal l1) sts1 )
     -- Don't need a baseType test, since they don't ever appear in subTypes.
-    | constr l0 == constr l1 = next
+    | constr l0 == constr l1 =
+      all foldEqConstrs (zip sts0 sts1)
     | otherwise              = False
-    where next = all foldEqConstrs (zip sts0 sts1)

@@ -6,7 +6,7 @@
 module Test.SmartCheck
   ( smartCheck
   , runQC
-  , SubTypes
+  , SubTypes(..)
   , module Test.SmartCheck.Args
   ) where
 

@@ -1,4 +1,4 @@
-TARGETS=qcNone.out qc10.out qc20.out feat.out qcjh.out sc.out
+TARGETS=qcNone.out qc10.out feat.out qcjh.out sc.out
 LOG=init.log
 RNDS=2000
 SRC=InitEx2

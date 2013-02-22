@@ -1,5 +1,5 @@
 % can be 9pt
-\documentclass[10pt]{sigplanconf}
+\documentclass{sigplanconf}
 \usepackage{url}
 \usepackage{tikz}
 \usepackage{graphicx}
@@ -79,7 +79,7 @@
 
 %% \include{math}
 
-\newenvironment{code}{\begin{alltt}\small}{\end{alltt}}
+\newenvironment{code}{\begin{alltt}}{\end{alltt}}
 %% \newenvironment{cols}{\begin{tabular}{m{3.6cm}|m{3.6cm}}{Haskell} &
 
 \newcommand{\ttp}[1]{\texttt{#1}}
@@ -172,12 +172,11 @@ to some measure) from a given counterexample.  These new values are then tested
 to attempt to find a smaller counterexample.  Today, \ttp{smaller} is called
 \ttp{shrink}.
 
-In industrial uses, shrinking is essential.  Hughes, an inventor of QuickCheck
-and the CEO of Quiviq, a company that commercializes the technology, has noted
-that ``without it [shrinking], randomly generated failing cases would often be
-so large as to be almost useless.''~\cite{qcjh}.  Hughes~\emph{et al.} give an
-extended example in which shrinking is essential in debugging telecom
-software~\cite{telecom}.
+In industrial uses, shrinking is essential.  Hughes, in describing industrial
+uses of QuickCheck, has noted that ``without it [shrinking], randomly generated
+failing cases would often be so large as to be almost useless.''~\cite{qcjh}.
+Hughes~\emph{et al.} give an extended example in which shrinking is essential in
+debugging telecom software~\cite{telecom}.
 
 Typically, effectively shrinking complex data requires a good understanding of
 how shrinking in QuickCheck works and the semantics of the property and program
@@ -407,6 +406,16 @@ prop' a = not (cex a) ==> prop a
 %% violate the precondition.
 \end{itemize}
 
+\paragraph{SmartCheck}
+
+\begin{figure}[ht]
+\includegraphics[scale=0.6]{Graphs/data}
+\includegraphics[scale=0.6]{Graphs/time-big}
+\includegraphics[scale=0.6]{Graphs/time-small}
+  \caption{Results for 2000 tests of the program in Figure~\ref{fig:initial}.}
+  \label{fig:graphs}
+\end{figure}
+
 
 \begin{table}[ht]
 \footnotesize
@@ -425,47 +434,56 @@ Median     & 0.07s, 69  & 0.17s, 33  & 1.81s, 13  & 0.10s, 6\\
 \hline
     \end{tabular}
   \end{center}
-  \caption{Results for 1000 tests of the program in Figure~\ref{fig:initial}.}
+  \caption{Summarizing data for the graphs in Figure~\ref{fig:graphs}. Entries
+    contain execution time (in seconds) and counterexample sizes (counting
+    \ttp{N} constructors).}
   \label{table:results}
 \end{table}
 
-\todo{get 99\% }
-
-\paragraph{SmartCheck}
 Motivated by these limitations of QuickCheck and SmallCheck, we developed
 \emph{SmartCheck}.  SmartCheck extends QuickCheck to efficiently and generically
 find small counterexamples as well as generalize them as described in the
-preceding paragraph.  To motivate the benefit of SmartCheck, consider
-Table~\ref{table:results}, giving the results for using QuickCheck and
-SmartCheck on the program shown in Figure~\ref{fig:initial} (we omit SmallCheck,
-since as noted, it is not even feasible for the example).  Each entry is a pair
-containing the number of seconds required for counterexample discovery and
-shrinking and the size of the final value obtained (by counting \ttp{N}
-constructors).  We show the mean, median, median, and the values at the 95th
-percentile values.  (The curves produced by these values are not normal, so we
-omit standard the deviation.)
+preceding paragraph.  SmartCheck takes a counterexample produced by some
+oracle---in these experiments, we use QuickCheck---and then shrinks the
+counterexample.
 
-In the first three columns, the results of using QuickCheck to generate
-counterexamples are shown.  The first column contains the results of using
-QuickCheck without shrinking to provide a baseline.  The next column shows the
-result of using QuickCheck with truncating shrink, which each list is truncated
-to 10 elements.  Compared with no shrinking, this approximately halves the size
-of the median counterexample, but doubles the time taken.  There can be large
-outliers, however, in the time taken during shrinking.  Next, we show the
-results of the ``tuple shrink'' instance.  While the median amount of time
-required is much higher, the size of the resulting value is approximately halved
-again.  The reason for the increase in time is because shrinking is very
-productive and produces a nonempty list for most values.
+To motivate the benefit of SmartCheck, consider the graphs in
+Figure~\ref{fig:graphs} and the Table~\ref{table:results}, giving the results
+for using QuickCheck and SmartCheck on the program shown in
+Figure~\ref{fig:initial} (we omit SmallCheck, since as noted, it is not even
+feasible for the example).  The graphs show the number of results, out of 2000
+test runs, with the specified size of the final counterexample (by counting
+\ttp{N} constructors) or requiring the specified execution time.  We show two
+execution time graphs, since the scale of time scales differ dramatically.  In
+the table, we show the mean, median, median, and the results at the 95th
+percentile values.  (The curves produced by these values are not necessarily
+Gaussian, so we omit standard the deviation.)
+
+The experiments show three approaches to shrinking with QuickCheck: no
+shrinking, to provide a baseline, truncated shrinking, as described above, in
+which each list is truncated to 10 elements, and tuple shrinking, also described
+above.  Note that SmartCheck produces smaller counterexamples than the other
+approaches, with a very small tail.  SmartCheck has a very small variance---note
+the mean and median are nearly identical, meaning there are very few outliers.
+
+More dramatic, however, are the differences
+in execution time.  The execution times for SmartCheck include the initial
+counterexample generation time required by QuickCheck; thus the time required by
+SmartCheck to shrink a counterexample is on average just 0.2 seconds (0.10 -
+0.08).  As can be seen in the graphs, SmartCheck's execution time is a linear
+function (like QuickCheck, without shrinking).  Truncation and tuple shrinking
+produce very long tails, with some counterexamples taking over a minute to
+shrink.  SmartCheck is largely insensitive to the size of the original
+counterexample provided.
 
 In the last column are the results for SmartCheck, which includes the time
 required by QuickCheck to generate the original counterexample.  The median time
 required by SmartCheck to shrink is 0.02 seconds (SmartCheck's execution time
 minus the execution time for QuickCheck without shrinking), and the median size
-of a resulting value is six \ttp{N} constructors.  Moreover, SmartCheck has a
-very small variance---note the mean and median are nearly identical, meaning
-there are very few outliers.  And we stress that SmartCheck achieves these
-results \emph{generically}, requiring no shrink definitions to be provided by
-the user.
+of a resulting value is six \ttp{N} constructors.
+
+And we stress that SmartCheck achieves these results \emph{generically},
+requiring no shrink definitions to be provided by the user.
 
 \paragraph{Contributions}
 This paper, and the library it describes, makes the following contributions:
@@ -864,11 +882,13 @@ the occurrence of the error, we might have a counterexample like the following:
 %
 \medskip%
 \begin{sloppypar}
+\small
 \noindent%
 \ttp{Add (Div (C 5) (C (-12))) (Add (Add (C 2) (C 4)) (Add (C 7) (Div (Add (C 7)
   (C 3)) (Add (C (-5)) (C 5)))))}
 \end{sloppypar}
 \medskip%
+\noindent
 In the counterexample, the culprit is a buried sub-value,
 %
 \begin{code}
@@ -1477,9 +1497,83 @@ above to control SmartCheck's behavior.
 
 \section{Experiments}\label{sec:experiments}
 
-\todo{xmonad}
-\todo{use SC to test itself?}
-\todo{experiments? scale vs. broad data, linear data?}
+\subsection{Xmonad}
+Xmonad is a popular X11 window manager written in Haskell~\cite{xmonad}.  Xmonad
+is a large software project with many contributors, so consequently, a
+QuickCheck test harness is included to help ensure new commits do not introduce
+bugs.  At the heart of Xmonad is a \ttp{StackSet} data type that encodes the
+relationship between windows, work spaces, and which window has the focus.
+Xmonad contains properties to ensure the correct manipulation of
+\ttp{StackSet}s.
+
+Xmonad passes all of its QuickCheck tests, but let us see what might happen to a
+new contributor if things go awry.  Suppose a developer defines an insertion
+function that inserts a new focus into the \ttp{StackSet}, except she forgets to
+place the value inside.  The correct insertion function from Xmonad is
+%
+\begin{code}
+insertUp a s = if member a s then s else insert
+  where
+  insert = modify (Just $ Stack a [] [])
+                  (\textbackslash(Stack t l r) ->
+                      Just $ Stack a l (t:r)) s
+\end{code}
+%
+\noindent
+So suppose the developer forgets to cons \ttp{t} onto \ttp{r}.  Fortunately,
+there are QuickCheck tests that depend on \ttp{insertUp}.  One such test is
+\ttp{prop\_shift\_reversible}, which tests if the \ttp{shift} function, which
+checks a property about shifting focus back and forth between windows.
+
+With the incorrect version of \ttp{insertUp}, QuickCheck returns a wall of text
+to the user, showing the fields of a \ttp{StackSet}:
+
+\medskip%
+\begin{sloppypar}
+\footnotesize
+\noindent%
+\ttp{StackSet \{current = Screen \{workspace = Workspace \{tag = NonNegative
+  \{getNonNegative = 5\}, layout = -2, stack = Just (Stack \{focus = 'I', up =
+  ", down = "\})\}, screen = 5, screenDetail = 0\}, visible = [Screen
+    \{workspace = Workspace \{tag = NonNegative \{getNonNegative = 0\}, layout =
+    -2, stack = Just (Stack \{focus = '\char`\\161', up = \", down =
+    \"\})\}, screen = 1, screenDetail = -2\},Screen \{workspace = Workspace
+    \{tag = NonNegative \{getNonNegative = 2\}, layout = -2, stack = Just (Stack
+    \{focus = '3', up = \", down = "\})\}, screen = 2, screenDetail =
+    -1\},Screen \{workspace = Workspace \{tag = NonNegative \{getNonNegative =
+    3\}, layout = -2, stack = Just (Stack \{focus = 'T', up = \", down =
+    \"\})\}, screen = 3, screenDetail ) = 2\},Screen \{workspace = Workspace
+    \{tag = NonNegative \{getNonNegative = 4\}, layout = -2, stack = Nothing\},
+    screen = 4, screenDetail = -1\},Screen \{workspace = Workspace \{tag =
+    NonNegative \{getNonNegative = 6\}, layout = -2, stack = Just (Stack \{focus
+    = 'm', up = \", down = \"\})\}, screen = 6, screenDetail = 2\},Screen
+    \{workspace = Workspace \{tag = NonNegative \{getNonNegative = 7\}, layout =
+    -2, stack = Nothing\}, screen = 0, screenDetail = 0\}], hidden = [Workspace
+    \{tag = NonNegative \{getNonNegative = 1\}, layout = -2, stack = Just (Stack
+    \{focus = '\char`\\DC3', up = \", down = \"\})\},Workspace \{tag = NonNegative \{getNonNegative = 8\}, layout = -2, stack = Nothing\},Workspace \{tag = NonNegative \{getNonNegative = 9\}, layout = -2, stack = Just (Stack \{focus = '\char`\\ACK', up = \", down = \"\})\}], floating = fromList []\} }
+\end{sloppypar}
+\medskip%
+\noindent
+This is a wall of text, which provides little useful information about what went
+wrong.  SmartCheck, however, takes the value and returns the following:
+%
+\begin{code}
+Extrapolated value:
+forall x0 x1 x2:
+  StackSet x0 x1 x2 (fromList [])
+\end{code}
+%
+\noindent
+The programmer immediately sees that the first three fields in the record are
+irrelevant,  The last field is a dictionary (i.e., an ordered map), which we
+declare to be a base type, so it is not analyzed by SmartCheck.  The upshot is
+that any \ttp{StackSet} fails because insertion is ill-defined.  Such an
+insight, while obvious in hind-sight, can take hours to arrive at as the
+programmer manually tries to write her own shrink functions or manually
+deconstruct a large record.
+
+
+\todo{xmonad} \todo{experiments? scale vs. broad data, linear data?}
 
 %-------------------------------------------------------------------------------
 
@@ -1501,8 +1595,9 @@ difference: HDD (and DD) is deterministic, so the algorithm only succeeds in
 reducing the counterexample only if a new counterexample can be constructed from
 the original one.  Our approach combines the speed of delta debugging with the
 power of QuickCheck to \emph{randomly} discover structurally smaller
-counterexamples.  Furthermore, neither paper explores the idea of counterexample
-generalization, however.
+counterexamples; in short, this is the first treatment we know of that
+integrates counterexample generation with counterexample reduction.
+Furthermore, neither paper explores the idea of counterexample generalization.
 
 Within the functional programming community, one of the few treatments of
 generic shrinking is as a motivation for generic programming in Haskell's
@@ -1537,32 +1632,26 @@ in terms the size of counterexamples discovered: the mean and median number of
 \ttp{N} constructors in the counterexamples returned by Feat are both seven.
 However, Feat performs more poorly with respect to how long counterexample
 discovery takes: the mean time taken by Feat is 5.60 seconds, with a long tail:
-five percent of runs take over 14 seconds (recall that the mean time taken by
+five percent of runs take over 14 seconds (the mean time taken by
 SmartCheck is 0.12 seconds, and 99\% of runs take less than 0.30 seconds).
 
 SmartCheck bears some similarity to QuickSpec, a testing-based library that
 infers equational properties about programs~\cite{qs} insofar as they both
 attempt to generalize counterexamples based on specific inputs.
 
-\todo{shrink paper rehger pointed to ``Automatic isolation of compiler errors''
-  from 1994}
-\todo{\url{http://www.cs.utah.edu/~regehr/papers/pldi12-preprint.pdf}}
-
-
-
 %% \todo{avoid complexities \url{http://stackoverflow.com/questions/14006005/idiomatic-way-to-shrink-a-record-in-quickcheck}%
 %% %
 %% * Also check out \url{http://www.whyprogramsfail.com/}%
 %% %
 %% \url{http://www.haskell.org/haskellwiki/Research_papers/Testing_and_correctness}%}
+%% \todo{shrink paper rehger pointed to ``Automatic isolation of compiler errors''
+%%   from 1994}
 
 %% \todo{Not relevant really: GenCheck
 %%   \url{https://github.com/JacquesCarette/GenCheck}%
-\url{http://blog.regehr.org/archives/697} --- check out C-reduce (Regehr)
+%% \url{http://blog.regehr.org/archives/697} --- check out C-reduce (Regehr)
+%% \todo{\url{http://www.cs.utah.edu/~regehr/papers/pldi12-preprint.pdf}}
 %% }
-
-
-\todo{stuff from SC repo}
 
 %-------------------------------------------------------------------------------
 \section{Conclusions and Future Work}\label{sec:conclusions}
@@ -1578,6 +1667,11 @@ First, we have considered only the simplest kind of data, algebraic data types,
 but we would like to extend these results to shrinking functions, too.  As noted
 in Section~\ref{sec:implementation}, SmartCheck does not work with GADTs
 currently, due to limitations with GHC Generics.
+
+We have not profiled the performance of our implementation of SmartCheck, so
+additional performance gains might be possible.  In particular, we perform
+significant computations over tree-structured data, and a zipper~\cite{zipper},
+which we do not currently implement, could improve performance.
 
 Lazy SmallCheck can test partially-defined inputs by detecting the evaluation of
 undefined values~\cite{sc}.  This capability is useful in shrinking, too.  For

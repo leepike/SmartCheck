@@ -169,9 +169,9 @@ test f rnds run = do
   app ""
   app ""
 
-  appendFile (f ++ "_time.csv") (mkCSV $ plot 50 times)
+  appendFile (f ++ "_time.csv") (mkCSV $ plot 200 times)
 --  appendFile (f ++ "_timelog.csv") (mkCSV $ plot rnds (map (log . (+1)) times))
-  appendFile (f ++ "_vals.csv") (mkCSV $ plot 200 szs)
+  appendFile (f ++ "_vals.csv") (mkCSV $ plot 50 szs)
 --  appendFile (f ++ "_valslog.csv") (mkCSV $ plot rnds (map (log . (+100)) szs))
 
 -- For gnuplot ---------------------------------------
@@ -180,7 +180,7 @@ mkCSV [] = "\n"
 mkCSV ((x,y):rst) = show x ++ ", " ++ show y ++ "\n" ++ mkCSV rst
 
 -- Make 100 compartments to put data in.
-plot :: Int -> [Double] -> [(Double,Double)]
+plot :: Double -> [Double] -> [(Double,Double)]
 plot comparts vals = filter (\(_,n) -> n /= 0.0) $ cz vs (min' + compartSz, 0)
   where
   vs          = sort vals

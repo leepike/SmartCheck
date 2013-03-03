@@ -37,8 +37,7 @@ data ScArgs = ScArgs {
                               -- failure in the reduction stage.
   , runForall    :: Bool      -- ^ Should we extrapolate?
   , scMaxForall  :: Int       -- ^ How hard (number of rounds) to look for
-                              -- failures during the extrapolation and
-                              -- constructor generalization stages.
+                              -- failures during the extrapolation stage.
   , scMinForall  :: Int       -- ^ Minimum number of times a property's
                               -- precondition must be passed to generalize it.
   , runExists    :: Bool      -- ^ Should we try to generalize constructors?

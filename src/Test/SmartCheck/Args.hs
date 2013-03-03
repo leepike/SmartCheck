@@ -42,7 +42,7 @@ data ScArgs =
                                      --------------
          , scMaxForall  :: Int       -- ^ How hard (number of rounds) to look
                                      --   for failures during the extrapolation
-                                     --   and constructor generalization stages.
+                                     --   stage.
                                      --------------
          , scMinForall  :: Int       -- ^ Minimum number of times a property's
                                      -- precondition must be passed to

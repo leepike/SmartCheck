@@ -25,9 +25,9 @@ Library
                      Test.SmartCheck.SmartGen,
                      Test.SmartCheck.Types
 
-  Build-depends:     base >= 4.0,
+  Build-depends:     base >= 4.0 && < 5,
                      QuickCheck >= 2.4.2,
-                     mtl >= 2.0.1.0,
+                     mtl,
                      random >= 1.0.1.1,
                      containers >= 0.4,
                      generic-deriving >= 1.2.1,
@@ -51,10 +51,10 @@ executable sc-regression
                      Heap_Program,
                      LambdaCalc
   Hs-source-dirs:    examples
-  Build-depends:     base >= 4.0,
+  Build-depends:     base >= 4.0 && < 5,
                      smartcheck,
                      QuickCheck >= 2.4.2,
-                     mtl >= 2.0.1.0,
+                     mtl,
                      random >= 1.0.1.1,
                      containers >= 0.4,
                      generic-deriving >= 1.2.1,

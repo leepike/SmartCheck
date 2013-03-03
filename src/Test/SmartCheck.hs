@@ -8,6 +8,12 @@ module Test.SmartCheck
   , runQC
   , SubTypes(..)
   , module Test.SmartCheck.Args
+  -- ** For constructing new instances of `SubTypes`
+  , gst
+  , grc
+  , gtc
+  , gsf
+  , gsz
   ) where
 
 import Test.SmartCheck.Args
@@ -65,7 +71,7 @@ smartCheck args propT = do
       let replIdxs = Replace valIdxs csIdxs
 
       -- If either kind of extrapolation pass yielded fruit, prettyprint it.
-      if not $ null (valIdxs ++ csIdxs)
+      if (runForall args || runExists args) && (not $ null (valIdxs ++ csIdxs))
         then output d replIdxs
         else smartPrtLn "Could not extrapolate a new value."
 

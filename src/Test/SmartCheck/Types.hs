@@ -15,9 +15,12 @@ module Test.SmartCheck.Types
   , Subst(..)
   , Replace(..)
   , errorMsg
-  , replaceChild'
-  , toConstr'
-  , showForest'
+  -- ** For constructing new instances of `SubTypes`
+  , gst
+  , grc
+  , gtc
+  , gsf
+  , gsz
   ) where
 
 import GHC.Generics

@@ -1,0 +1,26 @@
+http://www.cs.grinnell.edu/~weinman/courses/CSC213/2008F/labs/10-pingpong-regression.pdf
+
+http://www.phas.ubc.ca/~phys209/files/gnuplot_tutorial2.pdf
+
+best fit curves:
+http://www.manpagez.com/info/gnuplot/gnuplot-4.4.3/gnuplot_195.php
+
+-- Get a smoothing curve
+plot 'sc_vals.csv' using 1:2:(1.0) smooth acsplines
+
+-- Plot data and curves
+plot 'sc_vals.csv', 'sc_vals.csv' using 1:2:(1.0) smooth acsplines
+
+How can you output the plot to a postscript file?
+-----------------------------------------------
+gnuplot> set term pdf landscape
+gnuplot> set output "filename.ps"
+gnuplot> plot x**2 title "x^2"
+
+
+load a script from a file
+-------------------------
+load 'script.gnp'
+
+plot 'sc_vals.csv', 'sc_vals.csv' using 1:2:(1.0) smooth acsplines, 'qcNone_vals.csv', 'qcNone_vals.csv' using 1:2:(1.0) smooth acsplines
+

@@ -46,41 +46,13 @@ instance (SC.SubTypes a, Arbitrary a, Generic a)
 instance (SC.SubTypes a, Ord a, Arbitrary a, Generic a)
          => SC.SubTypes (HeapPP a)
 
--- instance (Ord a, Arbitrary a, Data a, Show a) => SC.SubTypes (Heap a) where
---   subTypes Nil = []
---   subTypes (Node x h0 h1) =
---     [ T.Node (SC.subT x) []
---     , T.Node (SC.subT h0) (SC.subTypes h0)
---     , T.Node (SC.subT h1) (SC.subTypes h1)
---     ]
-
--- instance (Arbitrary a, Data a, Show a) => SC.SubTypes (HeapP a) where
---   subTypes Empty = []
---   subTypes (Unit a) = [ T.Node (SC.subT a) [] ]
---   subTypes (Insert i h)      =
---     [ T.Node (SC.subT i) []
---     , T.Node (SC.subT h) (SC.subTypes h)
---     ]
---   subTypes (SafeRemoveMin h) =
---     [ T.Node (SC.subT h) (SC.subTypes h) ]
---   subTypes (Merge h0 h1)     =
---     [ T.Node (SC.subT h0) (SC.subTypes h0)
---     , T.Node (SC.subT h1) (SC.subTypes h1)
---     ]
---   subTypes (FromList a) = [ T.Node (SC.subT a) [] ]
-
--- instance (Ord a, Arbitrary a, Data a, Show a) => SC.SubTypes (HeapPP a) where
---   subTypes (HeapPP hp h) =
---     [ T.Node (SC.subT hp) (SC.subTypes hp)
---     , T.Node (SC.subT h) (SC.subTypes h)
---     ]
-
 instance (Ord a, Arbitrary a) => Arbitrary (Heap a) where
   arbitrary = do p <- arbitrary :: Gen (HeapP a)
                  return $ heap p
 
 --------------------------------------------------------------------------
 -- skew heaps
+-- Smallest values on top.
 
 data Heap a
   = Node a (Heap a) (Heap a)
@@ -204,8 +176,8 @@ instance (Ord a, Arbitrary a) => Arbitrary (HeapPP a) where
     do p <- arbitrary
        return (HeapPP p (heap p))
 
-  shrink (HeapPP p _) =
-    [ HeapPP p' (heap p') | p' <- shrink p ]
+  -- shrink (HeapPP p _) =
+  --   [ HeapPP p' (heap p') | p' <- shrink p ]
 
 --------------------------------------------------------------------------
 -- properties
@@ -240,6 +212,7 @@ prop_Merge (HeapPP _ h1) (HeapPP _ h2) =
 prop_FromList xs =
   fromList xs ==? xs
 
+prop_ToSortedList :: HeapPP OrdA -> Bool
 prop_ToSortedList (HeapPP _ h) =
   h ==? xs && xs == sort xs
  where

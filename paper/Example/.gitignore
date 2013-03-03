@@ -2,3 +2,4 @@
 *.hi
 *.o
 init.log
+*.csv

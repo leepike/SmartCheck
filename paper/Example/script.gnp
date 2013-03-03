@@ -12,8 +12,8 @@ set ylabel "Samples observed"
 
 set output "../Graphs/data.pdf"
 plot \
-'qcNone_vals.csv' using 1:2:(1.0) smooth acsplines  title 'QC (none)', \
 'sc_vals.csv'     using 1:2:(1.0) smooth acsplines  title 'SmartCheck', \
+'qcNone_vals.csv' using 1:2:(1.0) smooth acsplines  title 'QC (none)', \
 'qc10_vals.csv'   using 1:2:(1.0) smooth acsplines  title 'QC (trunc)', \
 'qcjh_vals.csv'   using 1:2:(1.0) smooth acsplines  title 'QC (tuple)'
 
@@ -21,6 +21,7 @@ plot \
 
 ###### Time
 set xlabel "Computation time (seconds)"
+# set logscale y
 
 set yrange [0:1200]
 set output "../Graphs/time-big.pdf"
@@ -31,9 +32,12 @@ plot \
 
 # 'feat_time.csv'   using 1:2:(1.0) smooth acsplines  title 'Feat', \
 
+# set nologscale y
+
 set yrange [0:35]
 set output "../Graphs/time-small.pdf"
 # very small
 plot \
-'qcNone_time.csv' using 1:2:(1.0) smooth acsplines  title 'QC (none)', \
-'sc_time.csv'     using 1:2:(1.0) smooth acsplines  title 'SmartCheck'
+'sc_time.csv'     using 1:2:(1.0) smooth acsplines  title 'SmartCheck', \
+'qcNone_time.csv' using 1:2:(1.0) smooth acsplines  title 'QC (none)'
+

@@ -106,7 +106,7 @@
 %\titlebanner{banner above paper title}        % These are ignored unless
 %\preprintfooter{}   % 'preprint' option specified.
 
-\title{SmartCheck: Automatic and Efficient Counterexample Reduction and Generalization}
+\title{SmartCheck: Automatic and Efficient Counterexample Reduction and Generalization\\$\;$\\DRAFT}
 %\subtitle{Subtitle Text, if any}
 
 \authorinfo{Lee Pike}
@@ -495,7 +495,7 @@ This paper, and the library it describes, makes the following contributions:
 
 \noindent
 In Section~\ref{sec:experiments}, we discuss some of our experiences with using
-SmartCheck, including checking properties from Xmonad, and related work and
+SmartCheck, including checking properties from XMonad, and related work and
 concluding remarks are made in Sections~\ref{sec:related}
 and~\ref{sec:conclusions}, respectively.
 
@@ -1553,7 +1553,7 @@ We find that for very large and nested data structures, a tree representation
 aids in visually parsing the value.
 
 \section{Experiments}\label{sec:experiments}
-Here we describe three experiments using SmartCheck, including an Xmonad
+Here we describe three experiments using SmartCheck, including an XMonad
 property and a property about a natural language processing library.
 
 %% \subsection{Lambda Calculus}
@@ -1593,83 +1593,164 @@ property and a property about a natural language processing library.
 %% %
 
 
-\subsection{Xmonad}
-Xmonad is a popular X11 window manager written in Haskell~\cite{xmonad}.  Xmonad
+\subsection{XMonad}
+XMonad is a popular X11 window manager written in Haskell~\cite{xmonad}.  XMonad
 is a large software project with many contributors, so consequently, a
 QuickCheck test harness is included to help ensure new commits do not introduce
-bugs.  At the heart of Xmonad is a \ttp{StackSet} data type that encodes the
+bugs.  At the heart of XMonad is a \ttp{StackSet} data type that encodes the
 relationship between windows, work spaces, and which window has the focus.
-Xmonad contains properties to ensure the correct manipulation of
+XMonad contains properties to ensure the correct manipulation of
 \ttp{StackSet}s.
 
-Xmonad passes all of its QuickCheck tests, but let us see what might happen to a
-new contributor if things go awry.  Suppose a developer defines an insertion
-function that inserts a new focus into the \ttp{StackSet}, except she forgets to
-place the value inside.  The correct insertion function from Xmonad is
+XMonad passes all of its QuickCheck tests, but let us see what might happen to a
+new contributor if things go awry.  Suppose a developer defines a deletion
+function to delete a window, if it exists.  There is a deletion function that
+exists in XMonad, which is quite complex, given the amount of state that is managed
+by \ttp{StackSet}.  However, one function used in deletion is to filter the
+stack of windows associated with each workspace defined:
 %
 \begin{code}
-insertUp a s = if member a s then s else insert
-  where
-  insert = modify (Just $ Stack a [] [])
-                  (\textbackslash(Stack t l r) ->
-                      Just $ Stack a l (t:r)) s
+removeFromWorkspace ws =
+  ws { stack = stack ws >>= filter (/=w) }
 \end{code}
 %
 \noindent
-So suppose the developer forgets to cons \ttp{t} onto \ttp{r}.  Fortunately,
-there are QuickCheck tests that depend on \ttp{insertUp}.  One such test is
-\ttp{prop\_shift\_reversible}, which tests if the \ttp{shift} function, which
-checks a property about shifting focus back and forth between windows.
-
-With the incorrect version of \ttp{insertUp}, an example returned by QuickCheck
-would typically include a \ttp{StackSet} value as follows:
-
+Now, suppose the programmer makes a simple typo (or perhaps has a more serious
+misunderstanding) and instead writes
+%
+\begin{code}
+removeFromWorkspace ws =
+  ws { stack = stack ws >>= filter (==w) }
+\end{code}
+%
+\noindent
+When testing the property \ttp{prop\_delete}, which says that deleting the
+focused window of the current stack removes it from the \ttp{StackSet} \ttp{x}.
+%
+\begin{code}
+prop_delete x =
+    case peek x of
+        Nothing -> True
+        Just i  -> not (member i (delete i x))
+\end{code}
+%
+\noindent
+QuickCheck returns
+%
 \medskip%
 \begin{sloppypar}
 \scriptsize
 \noindent%
 \ttp{StackSet \{current = Screen \{workspace = Workspace \{tag = NonNegative
-  \{getNonNegative = 5\}, layout = -2, stack = Just (Stack \{focus = 'I', up =
-  ", down = "\})\}, screen = 5, screenDetail = 0\}, visible = [Screen
-    \{workspace = Workspace \{tag = NonNegative \{getNonNegative = 0\}, layout =
-    -2, stack = Just (Stack \{focus = `\char`\\161', up = ", down =
-    "\})\}, screen = 1, screenDetail = -2\},Screen \{workspace = Workspace
-    \{tag = NonNegative \{getNonNegative = 2\}, layout = -2, stack = Just (Stack
-    \{focus = '3', up = ", down = "\})\}, screen = 2, screenDetail =
-    -1\},Screen \{workspace = Workspace \{tag = NonNegative \{getNonNegative =
-    3\}, layout = -2, stack = Just (Stack \{focus = 'T', up = ", down =
-    "\})\}, screen = 3, screenDetail ) = 2\},Screen \{workspace = Workspace
-    \{tag = NonNegative \{getNonNegative = 4\}, layout = -2, stack = Nothing\},
-    screen = 4, screenDetail = -1\},Screen \{workspace = Workspace \{tag =
-    NonNegative \{getNonNegative = 6\}, layout = -2, stack = Just (Stack \{focus
-    = 'm', up = ", down = "\})\}, screen = 6, screenDetail = 2\},Screen
-    \{workspace = Workspace \{tag = NonNegative \{getNonNegative = 7\}, layout =
-    -2, stack = Nothing\}, screen = 0, screenDetail = 0\}], hidden = [Workspace
-    \{tag = NonNegative \{getNonNegative = 1\}, layout = -2, stack = Just (Stack
-    \{focus = `\char`\\DC3', up = ", down = "\})\},Workspace \{tag = NonNegative \{getNonNegative = 8\}, layout = -2, stack = Nothing\},Workspace \{tag = NonNegative \{getNonNegative = 9\}, layout = -2, stack = Just (Stack \{focus = `\char`\\ACK', up = ", down = "\})\}], floating = fromList []\} }
+      \{getNonNegative = 0\}, layout = -1, stack = Just (Stack \{focus = 'S', up =
+        "", down = ""\})\}, screen = 1, screenDetail = 1\}, visible = [Screen
+    \{workspace = Workspace \{tag = NonNegative \{getNonNegative = 2\}, layout = -1,
+        stack = Nothing\}, screen = 2, screenDetail = -1\},Screen \{workspace =
+      Workspace \{tag = NonNegative \{getNonNegative = 3\}, layout = -1, stack =
+        Nothing\}, screen = 0, screenDetail = -1\}], hidden = [Workspace \{tag =
+      NonNegative \{getNonNegative = 1\}, layout = -1, stack = Just (Stack \{focus
+        = `\char`\\NUL', up = "", down = ""\})\},Workspace \{tag = NonNegative
+      \{getNonNegative = 4\}, layout = -1, stack = Just (Stack \{focus = 'I', up =
+        "", down = ""\})\}], floating = fromList []\} }
 \end{sloppypar}
 \medskip%
 \noindent
-This is a wall of text, which provides little useful information about what went
-wrong.  SmartCheck, however, takes the value and returns the following:
+This is a relatively small counterexample, but even the smallest \ttp{StackSet}
+values are somewhat large due to the number of fields within it.  But let us see
+if we can do better.
+
+SmartCheck returns a smaller counterexample, and then generalizes it:
 %
 \begin{code}
-Extrapolated value:
-forall x0 x1 x2:
-  StackSet x0 x1 x2 (fromList [])
+forall values x0 x1 x2 x3:
+  StackSet
+    (Screen (Workspace x0 (-1) (Just x1)) 1 1)
+    x2 x3 (fromList [])
 \end{code}
 %
 \noindent
-\todo{double check}
-The programmer immediately sees that the first three fields in the record are
-irrelevant.  The upshot is that any \ttp{StackSet} fails because insertion is
-ill-defined.  Such an insight, while obvious in hind-sight, can take hours to
-arrive at as the programmer manually tries to write her own shrink functions or
-manually deconstruct a large record.
+We can look at what was generalized and what was not.  First, the last element
+of \ttp{StackSet} is a map, and we treated it as a base type, so it is not
+analyzed at all.  But it is an empty map.  The second and third fields of
+\ttp{StackSet} are generalized, but the first one is not.  So there is something
+particular about it.  So the culprit is one of the small constants (1 and -1) or
+having a \ttp{Just} value rather than a \ttp{Nothing}: it turns out that what
+matters is having a \ttp{Just} value, which is the stack field that deletion
+works on.
+
+
+%% n insertion
+%% function that inserts a new focus into the \ttp{StackSet}, except she forgets to
+%% place the value inside.  The correct insertion function from XMonad is
+%% %
+%% \begin{code}
+%% insertUp a s = if member a s then s else insert
+%%   where
+%%   insert = modify (Just $ Stack a [] [])
+%%                   (\textbackslash(Stack t l r) ->
+%%                       Just $ Stack a l (t:r)) s
+%% \end{code}
+%% %
+%% \noindent
+%% So suppose the developer forgets to cons \ttp{t} onto \ttp{r}.  Fortunately,
+%% there are QuickCheck tests that depend on \ttp{insertUp}.  One such test is
+%% \ttp{prop\_shift\_reversible}, which tests if the \ttp{shift} function, which
+%% checks a property about shifting focus back and forth between windows.
+
+%% With the incorrect version of \ttp{insertUp}, an example returned by QuickCheck
+%% would typically include a \ttp{StackSet} value as follows:
+
+%% \medskip%
+%% \begin{sloppypar}
+%% \scriptsize
+%% \noindent%
+%% \ttp{StackSet \{current = Screen \{workspace = Workspace \{tag = NonNegative
+%%   \{getNonNegative = 5\}, layout = -2, stack = Just (Stack \{focus = 'I', up =
+%%   ", down = "\})\}, screen = 5, screenDetail = 0\}, visible = [Screen
+%%     \{workspace = Workspace \{tag = NonNegative \{getNonNegative = 0\}, layout =
+%%     -2, stack = Just (Stack \{focus = `\char`\\161', up = ", down =
+%%     "\})\}, screen = 1, screenDetail = -2\},Screen \{workspace = Workspace
+%%     \{tag = NonNegative \{getNonNegative = 2\}, layout = -2, stack = Just (Stack
+%%     \{focus = '3', up = ", down = "\})\}, screen = 2, screenDetail =
+%%     -1\},Screen \{workspace = Workspace \{tag = NonNegative \{getNonNegative =
+%%     3\}, layout = -2, stack = Just (Stack \{focus = 'T', up = ", down =
+%%     "\})\}, screen = 3, screenDetail ) = 2\},Screen \{workspace = Workspace
+%%     \{tag = NonNegative \{getNonNegative = 4\}, layout = -2, stack = Nothing\},
+%%     screen = 4, screenDetail = -1\},Screen \{workspace = Workspace \{tag =
+%%     NonNegative \{getNonNegative = 6\}, layout = -2, stack = Just (Stack \{focus
+%%     = 'm', up = ", down = "\})\}, screen = 6, screenDetail = 2\},Screen
+%%     \{workspace = Workspace \{tag = NonNegative \{getNonNegative = 7\}, layout =
+%%     -2, stack = Nothing\}, screen = 0, screenDetail = 0\}], hidden = [Workspace
+%%     \{tag = NonNegative \{getNonNegative = 1\}, layout = -2, stack = Just (Stack
+%%     \{focus = `\char`\\DC3', up = ", down = "\})\},Workspace \{tag = NonNegative \{getNonNegative = 8\}, layout = -2, stack = Nothing\},Workspace \{tag = NonNegative \{getNonNegative = 9\}, layout = -2, stack = Just (Stack \{focus = `\char`\\ACK', up = ", down = "\})\}], floating = fromList []\} }
+%% \end{sloppypar}
+%% \medskip%
+%% \noindent
+%% This is a wall of text, which provides little useful information about what went
+%% wrong.  SmartCheck, however, takes the value and returns the following:
+%% %
+%% \begin{code}
+%% Extrapolated value:
+%% forall values x0 x1 x2:
+%%   StackSet x0 x1 x2 (fromList [])
+%% \end{code}
+%% %
+%% \noindent
+%% (The last field of \ttp{StackSet} is a map, and we treat it as a base type.)
+%% The programmer immediately sees that failing instances were found when
+%% substituting arbitrary well-typed values into the first three fields of
+%% \ttp{StackSet}.  Therefore, there is likely nothing specific in the
+%% counterexample causing the failures.
+
+%% the first three fields in the record are
+%% irrelevant.  The upshot is that any \ttp{StackSet} fails because insertion is
+%% ill-defined.  Such an insight, while obvious in hind-sight, can take hours to
+%% arrive at as the programmer manually tries to write her own shrink functions or
+%% manually deconstruct a large record.
 
 \subsection{Natural Language Processing}
 In 2012, a question was posted on the programming message board
-\emph{stackoverflow} asking about how to shrinking large nested data
+Stack Overflow asking about how to shrinking large nested data
 types.\footnote{\url{http://stackoverflow.com/questions/8788542/how-do-i-get-good-small-shrinks-out-of-quickcheck}}
 The poster writes:
 \begin{quote}
@@ -1682,14 +1763,14 @@ $\ldots$ I tend to get an incomprehensible page full of output. $\ldots$
 The question relates to the Geni natural language processing (NLP) package
 implemented in Haskell~\cite{kow}.  Specifically, counterexamples to a property
 attempting to show that a macro expansion function is its own inverse are
-enormous, requiring between 150 to 200 console output lines. \todo{redo tests}
+enormous, requiring 200-300 80-character lines to print.
 
-Using SmartCheck, we are able to reduce counterexamples to around 25 lines of
-output.  Most of the savings in the counterexample size were due to universal
-generalization, like in the Xmonad case: entire record fields are abstracted
-away.
+Using SmartCheck, we are able to reduce counterexamples to around 25
+80-character lines of output.  Most of the savings in the counterexample size
+were due to universal generalization, like in the XMonad case: entire record
+fields are abstracted away.
 
-``Retro-fitting'' SmartCheck to GenI, which is a large software system, requires
+``Retro-fitting'' SmartCheck to GenI, which is a large software system, required
 some work.  Fortunately, because the program already uses QuickCheck,
 \ttp{arbitrary} instances are already defined, but we had to ensure all relevant
 types derived the \ttp{Read}, \ttp{Show}, \ttp{Typeable}, and \ttp{Generic}

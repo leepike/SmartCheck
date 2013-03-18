@@ -116,7 +116,7 @@ resultify prop a = do
                  (P.ok r) -- result of test case (True ==> passed)
   where
   get b r
-    | b &&      P.expect r      = Result a -- expected to pass and we did
+    |     b &&      P.expect r  = Result a -- expected to pass and we did
     | not b && not (P.expect r) = Result a -- expected failure and got it
     | otherwise                 = FailedProp -- We'll just discard it.
 

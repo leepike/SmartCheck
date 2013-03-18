@@ -168,10 +168,11 @@ to some measure) from a given counterexample.  These new values are then tested
 to attempt to find a smaller counterexample.  Today, \ttp{smaller} is called
 \ttp{shrink}.
 
-In industrial uses, shrinking is essential.  Hughes, in describing commercial applications of QuickCheck, has noted that ``without it [shrinking], randomly generated
-failing cases would often be so large as to be almost useless.''~\cite{qcjh}.
-Hughes~\emph{et al.} give an extended example in which shrinking is essential in
-debugging telecom software~\cite{telecom}.
+In industrial uses, shrinking is essential.  In describing commercial
+applications of QuickCheck, Hughes has noted that ``without it [shrinking],
+randomly generated failing cases would often be so large as to be almost
+useless.''~\cite{qcjh}.  Hughes~\emph{et al.} also give an extended example in
+which shrinking is essential in debugging telecom software~\cite{telecom}.
 
 Typically, effectively shrinking complex data requires a good understanding of
 how shrinking in QuickCheck works and the semantics of the property and program
@@ -444,8 +445,8 @@ counterexample of a given size (by counting \ttp{N} constructors), and we show
 the number of runs executing within a given time limit (in seconds).  Note that
 we provide two execution-time graphs, since the scale of time scales differ
 dramatically.  In the table, we show the mean, median, median, and the results
-at the 95th percentile values.  (The curves produced by these values are not
-necessarily Gaussian, so we omit standard the deviation.)
+at the 95th percentile values.  (The distributions produced by these values are
+not necessarily Gaussian, so we omit standard the deviation.)
 
 The experiments show three approaches to shrinking with QuickCheck: no
 shrinking, to provide a baseline, truncated shrinking, as described above, in
@@ -522,10 +523,9 @@ and~\ref{sec:conclusions}, respectively.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Preliminaries}\label{sec:preliminaries}
 
-We focus on \emph{algebraic data types}.  Algebraic data types are
-represented as ``sums of products''.  We sometimes refer to the elements of a
-sum type as a \emph{variant} that is \emph{tagged} by a constructor.  For
-example, the type
+We focus on algebraic data types represented as ``sums of products''.  We
+sometimes refer to the elements of a sum type as a \emph{variant} that is
+\emph{tagged} by a constructor.  For example, the type
 %
 \begin{code}
 Maybe a = Just a | Nothing
@@ -569,7 +569,7 @@ super-class.  \ttp{SubTypes} has the following methods:
   the value,
 \item \ttp{constrs} returns the list of all possible constructors from the
   value's type,
-\item \ttp{baseType} returns whether the type of the value is an ``interesting
+\item \ttp{baseType} is true when the type of the value is an ``uninteresting
   type'', which generally means it is user-defined and has positive arity.
   We discuss the purpose of base types in Section~\ref{sec:base}.
 \item \ttp{subVals} returns a tree of all non base-type sub-values.  A tree is a
@@ -583,7 +583,7 @@ data Tree a = Node \{ rootLabel :: a
 \end{itemize}
 
 \noindent
-To demonstrate typical evaluations of the methods, consider a binary tree type:
+To illustrate typical evaluations of the methods, consider a binary tree type:
 %
 \begin{code}
 data T = L | B T T
@@ -622,8 +622,8 @@ baseType tree       = False
 baseType L          = False
 
 subVals (B (B L\sub{0} L\sub{1}) L\sub{2}) =
-  Tree (B L\sub{0} L\sub{1}) [Tree L\sub{0} [], Tree L\sub{1} []]
-       (Tree L\sub{1} [])
+  Node (B L\sub{0} L\sub{1}) [Node L\sub{0} [], Node L\sub{1} []]
+       (Node L\sub{1} [])
 \end{code}
 %
 \noindent
@@ -733,14 +733,14 @@ test cex idx vs prop = go vs
 \end{figure}
 
 Figure~\ref{fig:reduction} shows the reduction algorithm.  The function
-\ttp{reduce} takes flags to customize the algorithm's behavior, a
-counterexample \ttp{cex}, and the property \ttp{prop}.  At the beginning of
-execution, we assume that a counterexample has been obtained somehow; our
-implementation relies on QuickCheck as a ``front-end'' to generate a
-counterexample that the algorithm automatically shrinks.  The reduction begins
-at the first proper sub-value of \ttp{cex}; call it \ttp{v}.  When the index
-\ttp{idx} becomes out-of-bounds and returns \ttp{Nothing}, the algorithm
-terminates.  Otherwise, a list of new random values are generated.
+\ttp{reduce} takes flags to customize the algorithm's behavior, a counterexample
+\ttp{cex}, and the property \ttp{prop}.  At the beginning of execution, we
+assume that a counterexample has been obtained somehow; our implementation
+relies on QuickCheck to generate an initial counterexample and to generate
+arbitrary well-typed random values (by the \ttp{arbitrary} method).  The
+reduction begins at the first proper sub-value of \ttp{cex}; call it \ttp{v}.
+When the index \ttp{idx} becomes out-of-bounds and returns \ttp{Nothing}, the
+algorithm terminates.  Otherwise, a list of new random values are generated.
 %
 \begin{code}
 sizedArbitrary :: SubTypes a => a -> IO a
@@ -750,7 +750,7 @@ sizedArbitrary :: SubTypes a => a -> IO a
 generates a new value \ttp{v'} having the same type as \ttp{v} and that is
 strictly smaller (with respect to the \ttp{size} method) than \ttp{v}.  Just
 like QuickCheck's \ttp{arbitrary} method, \ttp{sizedArbitrary} generates
-successfully larger counterexamples when generating new values with which to
+successively larger counterexamples when generating new values with which to
 replace a sub-value.
 
 The flag \ttp{scMaxReduce} is the maximum number of tries to discover a new
@@ -851,18 +851,41 @@ search the space of potential counterexamples is to test a counterexample's
 (well-typed) sub-values.
 
 For example, consider a simple calculator language containing constants,
-addition, and division:
+addition, and division, together with an evaluator that checks if the divisor is
+0 and returning \ttp{Nothing} in that case:
 %
 \begin{code}
 data Exp = C Int
          | Add Exp Exp
          | Div Exp Exp
+
+eval :: Exp -> Maybe Int
+eval (C i) = Just i
+eval (Add e0 e1) =
+  liftM2 (+) (eval e0) (eval e1)
+eval (Div e0 e1) =
+  let e = eval e1 in
+  if e == Just 0 then Nothing
+    else liftM2 div (eval e0) e
 \end{code}
 %
 \noindent
-Consider a program that takes an \ttp{Exp} as an argument that throws an error
-if an evaluation of an \ttp{Exp} value contains a division-by-zero.  Testing for
-the occurrence of the error, we might have a counterexample like the following:
+Now consider the property \ttp{prop\_div}, claiming that if \ttp{divSubTerms}
+holds on an expression, then the evaluator returns \ttp{Just} a value:
+%
+\begin{code}
+divSubTerms :: Exp -> Bool
+divSubTerms (C _)         = True
+divSubTerms (Div _ (C 0)) = False
+divSubTerms (Add e0 e1)   =  divSubTerms e0
+                          && divSubTerms e1
+divSubTerms (Div e0 e1)   = divSubTerms e0
+                          && divSubTerms e1
+
+prop_div e = divSubTerms e ==> eval e /= Nothing
+\end{code}
+%
+Testing \ttp{prop\_div}, we might have a counterexample like the following:
 %
 \medskip%
 \begin{sloppypar}
@@ -1178,9 +1201,11 @@ constructors in the counterexample.  Again, we assume that the cost for each
 generating random values and testing them at each index is constant.
 
 \paragraph{Soundness}
-The extrapolation algorithm is unsound in two ways.  First, it extrapolates from a set
-of counterexamples to a universal claim, similar to QuickSpec~\cite{qs}.  By
-tuning the parameters, the risk of an unsound generalization is reduced.
+The extrapolation algorithm is unsound in two ways.  First, it extrapolates from
+a set of counterexamples to a universal claim, similar to QuickSpec~\cite{qs}.
+By tuning the parameters, the risk of an unsound generalization is reduced by
+requiring more or larger values to fail the property.
+
 Second, note that each index is generalized with respect to the concrete
 sub-values that exist in the counterexample.  So in some cases, a formula may be
 returned that is overly general.  For example, consider the counterexample in
@@ -1192,7 +1217,9 @@ Add (Div (C 1) (C (-2)) (C 2))
 \end{code}
 %
 \noindent
-The universal generalization algorithm might return the formula
+since no matter what random value the first field of \ttp{Add} is replaced with,
+the property fails by the second field and vice versa for the second.  The
+universal generalization algorithm might return the formula
 \noindent
 %
 \begin{code}
@@ -1200,7 +1227,7 @@ forall values x0 x1 . Add x0 x1
 \end{code}
 %
 \noindent
-The algorithm could be modified to so that when attempting to generalize a
+The algorithm could be modified so that when attempting to generalize a
 sub-value at an index, all previously-generalized indexes are re-generalized
 simultaneously, by taking the cross-product of random values for the current
 index and for the previously-generalized indexes.  While this reduces the
@@ -1262,9 +1289,9 @@ formula holds:
 %
 \begin{code}
 forall values x .
-  forall constructors C .
+  forall constructors c .
     there exist arguments \(\stackrel{\rightarrow}{y}\) .
-      such that Div x (C\(\stackrel{\rightarrow}{y}\))
+      such that Div x (c\(\stackrel{\rightarrow}{y}\))
 \end{code}
 %
 \noindent
@@ -1374,9 +1401,12 @@ they exist) outside of the neighborhood of the original one.
   \label{fig:cex-gen}
 \end{figure}
 
-Figure~\ref{fig:cex-gen} illustrates the situation in which we have some values
+Figure~\ref{fig:cex-gen} illustrates a property of the form (\ttp{pre ==>
+  post}).  Points are specific counterexamples 
+
+ the situation in which we have some values
 and a property in the case that some values fail the property of the form
-(\ttp{pre ==> post}).  Our goal is to find additional counterexamples in the
+.  Our goal is to find additional counterexamples in the
 shaded region, in which \ttp{pre} is satisfied, \ttp{post} is not satisfied, and
 the counterexample is not already characterized by a universal sub-value
 generalization formula.  Iterating, we increasingly cover the shaded region
@@ -1414,7 +1444,7 @@ matchesShape a (b, idxs)
   \label{fig:matches}
 \end{figure}
 
-Figure~\ref{fig:matches} show the shape-matching algorithm used for precondition
+Figure~\ref{fig:matches} shows the shape-matching algorithm used for precondition
 strengthening.  The function takes a candidate counterexample and a list of
 previous counterexamples, together with the indexes at which they have been
 generalized.  The basic idea of the algorithm is to determine whether two values
@@ -1494,9 +1524,10 @@ instance Subtypes D
 Default instances are provided for common Prelude types and some additional
 ones, including all types for which QuickCheck provides instances.
 
-SmartCheck does not implement a counterexample discovery algorithm.  While any
-method can be used to discover an initial counterexample, SmartCheck by default
-uses QuickCheck to discover an initial counterexample.
+SmartCheck does not implement a counterexample discovery algorithm or an
+\ttp{arbitrary} method.  Any initial counterexample can be passed in or
+generated, and the algorithm depends on \ttp{arbitrary} to generate new
+well-typed values.
 
 A property may be a function taking any number of arguments, but SmartCheck only
 operates on a single input during testing, which is assumed to be the first
@@ -1669,7 +1700,7 @@ forall values x0 x1 x2 x3:
 \end{code}
 %
 \noindent
-We can look at what was generalized and what was not.  First, the last element
+Let us examine what was generalized and what was not.  First, the last element
 of \ttp{StackSet} is a map, and we treated it as a base type, so it is not
 analyzed at all.  But it is an empty map.  The second and third fields of
 \ttp{StackSet} are generalized, but the first one is not.  So there is something
@@ -1750,7 +1781,7 @@ works on.
 
 \subsection{Natural Language Processing}
 In 2012, a question was posted on the programming message board
-Stack Overflow asking about how to shrinking large nested data
+Stack Overflow asking about how to shrink large nested data
 types.\footnote{\url{http://stackoverflow.com/questions/8788542/how-do-i-get-good-small-shrinks-out-of-quickcheck}}
 The poster writes:
 \begin{quote}
@@ -1785,14 +1816,13 @@ multiple rounds of recompilation.
 %-------------------------------------------------------------------------------
 \section{Related Work}\label{sec:related}
 
-Counterexample reduction in general is a relatively unexplored topic, but there
-has been some treatment of the topic.  Zeller and Hildebrandt describe an
-application of greedy search to shrink counterexamples they call
-``delta-debugging'' (DD)~\cite{dd}.  The authors apply their work shrinking HTML
-inputs to crash Mozilla and shrinking C programs to trigger a bug in GCC.
-Subsequent generalizations are reported by Misherghi and Su in which they
-perform greedy search on tree-structured data; they call their approach
-hierarchical delta-debugging (HDD)~\cite{hdd}.
+A few other researchers have also investigated counterexample shrinking.  Zeller
+and Hildebrandt describe an application of greedy search to shrink
+counterexamples they call ``delta-debugging'' (DD)~\cite{dd}.  The authors apply
+their work shrinking HTML inputs to crash Mozilla and shrinking C programs to
+trigger a bug in GCC.  Subsequent generalizations are reported by Misherghi and
+Su in which they perform greedy search on tree-structured data; they call their
+approach hierarchical delta-debugging (HDD)~\cite{hdd}.
 
 HDD is most similar to SmartCheck's reduction algorithm, with an important
 difference: HDD (and DD) is deterministic, so the algorithm only succeeds in
@@ -1839,8 +1869,8 @@ discovery takes: the mean time taken by Feat is 5.60 seconds, with a long tail:
 five percent of runs take over 14 seconds (the mean time taken by
 SmartCheck is 0.12 seconds, and 99\% of runs take less than 0.30 seconds).
 
-SmartCheck bears some similarity to QuickSpec, a testing-based library that
-infers equational properties about programs~\cite{qs} insofar as they both
+Finally, SmartCheck bears some similarity to QuickSpec, a testing-based library
+that infers equational properties about programs~\cite{qs} insofar as they both
 attempt to generalize counterexamples based on specific inputs.
 
 %% \todo{avoid complexities \url{http://stackoverflow.com/questions/14006005/idiomatic-way-to-shrink-a-record-in-quickcheck}%
@@ -1901,7 +1931,7 @@ we might instead return
 %
 \begin{code}
 Add (div (-2) 2) (div (-1) 1)
-  where div x y = Div (C 1) (C x) (C y)
+  where div x y = Div (C x) (C y)
 \end{code}
 %
 \noindent

@@ -46,7 +46,7 @@ prop0 (M _ _ a) = a < 100
 prop0 _         = True
 
 mutRecTest :: IO ()
-mutRecTest = smartCheck args (property . prop0)
+mutRecTest = smartCheck args prop0
   where
   args = scStdArgs { qcArgs = stdArgs {maxSuccess = 1000} }
 

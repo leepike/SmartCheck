@@ -5,10 +5,23 @@
 -- | Interface module.
 
 module Test.SmartCheck
-  ( smartCheck
-  , runQC
-  , SubTypes(..)
+  ( -- ** Main interface function.
+    smartCheck
+
+  -- ** Type of SmartCheck properties.
+  , ScProp()
+  -- ** Implication for SmartCheck properties.
+  , (-->)
+
+  -- ** Run QuickCheck and get a result.
+  , runQCInit
+
+  -- ** Arguments
   , module Test.SmartCheck.Args
+
+  -- ** Main type class based on Generics.
+  , SubTypes(..)
+
   -- ** For constructing new instances of `SubTypes`
   , gst
   , grc
@@ -133,40 +146,72 @@ runAgainMsg = putStrLn $
 
 --------------------------------------------------------------------------------
 
+-- XXX I have to parse a string from QC to get the counterexamples.
+
+-- | Run QuickCheck initially, to get counterexamples for each argument,
+-- includding the one we want to focus on for SmartCheck, plus a `Property`.
 runQCInit :: (Show a, Read a, Q.Arbitrary a, ScProperty prop, Q.Testable prop)
           => Q.Args -> (a -> prop) -> IO (Maybe a, a -> Q.Property)
 runQCInit args scProp = do
-  let prop = propify scProp
-  let genProp = Q.forAllShrink Q.arbitrary Q.shrink prop
-  res <- Q.quickCheckWithResult args genProp
-  case res of
-    -- XXX C'mon, QuickCheck, let me grab the result in a sane way rather than
-    -- parsing a string!
-    Q.Failure _ _ _ _ _ _ out -> do
-      let outs = lines out
-      if length outs < 2 then errorMsg "No value to SmartCheck!"
-        else do let cexs = tail outs
-                let prop' = propifyWithArgs (tail cexs) scProp
-                return (Just $ read $ head cexs, prop')
+  res <- Q.quickCheckWithResult args (genProp $ propify scProp)
+  return $ maybe
     -- 2nd arg should never be evaluated if the first arg is Nothing.
-    _ -> return (Nothing, errorMsg "Bug in runQCInit")
+    (Nothing, errorMsg "Bug in runQCInit")
+    ((\(cex, p) -> (Just cex, p)) . parse)
+    (getOut res)
+  where
+  parse outs = (read $ head cexs, prop')
+    where cexs = lenChk ((< 2) . length) outs
+          prop' = propifyWithArgs (tail cexs) scProp
 
+-- | Run QuickCheck only analyzing the SmartCheck value, holding the other
+-- values constant.
 runQC :: (Show a, Read a, Q.Arbitrary a)
       => Q.Args -> (a -> Q.Property) -> IO (Maybe a)
 runQC args prop = do
-  let genProp = Q.forAllShrink Q.arbitrary Q.shrink prop
-  res <- Q.quickCheckWithResult args genProp
+  res <- Q.quickCheckWithResult args (genProp prop)
+  return $ fmap parse (getOut res)
+  where
+  parse outs = read $ head cexs
+    where cexs = lenChk ((/= 2) . length) outs
+
+lenChk :: ([String] -> Bool) -> [String] -> [String]
+lenChk chk ls = if chk ls then errorMsg "No value to SmartCheck!"
+                   else tail ls
+
+getOut :: Q.Result -> Maybe [String]
+getOut res =
   case res of
-    -- XXX C'mon, QuickCheck, let me grab the result in a sane way rather than
-    -- parsing a string!
-    Q.Failure _ _ _ _ _ _ out -> do
-      let outs = lines out
-      if length outs /= 2 then errorMsg "No value to SmartCheck!"
-        else do let cexs = tail outs
-                return $ Just (read $ head cexs)
-    _ -> return Nothing
+    Q.Failure _ _ _ _ _ _ out -> Just $ lines out
+    _                         -> Nothing
+
+genProp :: (Show a, Q.Testable prop, Q.Arbitrary a)
+        => (a -> prop) -> Q.Property
+genProp prop = Q.forAllShrink Q.arbitrary Q.shrink prop
 
 --------------------------------------------------------------------------------
+
+-- | Type for SmartCheck properties.  Moral equivalent of QuickCheck's
+-- `Property` type.
+data ScProp = Implies (Bool, Bool)
+            | Simple  Bool
+  deriving (Show, Read, Eq)
+
+instance Q.Testable ScProp where
+  property (Simple prop)         = Q.property prop
+  property (Implies prop)        = Q.property (toQCImp prop)
+  exhaustive (Simple prop)       = Q.exhaustive prop
+  exhaustive (Implies prop)      = Q.exhaustive (toQCImp prop)
+
+-- same as ==>
+infixr 0 -->
+-- | Moral equivalent of QuickCheck's `==>` operator.
+(-->) :: Bool -> Bool -> ScProp
+pre --> post = Implies (pre, post)
+
+-- Helper function.
+toQCImp :: (Bool, Bool) -> Q.Property
+toQCImp (pre, post) = pre Q.==> post
 
 -- | Turn a function that returns a `Bool` into a QuickCheck `Property`.
 class ScProperty prop where
@@ -178,10 +223,13 @@ instance ScProperty Bool where
   scProperty _ res = Q.property res
   qcProperty       = Q.property
 
--- | Instance with a precondition and a postcondition.
-instance ScProperty (Bool,Bool) where
-  scProperty _ (pre,post) = Q.property $ pre Q.==> post
-  qcProperty   (pre,post) = Q.property $ pre Q.==> post
+-- | Wrapped properties.
+instance ScProperty ScProp where
+  scProperty _ (Simple res)     = Q.property res
+  scProperty _ (Implies prop)   = Q.property $ toQCImp prop
+
+  qcProperty   (Simple res)     = Q.property res
+  qcProperty   (Implies prop)   = Q.property $ toQCImp prop
 
 -- | Beta-reduction.
 instance (Q.Arbitrary a, Q.Testable prop, Show a, Read a, ScProperty prop)

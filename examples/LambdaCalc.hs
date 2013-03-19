@@ -113,16 +113,16 @@ instance Arbitrary Pr where
 -- prop0 (Pr (e0, e1)) = alphaEq e0 e1 ==> betaEq e0 e1
 
 -- if you do a beta reduction to nf
-prop1 :: Pr -> Property
-prop1 (Pr e0 e1) = -- Timeout due to possible non-termination
-  within 1000 $ alphaEq e0 e1 ==> betaEq e0 (substVar "x" "y" e1)
+-- prop1 :: Pr -> ScProp
+-- prop1 (Pr e0 e1) = -- Timeout due to possible non-termination
+--   within 1000 $ alphaEq e0 e1 --> betaEq e0 (substVar "x" "y" e1)
 
-lambdaTest :: IO ()
-lambdaTest = smartCheck args prop1
-  where args = scStdArgs { qcArgs = stdArgs { maxSuccess = 100
-                                            , maxSize    = 100
-                                            }
-                         }
+-- lambdaTest :: IO ()
+-- lambdaTest = smartCheck args prop1
+--   where args = scStdArgs { qcArgs = stdArgs { maxSuccess = 100
+--                                             , maxSize    = 100
+--                                             }
+--                          }
 
 ---------------------------------------------------------------------------------
 -- Cruft

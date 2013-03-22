@@ -61,7 +61,7 @@ class Arbitrary a => SubTypes a where
   subVals  :: a -> Tree SubVal
   constr   :: a -> String
   constrs  :: a -> [String]
-  baseType :: a -> Bool
+  opaque :: a -> Bool
 
 --------------------------------------------------------------------------------
 
@@ -238,7 +238,7 @@ matchesShape a (b, idxs)
               | otherwise    = Nothing
   foldEqConstrs ( Node (SubVal l0) sts0
                 , Node (SubVal l1) sts1 )
-    -- Don't need a baseType test, since they don't ever appear in subTypes.
+    -- Don't need a opaque test, since they don't ever appear in subTypes.
     | constr l0 == constr l1 =
       all foldEqConstrs (zip sts0 sts1)
     | otherwise              = False

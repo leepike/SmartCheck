@@ -84,16 +84,16 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="1.9387107"
-     inkscape:cx="336.901"
-     inkscape:cy="512.72369"
+     inkscape:zoom="2.741751"
+     inkscape:cx="361.86015"
+     inkscape:cy="527.31291"
      inkscape:document-units="px"
-     inkscape:current-layer="layer1"
+     inkscape:current-layer="layer3"
      showgrid="true"
      inkscape:window-width="1600"
      inkscape:window-height="866"
-     inkscape:window-x="0"
-     inkscape:window-y="0"
+     inkscape:window-x="153"
+     inkscape:window-y="1080"
      inkscape:window-maximized="1"
      inkscape:snap-grids="true">
     <inkscape:grid
@@ -108,7 +108,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -176,17 +176,6 @@
      id="layer2"
      inkscape:label="mid"
      style="opacity:1">
-    <text
-       xml:space="preserve"
-       style="font-size:14px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans;-inkscape-font-specification:Sans"
-       x="175"
-       y="542.36218"
-       id="text3017"
-       sodipodi:linespacing="125%"><tspan
-         sodipodi:role="line"
-         id="tspan3019"
-         x="175"
-         y="542.36218">Fails</tspan></text>
     <path
        style="fill:#d9d9d9;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:1.29206693000000006;stroke-miterlimit:4;stroke-opacity:0;stroke-dasharray:none"
        d="m 387.8939,605.46295 c -39.26756,-1.32253 -76.34469,-6.18986 -108.55476,-14.25061 -11.30705,-2.82965 -33.42652,-10.03284 -37.43993,-12.19228 -2.62962,-1.41489 -2.63396,-1.42791 -0.56203,-1.6896 13.20999,-1.66839 32.1546,-7.34857 42.55427,-12.75908 8.59078,-4.46941 16.81749,-11.97716 19.62345,-17.90847 7.55278,-15.96526 -5.90715,-32.09101 -34.87739,-41.78506 -9.7535,-3.26372 -21.38957,-5.88232 -30.01383,-6.75436 l -5.63672,-0.56996 4.21458,-1.95264 c 28.23911,-13.08337 70.11486,-22.21862 124.82321,-27.23034 15.85663,-1.45259 81.06269,-1.43634 97.30174,0.0243 76.92492,6.91888 133.24892,24.12718 155.46046,47.49681 7.00349,7.36864 9.42807,12.57236 9.46404,20.31197 0.0242,5.20964 -0.36535,7.06733 -2.31425,11.03605 -14.63147,29.79548 -93.5189,54.83958 -182.23764,57.8543 -28.34026,0.96303 -33.15059,0.99729 -51.8052,0.36901 z m 106.51133,-28.76477 c 39.34174,-4.77935 65.33718,-17.22308 69.36078,-33.20225 0.79113,-3.14185 0.7139,-4.64404 -0.44339,-8.62501 -4.28005,-14.72285 -30.06402,-26.69717 -68.49979,-31.81195 -13.70033,-1.82315 -47.23278,-1.8233 -61.0658,-2.8e-4 -28.07716,3.70022 -49.8122,11.31323 -60.47002,21.1805 -11.10781,10.28387 -11.24805,21.11852 -0.40166,31.03151 5.34874,4.88845 16.35574,10.71652 26.83113,14.20675 12.43842,4.14429 34.71133,7.91518 52.09314,8.81957 9.37775,0.48793 32.59018,-0.38336 42.59561,-1.59884 z"
@@ -302,37 +291,48 @@
          id="tspan4852">formula</tspan></text>
     <text
        xml:space="preserve"
-       style="font-size:14px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:CM Typewriter;-inkscape-font-specification:CM Typewriter"
-       x="375"
+       style="font-size:14px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Monospace;-inkscape-font-specification:Monospace"
+       x="420"
        y="597.36218"
-       id="text2993"
+       id="text3019"
        sodipodi:linespacing="125%"><tspan
          sodipodi:role="line"
-         id="tspan2995"
-         x="375"
-         y="597.36218"
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Sans;-inkscape-font-specification:Sans">Satisfies</tspan></text>
+         id="tspan3021"
+         x="420"
+         y="597.36218">pre</tspan></text>
     <text
        xml:space="preserve"
        style="font-size:14px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Monospace;-inkscape-font-specification:Monospace"
        x="215"
        y="542.36218"
-       id="text3019"
-       sodipodi:linespacing="125%"><tspan
-         sodipodi:role="line"
-         id="tspan3021"
-         x="215"
-         y="542.36218">pre</tspan></text>
-    <text
-       xml:space="preserve"
-       style="font-size:14px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Monospace;-inkscape-font-specification:Monospace"
-       x="425"
-       y="597.36218"
        id="text3023"
        sodipodi:linespacing="125%"><tspan
          sodipodi:role="line"
          id="tspan3025"
-         x="425"
-         y="597.36218">post</tspan></text>
+         x="215"
+         y="542.36218">post</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:14px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Monospace;-inkscape-font-specification:Monospace"
+       x="160"
+       y="542.36218"
+       id="text3024"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan3026"
+         x="160"
+         y="542.36218"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-family:Sans;-inkscape-font-specification:Sans">Satisfies</tspan></text>
+    <text
+       xml:space="preserve"
+       style="opacity:1;font-size:14px;font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;text-align:center;line-height:125%;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;font-family:Sans;-inkscape-font-specification:Sans"
+       x="375"
+       y="597.36218"
+       id="text3017"
+       sodipodi:linespacing="125%"><tspan
+         sodipodi:role="line"
+         id="tspan3019"
+         x="375"
+         y="597.36218">Satisfies</tspan></text>
   </g>
 </svg>

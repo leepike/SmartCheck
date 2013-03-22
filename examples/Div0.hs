@@ -44,7 +44,7 @@ instance Arbitrary Exp where
 
 -- property: so long as 0 isn't in the divisor, we won't try to divide by 0.
 -- It's false: something might evaluate to 0 still.
-prop_div :: Exp -> ScProp
+prop_div :: Exp -> ScProperty
 prop_div e = divSubTerms e --> eval e /= Nothing
 -- prop_div e = property $ case x of
 --                           Nothing -> True

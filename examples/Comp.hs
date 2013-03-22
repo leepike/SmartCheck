@@ -25,7 +25,7 @@ instance Ord I where
 
 data X = X0 I
        | X1 I
-  deriving (Eq, Read, Show, Typeable, Generic)
+  deriving (Read, Show, Typeable, Generic)
 
 instance Arbitrary X where
   arbitrary = oneof [ liftM X0 arbitrary
@@ -38,6 +38,12 @@ instance Ord X where
   compare (X0 i) (X1 j) = compare i j
   compare (X1 i) (X0 j) = compare i j
   compare (X1 i) (X1 j) = compare i j
+
+instance Eq X where
+  (X0 i) == (X0 j) = i == j
+  (X0 i) == (X1 j) = i == j
+  (X1 i) == (X0 j) = i == j
+  (X1 i) == (X1 j) = i == j
 
 data A = A0 Int
        | A1 Int
@@ -72,7 +78,7 @@ instance Arbitrary B where
 instance SubTypes B
 
 comp :: X -> X -> A -> Bool
-comp a0 a1 _ = a0 < a1
+comp a0 a1 _ = a0 /= a1
 
 comp2 :: X -> Bool
 comp2 a0 = a0 < a0

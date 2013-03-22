@@ -182,8 +182,8 @@ lenChk chk ls = if chk ls then errorMsg "No value to SmartCheck!"
 getOut :: Q.Result -> Maybe [String]
 getOut res =
   case res of
-    Q.Failure _ _ _ _ _ _ out -> Just $ lines out
-    _                         -> Nothing
+    Q.Failure _ _ _ _ _ _ _ out -> Just $ lines out
+    _                           -> Nothing
 
 genProp :: (Show a, Q.Testable prop, Q.Arbitrary a)
         => (a -> prop) -> Q.Property

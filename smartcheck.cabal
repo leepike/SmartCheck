@@ -26,7 +26,7 @@ Library
                      Test.SmartCheck.Types
 
   Build-depends:     base >= 4.0 && < 5,
-                     QuickCheck >= 2.4.2,
+                     QuickCheck >= 2.6,
                      mtl,
                      random >= 1.0.1.1,
                      containers >= 0.4,

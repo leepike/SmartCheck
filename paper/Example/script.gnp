@@ -1,10 +1,10 @@
 set title ""
 # black and white output
-set term pdfcairo mono dashed
+set term pdfcairo mono dashed linewidth 4
 # set term wxt
 set autoscale
-set xlabel "Data size (number of constructors)"
-set ylabel "Samples observed"
+set xlabel "Final value size (N constructors)"
+set ylabel "Runs (number observed)"
 # set xrange [0:100]
 # set yrange [0:500]
 
@@ -20,7 +20,7 @@ plot \
 # 'feat_vals.csv'   using 1:2:(1.0) smooth acsplines  title 'Feat', \
 
 ###### Time
-set xlabel "Computation time (seconds)"
+set xlabel "Execution time (seconds)"
 # set logscale y
 
 set yrange [0:1200]

@@ -9,7 +9,7 @@ module Test.SmartCheck
     smartCheck
 
   -- ** Type of SmartCheck properties.
-  , ScProp()
+  , ScProperty()
   -- ** Implication for SmartCheck properties.
   , (-->)
 
@@ -48,7 +48,7 @@ import Generics.Deriving
 smartCheck :: forall a prop.
   ( Read a, Q.Arbitrary a, SubTypes a
   , Generic a, ConNames (Rep a)
-  , ScProperty prop, Q.Testable prop
+  , ScProp prop, Q.Testable prop
   ) => ScArgs -> (a -> prop) -> IO ()
 smartCheck args scProp = do
   -- Run standard QuickCheck or read in value.
@@ -150,7 +150,7 @@ runAgainMsg = putStrLn $
 
 -- | Run QuickCheck initially, to get counterexamples for each argument,
 -- includding the one we want to focus on for SmartCheck, plus a `Property`.
-runQCInit :: (Show a, Read a, Q.Arbitrary a, ScProperty prop, Q.Testable prop)
+runQCInit :: (Show a, Read a, Q.Arbitrary a, ScProp prop, Q.Testable prop)
           => Q.Args -> (a -> prop) -> IO (Maybe a, a -> Q.Property)
 runQCInit args scProp = do
   res <- Q.quickCheckWithResult args (genProp $ propify scProp)
@@ -193,11 +193,11 @@ genProp prop = Q.forAllShrink Q.arbitrary Q.shrink prop
 
 -- | Type for SmartCheck properties.  Moral equivalent of QuickCheck's
 -- `Property` type.
-data ScProp = Implies (Bool, Bool)
-            | Simple  Bool
+data ScProperty = Implies (Bool, Bool)
+                | Simple  Bool
   deriving (Show, Read, Eq)
 
-instance Q.Testable ScProp where
+instance Q.Testable ScProperty where
   property (Simple prop)         = Q.property prop
   property (Implies prop)        = Q.property (toQCImp prop)
   exhaustive (Simple prop)       = Q.exhaustive prop
@@ -206,7 +206,7 @@ instance Q.Testable ScProp where
 -- same as ==>
 infixr 0 -->
 -- | Moral equivalent of QuickCheck's `==>` operator.
-(-->) :: Bool -> Bool -> ScProp
+(-->) :: Bool -> Bool -> ScProperty
 pre --> post = Implies (pre, post)
 
 -- Helper function.
@@ -214,17 +214,17 @@ toQCImp :: (Bool, Bool) -> Q.Property
 toQCImp (pre, post) = pre Q.==> post
 
 -- | Turn a function that returns a `Bool` into a QuickCheck `Property`.
-class ScProperty prop where
+class ScProp prop where
   scProperty :: [String] -> prop -> Q.Property
   qcProperty :: prop -> Q.Property
 
 -- | Instance without preconditions.
-instance ScProperty Bool where
+instance ScProp Bool where
   scProperty _ res = Q.property res
   qcProperty       = Q.property
 
 -- | Wrapped properties.
-instance ScProperty ScProp where
+instance ScProp ScProperty where
   scProperty _ (Simple res)     = Q.property res
   scProperty _ (Implies prop)   = Q.property $ toQCImp prop
 
@@ -232,17 +232,17 @@ instance ScProperty ScProp where
   qcProperty   (Implies prop)   = Q.property $ toQCImp prop
 
 -- | Beta-reduction.
-instance (Q.Arbitrary a, Q.Testable prop, Show a, Read a, ScProperty prop)
-  => ScProperty (a -> prop) where
+instance (Q.Arbitrary a, Q.Testable prop, Show a, Read a, ScProp prop)
+  => ScProp (a -> prop) where
   scProperty (str:strs) f = Q.property $ scProperty strs (f (read str))
   scProperty _          _ = errorMsg "Insufficient values applied to property!"
   qcProperty              = Q.property
 
-propifyWithArgs :: (Read a, ScProperty prop)
+propifyWithArgs :: (Read a, ScProp prop)
   => [String] -> (a -> prop) -> (a -> Q.Property)
 propifyWithArgs strs prop = \a -> scProperty strs (prop a)
 
-propify :: ScProperty prop => (a -> prop) -> (a -> Q.Property)
+propify :: ScProp prop => (a -> prop) -> (a -> Q.Property)
 propify prop = \a -> qcProperty (prop a)
 
 --------------------------------------------------------------------------------

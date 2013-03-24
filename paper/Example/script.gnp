@@ -8,36 +8,38 @@ set ylabel "Runs (number observed)"
 # set xrange [0:100]
 # set yrange [0:500]
 
+set nologscale y
+
 ###### Data
 
 set output "../Graphs/data.pdf"
 plot \
 'sc_vals.csv'     using 1:2:(1.0) smooth acsplines  title 'SmartCheck', \
-'qcNone_vals.csv' using 1:2:(1.0) smooth acsplines  title 'QC (none)', \
-'qc10_vals.csv'   using 1:2:(1.0) smooth acsplines  title 'QC (trunc)', \
-'qcjh_vals.csv'   using 1:2:(1.0) smooth acsplines  title 'QC (tuple)'
+'qcNone_vals.csv' using 1:2:(1.0) smooth acsplines  title 'QC none', \
+'qc10_vals.csv'   using 1:2:(1.0) smooth acsplines  title 'QC trunc', \
+'qcjh_vals.csv'   using 1:2:(1.0) smooth acsplines  title 'QC tuple'
 
 # 'feat_vals.csv'   using 1:2:(1.0) smooth acsplines  title 'Feat', \
 
 ###### Time
 set xlabel "Execution time (seconds)"
-# set logscale y
+set logscale y
+set yrange [1:1200]
 
-set yrange [0:1200]
 set output "../Graphs/time-big.pdf"
 # big!
 plot \
-'qc10_time.csv'   using 1:2:(1.0) smooth acsplines  title 'QC (trunc)', \
-'qcjh_time.csv'   using 1:2:(1.0) smooth acsplines  title 'QC (tuple)'
+'qc10_time.csv'   using 1:2:(1.0) smooth acsplines  title 'QC trunc', \
+'qcjh_time.csv'   using 1:2:(1.0) smooth acsplines  title 'QC tuple'
 
 # 'feat_time.csv'   using 1:2:(1.0) smooth acsplines  title 'Feat', \
 
-# set nologscale y
+set nologscale y
 
 set yrange [0:35]
 set output "../Graphs/time-small.pdf"
 # very small
 plot \
 'sc_time.csv'     using 1:2:(1.0) smooth acsplines  title 'SmartCheck', \
-'qcNone_time.csv' using 1:2:(1.0) smooth acsplines  title 'QC (none)'
+'qcNone_time.csv' using 1:2:(1.0) smooth acsplines  title 'QC none'
 

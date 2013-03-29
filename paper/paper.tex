@@ -115,19 +115,7 @@
 \maketitle
 
 \begin{abstract}
-QuickCheck, developed by Claessen and Hughes, is a powerful library for
-automatic test-case generation.  Because QuickCheck performs random testing,
-some of the counterexamples discovered are very large.  QuickCheck provides an
-interface for the user to write \emph{shrink} functions to attempt to reduce the
-size of counterexamples discovered.  Hand-written implementations of shrink can
-be complex, inefficient, and consist of significant boilerplate code.  We
-introduce \emph{SmartCheck}, an automatic efficient counterexample reduction
-algorithm.  SmartCheck reduces algebraic data using generic search heuristics to
-efficiently find smaller counterexamples independent of the program or property
-being tested.  In addition to shrinking, SmartCheck generalizes counterexamples
-by returning a \emph{formula} that abstracts over individual counterexamples and
-make it easier for the programmer to uncover multiple counterexamples at once.
-SmartCheck has been implemented for Haskell and is freely available.
+QuickCheck, developed by Claessen and Hughes, is a powerful library for automatic test-case generation.  Because QuickCheck performs random testing, some of the counterexamples discovered are very large.  QuickCheck provides an interface for the user to write shrink functions to attempt to reduce the size of counterexamples discovered.  Hand-written implementations of shrink can be complex, inefficient, and consist of significant boilerplate code.  Furthermore, shrinking is only one aspect in debugging: counterexample generalization is the process of extrapolating from individual counterexamples to a class of counterexamples, often requiring a flash of insight from the programmer.  To improve counterexample reduction and generalization, we introduce \emph{SmartCheck}.  SmartCheck is a debugging tool that reduces algebraic data using generic search heuristics to efficiently find smaller counterexamples independent of the program or property being tested.  In addition to shrinking, SmartCheck also automatically generalizes counterexamples to formulas representing them.  SmartCheck has been implemented for Haskell and is freely available.
 \end{abstract}
 
 %% \category{D.2.4}{Software/Program Verification}{Reliability}
@@ -140,7 +128,7 @@ SmartCheck has been implemented for Haskell and is freely available.
 
 \section{Introduction}\label{sec:intro}
 The QuickCheck testing framework was a revolutionary step-forward in
-type-directed random testing~\cite{qc}.  Originally designed for Haskell,
+type-directed random testing~\cite{qc,monadic}.  Originally designed for Haskell,
 QuickCheck has been ported to other languages and is a now a widely-used testing
 tool.  Because QuickCheck generates random values for testing, counterexamples
 it finds may be substantially larger than a minimal counterexample.  In their
@@ -179,10 +167,13 @@ program being evaluated.  Bad definitions can be so slow or so ineffective at
 shrinking that they are unusable.
 
 In addition, shrinking is one side of the coin when it comes to making
-counterexamples more understandable: the other side is generalization.  For
-example, the following is a relatively small counterexample returned when
-QuickChecking a property in (a buggy version of) Xmonad, a popular X11 window
-manager written in Haskell~\cite{xmonad}:
+counterexamples more understandable: the other side is extrapolation from
+individual counterexamples to a class of counterexamples.  This leap of
+abstraction is often implicitly made by the programmer in determining the reason
+why counterexamples fail the property.  For example, the following is a
+relatively small counterexample returned when QuickChecking a property in (a
+buggy version of) Xmonad, a popular X11 window manager written in
+Haskell~\cite{xmonad}:
 %
 \medskip%
 \begin{sloppypar}
@@ -205,33 +196,36 @@ manager written in Haskell~\cite{xmonad}:
 (This counterexample uses Haskell's default \ttp{Show} instances, which uses
 record syntax.)  Functional programmers should be familiar with having to debug
 a ``wall of text'' when debugging data structures.  What if instead a
-counterexample like the following were returned, stating that for any well-typed
-values $x_0$, $x_1$, $x_2$, and $x_3$, a counterexample is returned:
+formula like the following were returned, stating that for any well-typed
+values $x_0$, $x_1$, $x_2$, and $x_3$, tested, a counterexample is found?
+
 %
+\begin{samepage}
 \begin{code}
 forall values x0 x1 x2 x3:
   StackSet
     (Screen (Workspace x0 (-1) (Just x1)) 1 1)
     x2 x3 (fromList [])
 \end{code}
+\end{samepage}
 %
 \noindent
 The formula quantifies away all the irrelevant portions of the data structure
 with respect to the property, so that the user can focus on the heart of the
-problem in the counterexample.
+problem in a class of counterexamples.
 
 \paragraph{SmartCheck}
 Motivated by the problems of reducing and generalizing large counterexamples, we
 developed \emph{SmartCheck}.  SmartCheck takes a counterexample produced by some
-oracle---we use QuickCheck---and generically minimizes and generalizes the
+oracle (we use QuickCheck) and generically minimizes and generalizes the
 counterexample.
 
 As demonstrated by a motivating example in Section~\ref{sec:example}, SmartCheck
 can shrink more than an order-of-magnitude faster than efficient hand-written
-shrink implementations for some properties and programs.  More importantly, the
-time required to shrink scales linearly with the size of the
-counterexample---other common shrink implementations often scale in polynomial
-time or worse.  (Shrinking time is important in real-world uses; see
+shrink implementations for some properties and programs.  As well, the time
+required to shrink scales linearly with the size of the counterexample---other
+common shrink implementations often scale in polynomial time or worse.
+(Shrinking time is important in real-world uses; see
 Section~\ref{sec:experiments} for examples.)  And the counterexamples returned
 are two to five times smaller.
 
@@ -265,18 +259,20 @@ fails the property.  For example, finding counterexamples (\ttp{Left 2}) and
 %
 \noindent
 means there exists a counterexample regardless of the variant chosen.
+Existential generalization is important for large sum types, as found in
+abstract syntax tree (AST) definitions, for example.
 
 The third algorithm automatically strengthens properties by omitting ``similar''
 counterexamples to the ones previously observed.  The algorithm is motivated by
 noting that there are often multiple ways in which a property may fail; for
-example, a property that parsing a pretty-printed abstract syntax tree (AST)
-results in the original AST may fail due to multiple bugs.  During testing, it
-is useful to discover counterexamples arising from each bug in one go.  In
-practice, the problem is solved by discovering a counterexample \ttp{cex},
-abstracting it, and then adding a new precondition to the property that
-informally says ``omit counterexamples of form \ttp{cex}.''  Adding
-preconditions manually is laborious and may cause the programmer to make
-premature fixes to the program, if she believes she has isolated the error.
+example, a property that parsing a pretty-printed AST results in the original
+AST may fail due to multiple bugs.  During testing, it is useful to discover
+counterexamples arising from each bug in one go.  In practice, the problem is
+solved by discovering a counterexample \ttp{cex}, abstracting it, and then
+adding a new precondition to the property that informally says ``omit
+counterexamples of form \ttp{cex}.''  Adding preconditions manually is laborious
+and may cause the programmer to make premature fixes to the program, if she
+believes she has isolated the error before she actually does.
 
 We describe our implementation based on generic programming in
 Section~\ref{sec:implementation}; the implementation is open-source.  In
@@ -315,11 +311,13 @@ counterexamples (we focus on shrinking and only touch on generalization here).
 Consider the example in Figure~\ref{fig:initial}.\footnote{All examples and
   algorithms in this paper are presented in Haskell 2010~\cite{haskell2010} plus
   the language extensions of existential type quantification and scoped type
-  variables.}  Data type \ttp{T} is a product type containing four lists of
-wrapped \ttp{Int16}s and a single wrapped \ttp{Word8}.  For our purposes, it is
-not important what \ttp{T} models, but for concreteness, suppose it models the
-values in four linked lists in an operating system, together with an 8-bit
-status register.
+  variables.  We use Haskell \ttp{Prelude} functions, \ttp{mapMaybe} from
+  \ttp{Data.Maybe}, and \ttp{liftM} and \ttp{replicateM} from
+  \ttp{Control.Monad}.}  Data type \ttp{T} is a product type containing four
+lists of wrapped \ttp{Int16}s and a single wrapped \ttp{Word8}.  For our
+purposes, it is not important what \ttp{T} models, but for concreteness, suppose
+it models the values in four linked lists in an operating system, together with
+an 8-bit status register.
 
 Now suppose we are modeling some program that serializes values of type \ttp{T}.
 The input to the program satisfies the invariant \ttp{pre}, that the sum of
@@ -336,7 +334,7 @@ T (N 10) [N (-20000)] [N (-20000)] [] []
 %
 \noindent
 satisfies \ttp{pre} but fails \ttp{post} (the \ttp{==>}) operator in the figure
-implements implication from the QuickCheck library).
+is implication from the QuickCheck library).
 
 Despite the simplicity of the example, a typical counterexample returned by
 QuickCheck can be large.  With standard settings and no shrinking, the median
@@ -359,7 +357,7 @@ shrink (T w i0 i1 i2 i3) =
 \noindent
 While the above definition appears reasonable, there are two problems with it.
 First, the result of (\ttp{shrink t}) is null if any list contained in \ttp{t}
-is null, so \ttp{t} will not be shrunk.  More troublesome is that with
+is null, in which case \ttp{t} will not be shrunk.  More troublesome is that with
 QuickCheck's default \ttp{Arbitrary} instances, the length of potential
 counterexamples returned by \ttp{shrink} can easily exceed $10^{10}$, which is
 an intractable number of tests for QuickCheck to analyze.  The reason for the
@@ -397,8 +395,8 @@ A more clever programmer that understands the semantics of QuickCheck's
 \begin{code}
 shrink (T w i0 i1 i2 i3) = map go xs
   where xs = shrink (w, i0, i1, i2, i3)
-        go (w', i0', i1', i2', i3') =
-          T w' i0' i1' i2' i3'
+        go (w', i0', i1', i2', i3')
+           = T w' i0' i1' i2' i3'
 \end{code}
 %
 \noindent
@@ -410,12 +408,13 @@ shrink \ttp{b} while holding \ttp{a} constant (and is generalized to larger
 tuples).  Thus, each argument to \ttp{T} is independently shrunk.
 
 Still, using this definition, from some initial counterexamples, shrinking may
-take over 15 seconds and result in a final counterexample containing nearly 60
-\ttp{N} constructors.\footnote{All results reported in the paper are with a
-  GHC-compiled program, using \ttp{-O2}, on a 4-core 2.7GHz Intel~i7 processor.}
+take over one minute and result in a final counterexample containing just under
+100 \ttp{N} constructors.\footnote{All results reported in the paper are with a
+  GHC-7.6.1-compiled program, using \ttp{-O2}, on a 4-core 2.7GHz Intel~i7
+  processor.}
 
 SmallCheck is another testing framework for Haskell for which shrinking is
-irrelevant.  SmallCheck is guaranteed to return a smallest counterexample, if
+irrelevant: SmallCheck is guaranteed to return a smallest counterexample, if
 one exists~\cite{sc}.  SmallCheck does this by enumerating all possible inputs,
 ordered from smallest to largest, up to some user-defined bound.  While
 SmallCheck is effective for testing many programs and properties (in accordance
@@ -525,15 +524,16 @@ To motivate the benefits of SmartCheck reduction algorithm, consider
 Table~\ref{table:results} and the corresponding graphs in
 Figure~\ref{fig:graphs}, giving the results for using QuickCheck and SmartCheck
 on the program shown in Figure~\ref{fig:initial} (we omit SmallCheck, since as
-noted, it is not even feasible for the example).  We graph the final
-counterexample size and execution time.  Out of 2000 runs, we show the number of
-runs resulting in a shrunk counterexample of a given size (by counting \ttp{N}
-constructors), and we show the number of runs executing within a given time
-limit (in seconds).  Note that we provide two execution-time graphs, since time
-scales differ dramatically (we use a logrithmic $y$ axis in one graph).  In the
-table, we show the mean, median, median, and the results at the 95th percentile
-values.  (The distributions produced by these values are not necessarily
-Gaussian, so we omit the standard deviation.)
+noted, it is not even feasible for the example with default instances).  We
+graph the final counterexample size and execution time.  Out of 2000 runs, we
+show the number of runs resulting in a shrunk counterexample of a given size (by
+counting \ttp{N} constructors), and we show the number of runs executing within
+a given time limit (in seconds).  Note that we provide two execution-time
+graphs, since time scales differ dramatically (we use a logrithmic scale for the
+$y$ axis in one graph and a linear scale in the other).  In the table, we show
+the mean, median, median, and the results at the 95th percentile values.  (The
+distributions produced by these values are not necessarily Gaussian, so we omit
+the standard deviation.)
 
 The experiments show three approaches to shrinking with QuickCheck: no shrinking
 (QC none), to provide a baseline, truncated shrinking (QC trunc), as described
@@ -546,25 +546,31 @@ times for SmartCheck include the initial counterexample generation time required
 by QuickCheck (QC none); thus the time required by SmartCheck to shrink a
 counterexample is on average just two hundredths of a second (0.10 - 0.08).  As
 can be seen in the graphs, SmartCheck's execution time scales linearly (like
-QuickCheck without shrinking).  Truncation and tuple shrinking produce very
-long tails; the longest execution time recorded for truncation shrinking and
-tuple shrinking are 88 seconds and 110 seconds, respectively.  SmartCheck is
-largely insensitive to the size of the original counterexample provided.
+QuickCheck without shrinking).  Truncation and tuple shrinking produce very long
+tails; the longest execution time recorded for truncation shrinking and tuple
+shrinking are 88 seconds and 110 seconds, respectively, although these outliers
+can vary wildly.  SmartCheck is largely insensitive to the size of the original
+counterexample provided.
 
-The results for SmartCheck are fairly generalizable to other types and
-properties since SmartCheck's reduction algorithm has no dependencies on the
-specifics of either; however, user-defined shrink methods may vary significantly
-based on the property and counterexample type.
-
-
-Finally, note that after shrinking the counterexample, SmartCheck will also
-generalize it.  Note that for any \ttp{Word8} value in the first argument of
-\ttp{T}, the counterexample still holds.  For example, SmartCheck might return a
-counterexample of the form
+In regards to generalization, after shrinking the counterexample, SmartCheck
+will also generalize it.  Note that for any \ttp{Word8} value in the first
+argument of \ttp{T}, the counterexample still holds.  For example, SmartCheck
+might return a counterexample of the form
 %
 \begin{code}
 forall x . T x [N (-20000)] [N (-20000)] [] []
 \end{code}
+
+Finally, these performance results for SmartCheck are fairly generalizable to
+other types and properties, since the algorithm is not dependent on the specific
+program or property being checked.  However, the results are particularly
+pronounced for counterexamples that are particularly ``deep'' or ``broad'' in
+terms of their tree structure.  For programs and properties for which small
+counterexamples are easily found, QuickCheck's shrinking is perfectly
+acceptable.  Furthermore, user-defined shrink methods may vary significantly
+based on the property and counterexample type, so it is not always clear which
+implementation to compare against.
+
 
 
 
@@ -753,30 +759,37 @@ For simplicity, we omit here Generics-specific super-class constraints on the
 % ------------------------------------------------------------------------------
 
 \section{Shrinking Data}\label{sec:shrinking}
-In this section, we describe how to efficiently and generically shrink algebraic data
-values.  Before we begin, recall the basic idea behind the \ttp{shrink} method
-of the \ttp{Arbitrary} class: generate a list of values, each of which is
+In this section, we describe how to efficiently and generically shrink algebraic
+data values.  Before we begin, recall the basic idea behind the \ttp{shrink}
+method of the \ttp{Arbitrary} class: generate a list of values, each of which is
 smaller than the current counterexample.  Each of the new values generated
-typically bears no relationship to the original counterexample other than being
-smaller.
+may not bear any relationship to the original counterexample other than being
+smaller.  SmartCheck pursues an approach that searches for smaller but
+structurally similar counterexamples, as we make precise below.
 
-Consider the problem of finding a small counterexample as a graph search
-problem.  The set of vertexes are all possible well-typed values.  There is an
-edge from vertex $v$ to $v'$ if $v'$ is smaller than $v$ by some measure.  The
-goal is to traverse the graph, starting from a counterexample, to find a vertex
-from the set of smallest counterexamples in the graph.
+We describe the algorithm in Section~\ref{sec:reduct} and then describe
+algorithmic details in Section~\ref{sec:details}.  Some optimizations to the
+reduction algorithm are described in Section~\ref{sec:optimizations}.
 
-The approach taken by typical \ttp{shrink} implementations is the most naive
-graph search algorithm: it simply generates a random set of potential vertexes
-that are strictly smaller according to the given measure to check the property
-against.  However, it does not exploit that the original counterexample
-\ttp{cex} is already in a neighborhood of other likely counterexamples.  So
-rather than choose random vertexes, it may be more efficient to test other
-values that are closely related to \ttp{cex}.  By restricting the search to
-\ttp{cex}'s neighborhood, a smaller counterexample might be missed, and only a
-local minimum is returned.  However, with a large set of values, finding a
-global minimum by random sampling vertexes in the graph is possible but too
-inefficient.
+%% Consider the problem of finding a small counterexample as a graph search
+%% problem.  The set of vertexes are all possible well-typed values.  Let $<$ be
+%% a partial ordering on values relating them by some size measure.  Let there
+%% be an edge from vertex $v$ to $v'$ if $v < v'$ and there exists no $v''$ such
+%% that $v < v'' < v'$.  The goal is to traverse the graph, starting from a
+%% counterexample, to find a vertex from the set of smallest counterexamples in
+%% the graph.
+
+%% The approach taken by typical \ttp{shrink} implementations is the most naive
+%% graph search algorithm: it simply generates a random set of potential vertexes
+%% that are strictly smaller according to the given measure to check the property
+%% against.  However, it does not exploit that the original counterexample
+%% \ttp{cex} is already in a neighborhood of other likely counterexamples.  So
+%% rather than choose random vertexes, it may be more efficient to test other
+%% values that are closely related to \ttp{cex}.  By restricting the search to
+%% \ttp{cex}'s neighborhood, a smaller counterexample might be missed, and only a
+%% local minimum is returned.  However, with a large set of values, finding a
+%% global minimum by random sampling vertexes in the graph is possible but too
+%% inefficient.
 
 \subsection{Reduction Algorithm Overview}\label{sec:reduct}
 The algorithm we present for efficiently searching for new counterexamples is an
@@ -799,7 +812,7 @@ getSize (SubVal a) = size a
 newVals :: Size -> Int -> SubVal -> IO [SubVal]
 newVals sz tries (SubVal a) =
   replicateM tries s where
-  s  = liftM SubVal (sizedArbitrary sz a)
+  s = liftM SubVal (sizedArbitrary sz a)
 
 reduce :: SubTypes a
   => ScArgs -> (a -> Property) -> a -> IO a
@@ -867,7 +880,7 @@ $\mathcal{O}(n^2)$, where $n$ is the number of constructors in the
 counterexample, assuming that generating new sub-values and testing them is done
 in constant time.
 
-\subsection{Reduction Algorithm Details}
+\subsection{Reduction Algorithm Details}\label{sec:details}
 Having described the reduction algorithm, there are two important details about
 its design we describe below.
 
@@ -918,7 +931,7 @@ spending time shrinking values from these types.
 
 Consequently, we distinguish a class of types referred to as \emph{opaque
   types}.  If the reduction algorithm encounters a opaque type, it is ignored.
-By default, this includes types without constructors (e.g., \ttp{Int}, \ttp{Word},
+By default, this includes ``primitive'' types (e.g., \ttp{Int}, \ttp{Word},
 \ttp{Float}, \ttp{Bool}, and \ttp{Char}).  We also treat recursive container
 types like lists specially: lists of opaque types are considered to be opaque
 types themselves.  This prevents the algorithm from analyzing, for example,
@@ -926,9 +939,9 @@ strings.  A list of non-opaque-types, however, is shrunk by the algorithm.
 
 By providing custom instances, the user can declare any substructure in a data
 type to be a opaque type.  Doing so effectively treats values from that type as
-``black boxes'' for SmartCheck.  Doing so can help make SmartCheck more
-efficient if the user knows that some portion of the structure cannot be shrunk
-or is irrelevant to the property.
+``black boxes'' for SmartCheck, making SmartCheck more efficient if the user
+knows that some portion of the structure cannot be shrunk or is irrelevant to
+the property.
 
 Conversely, if the user wishes to shrink types that are treated as opaque by
 default, she can sometimes do so before handing the counterexample to
@@ -937,7 +950,7 @@ while leaving the remaining structure for SmartCheck to shrink.  In the future,
 depending on user experiences, default instances for types can be removed so
 that SmartCheck's reduction algorithm does not ignore values from those types.
 
-\subsection{Reduction Algorithm Optimizations}
+\subsection{Reduction Algorithm Optimizations}\label{sec:optimizations}
 The reduction algorithm description above omits some details and optimizations
 we describe here.
 
@@ -974,7 +987,7 @@ holds on an expression, then the evaluator returns \ttp{Just} a value:
 \begin{code}
 divSubTerms :: Exp -> Bool
 divSubTerms (C _)         = True
-divSubTerms (Div _ (C 0)) = False
+odivSubTerms (Div _ (C 0)) = False
 divSubTerms (Add e0 e1)   =  divSubTerms e0
                           && divSubTerms e1
 divSubTerms (Div e0 e1)   =  divSubTerms e0
@@ -993,13 +1006,17 @@ Testing \ttp{prop\_div}, we might have a counterexample like the following:
   (C 3)) (Add (C (-5)) (C 5)))))}
 \end{sloppypar}
 \medskip%
+%
 \noindent
-In the counterexample, the culprit is a buried sub-value:
+The cause is that \ttp{divSubTerms} fails to check whether the
+divisor evaluates to zero.  In the counterexample, the culprit is a buried
+sub-value:
 %
 \begin{code}
 Div (Add (C 7) (C 3)) (Add (C (-5)) (C 5))
 \end{code}
 %
+\noindent
 Thus, when attempting to shrink an \ttp{Exp} value, it pays to test whether a
 sub-value itself fails the property.
 
@@ -1210,10 +1227,9 @@ size of the counterexample.  We call the kind of formula just shown
 An extrapolation algorithm performs universal sub-value generalization.  The
 basic idea is as follows: for a counterexample \ttp{cex} and a property
 \ttp{prop}, a breadth-first search over the sub-values of the \ttp{cex} is
-performed.  For each sub-value, the algorithm generates new sub-values and replaces
-them in \ttp{cex} to create a list of new potential counterexamples.  If enough
-new counterexamples non-trivially fail \ttp{prop} (i.e., fail the property's
-consequent but satisfy its antecendent), then we extrapolate, claiming that for
+performed.  For each sub-value, the algorithm generates new sub-values and
+replaces them in \ttp{cex} to create a list of new potential counterexamples.
+If no new value satisfies the property, then we extrapolate, claiming that for
 \emph{any} new value replacing that sub-value in \ttp{cex}, the property will
 fail.
 
@@ -1283,8 +1299,8 @@ the \ttp{scMaxReduce} flag, determining the number of values generated in trying
 to generalize a value.
 
 The function \ttp{allFail} takes a counterexample \ttp{cex}, an index into
-\ttp{cex}, a list of new sub-values, and a property.  It returns true if enough
-new values pass the property's precondition and fail the property.  The function
+\ttp{cex}, a list of new sub-values, and a property.  It returns true if no new
+values satisfy the property.  The function
 %
 \begin{code}
 fail :: (a -> Property) -> a -> Maybe Bool
@@ -1310,11 +1326,9 @@ Daikon~\cite{qs,daikon}.  By tuning the parameters, the risk of an unsound
 generalization is reduced by requiring more or larger values to fail the
 property.
 
-Second, note that each index is generalized with respect to the concrete
-sub-values that exist in the counterexample.  So in some cases, a formula may be
-returned that is overly general.  For example, consider the counterexample in
-which both arguments of the outermost \ttp{Add} constructor contain values
-causing the failure:
+In some cases, a formula may be returned that is overly general.  For example,
+consider the counterexample in which both arguments of the outermost \ttp{Add}
+constructor contain values causing the failure:
 %
 \begin{code}
 Add (Div (C 1) (Add (C (-2)) (C 2)))
@@ -1377,9 +1391,14 @@ sub-values with the other variants.
 We therefore introduce another kind of generalization we call \emph{existential
   sub-value generalization}.  In this generalization, if there is a
 counterexample containing every possible variant as a sub-value, then we
-abstract it.  For example, suppose that \ttp{prop\_div} had no precondition
-\ttp{divSubTerms} testing for the occurrence of a constant (\ttp{C 0}) in the
-divisor.  Then the following would all counterexamples:
+abstract it.  For example, suppose that \ttp{divSubTerms} had no equation
+%
+\begin{code}
+divSubTerms (Div _ (C 0)) = False
+\end{code}
+%
+\noindent
+Then the following would all counterexamples:
 %
 \begin{code}
 Div (Add (C 3) (C 2)) (C 0)
@@ -1479,9 +1498,21 @@ variants.  Third, for a specific sub-value \ttp{v}, we test whether it fails the
 property.  If so, we add its constructor to the list of constructors.
 Otherwise, we simply recurse.  Note in the definition of \ttp{prop'}, we add an
 additional precondition that the current constructor is not an element of
-constructors already seen.  Thus, (\ttp{go v}) returns (\ttp{Just True}) if
-(\ttp{replace cex idx v}) passes this precondition (and any other preconditions
-of \ttp{prop}), but fails the property.
+constructors already seen.  Thus, (\ttp{go v}) returns
+%
+\begin{code}
+\ttp{Just True}
+\end{code}
+%
+\noindent
+if
+%
+\begin{code}
+\ttp{replace cex idx v}
+\end{code}
+%
+passes this precondition (and any other preconditions of \ttp{prop}), but fails
+the property.
 
 Unlike universal sub-value generalization, existential sub-value generalization
 is sound.  The existential claim is only that for each variant, there exists at
@@ -1508,7 +1539,7 @@ they exist) outside of the neighborhood of the original one.
 
 Figure~\ref{fig:cex-gen} illustrates a property of the form (\ttp{pre ==>
   post}).  Points are specific counterexamples that satisfy the precondition but
-fail the post-condition, and the enclosing ring represents the generalization of
+fail the post-condition, and the enclosing oval represents the generalization of
 counterexamples resulting from either universal or existential generalization.
 Our goal is to find additional counterexamples in the shaded region.  As new
 counterexamples are discovered in the shaded region (and generalized), the
@@ -1610,13 +1641,15 @@ Section~\ref{sec:preliminaries}.  One limitation with GHC Generics is that it
 does not (currently) support generalized algebraic data types~\cite{gadts}.
 
 The data type to be tested must derive the \ttp{Read}, \ttp{Show},
-\ttp{Typeable}, and \ttp{Generic} type classes.  Deriving \ttp{Typeable} and
-\ttp{Generic} require using the GHC language extensions \ttp{DeriveDataTypeable}
-and \ttp{DeriveGeneric}, respectively.  \ttp{Typeable} is used for dynamic
-typing in defining the \ttp{replace} method of \ttp{SubTypes} since it is
-unknown at compile-time whether the value to be replaced and replacing value
-have the same types.  (We only require \ttp{Read} because standard QuickCheck
-does not return a counterexample; we read the shown values.)
+\ttp{Typeable}, and \ttp{Generic} type classes.  (We only require \ttp{Read}
+because standard QuickCheck does not return a counterexample; we read the shown
+values.)  Deriving \ttp{Typeable} and \ttp{Generic} require using the GHC
+language extensions \ttp{DeriveDataTypeable} and \ttp{DeriveGeneric},
+respectively.  \ttp{Typeable} is used for dynamic typing in defining the
+\ttp{replace} method of \ttp{SubTypes} since it is unknown at compile-time
+whether the value to be replaced and replacing value have the same types.
+However, through SmartCheck's interface, run-time failures due to
+type-mismatches will not occur.
 
 Then, the user simply declares, for a data type \ttp{D},
 %
@@ -1657,7 +1690,7 @@ prop' :: Foo -> Bool
 prop' foo = prop foo 3
 \end{code}
 
-Our experience is that often a program operates over one large structure
+Our experience is that often a program operates over one large data structure
 together with smaller inputs.  While multiple inputs could be analyzed
 simultaneously by SmartCheck, it is not obvious how to clearly represent
 multiple large counterexamples to the user---the implementation currently prints
@@ -1702,9 +1735,9 @@ Div (C 1) (Add (C 0) (C 2))
 \noindent
 as
 %
+%\scriptsize
 \begin{samepage}
 \begin{code}
-\scriptsize
 Div
 |
 +- C 1
@@ -1914,15 +1947,20 @@ enormous, requiring 200-300 80-character lines to print.
 Using SmartCheck, we are able to reduce counterexamples to around 25
 80-character lines of output.  Most of the savings in the counterexample size
 were due to universal generalization, like in the XMonad case: entire record
-fields are abstracted away.
+fields are abstracted away.  From that, we (syntactically) shrunk the
+counterexample by-hand further by naming common sub-expressions.
+
+We were able to send a substantially reduced and generalized counterexample to
+the message poster, making the cause of the bug more obvious.  He responded:
+``$\ldots$While your improved shrinking may not have gone `all'
+the way to the bottom, it got me a \emph{huge} chunk of the way there!''  Recall
+that through the entire process, we never had to learn how GenI works, what the
+property meant, or how to write a custom shrink method!
 
 ``Retro-fitting'' SmartCheck to GenI, which is a large software system, required
 some work.  Fortunately, because the program already uses QuickCheck,
-\ttp{arbitrary} instances are already defined, but we had to hunt down and
-define default instances for a large number of definitions.  Fortunately,
-however, it required no understanding of the program or property.  We were able
-to send a substantially reduced and generalized counterexample to the author,
-making the cause of the bug more obvious.
+\ttp{arbitrary} instances were already defined, but we had to hunt down and
+define default instances for a large number of definitions.
 
 %-------------------------------------------------------------------------------
 
@@ -1930,10 +1968,10 @@ making the cause of the bug more obvious.
 %-------------------------------------------------------------------------------
 \section{Related Work}\label{sec:related}
 
-A few other researchers have also investigated counterexample shrinking.  Zeller
+Other researchers have also investigated counterexample shrinking.  Zeller
 and Hildebrandt describe an application of greedy search to shrink
 counterexamples they call ``delta-debugging'' (DD)~\cite{dd}.  The authors apply
-their work shrinking HTML inputs to crash Mozilla and shrinking C programs to
+their work to shrinking HTML inputs to crash Mozilla and shrinking C programs to
 trigger a bug in GCC.  Subsequent generalizations are reported by Misherghi and
 Su in which they perform greedy search on tree-structured data; they call their
 approach hierarchical delta-debugging (HDD)~\cite{hdd}.
@@ -1949,7 +1987,9 @@ Furthermore, neither paper explores the idea of counterexample generalization.
 
 Within the functional programming community, one of the few treatments of
 generic shrinking is as a motivation for generic programming in Haskell's
-``Scrap your boilerplate'' generic programming library~\cite{syb}.
+``Scrap your boilerplate'' generic programming library~\cite{syb}.  There, the
+motivation was not to design new approaches to counterexample reduction, but
+simply to derive instances for the \ttp{shrink} method.
 
 Besides QuickCheck and SmallCheck, another testing framework related to
 SmartCheck is the recent Haskell library Feat~\cite{feat}.  Feat provides
@@ -1971,7 +2011,7 @@ depth.
 Feat finds small counterexamples effectively, but a limitation compared to
 QuickCheck is that value generation is applicative rather than monadic.
 Consequently, defining custom generators (i.e., instances for \ttp{arbitrary})
-is highly constrained.  On the other hand, generators can be derived
+is constrained.  On the other hand, generators can be derived
 automatically with Feat.
 
 We have benchmarked Feat as well on the example in the introduction
@@ -2055,12 +2095,12 @@ Add (div (-2) 2) (div (-1) 1)
 \end{code}
 %
 \noindent
-Discovering and exploiting sharing is future work.
+Discovering and exploiting sharing automatically is future work.
 
-We believe there are interesting connections between counterexample
-discovery and probabilistic reasoning.  Often, when a bug in a program is fixed,
-the fix is not correct, or it introduces new bugs.  Such knowledge might be
-useful in guiding the distribution of test cases or shrinking.
+%% We believe there are interesting connections between counterexample
+%% discovery and probabilistic reasoning.  Often, when a bug in a program is fixed,
+%% the fix is not correct, or it introduces new bugs.  Such knowledge might be
+%% useful in guiding the distribution of test cases or shrinking.
 
 Regarding our implementation, we have not profiled the performance of our
 implementation of SmartCheck, so additional performance gains might be possible.
@@ -2078,9 +2118,9 @@ highly-automated testing and debugging in the functional programming community,
 and beyond!
 
 \section*{Acknowledgments}
-I thank Joe Hurd, John Launchbury, Simon Winwood, and especially John Hughes for
-reading an earlier draft of this paper.  Their deep insights and bug catches
-dramatically improved both the form and content.
+I thank Andy Gill, Joe Hurd, John Launchbury, Simon Winwood, and especially John
+Hughes for reading an earlier draft of this paper.  Their deep insights and bug
+catches dramatically improved both the form and content.
 
 \bibliographystyle{abbrvnat}
 \bibliography{paper}

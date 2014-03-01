@@ -11,8 +11,9 @@ module Test.SmartCheck.SmartGen
 import Test.SmartCheck.Types
 import Test.SmartCheck.DataToTree
 
-import qualified Test.QuickCheck.Gen as Q
-import qualified Test.QuickCheck as Q hiding (Result)
+import qualified Test.QuickCheck.Gen      as Q
+import qualified Test.QuickCheck.Random   as Q
+import qualified Test.QuickCheck          as Q hiding (Result)
 import qualified Test.QuickCheck.Property as P
 
 import Prelude hiding (max)
@@ -24,7 +25,7 @@ import Data.Tree hiding (levels)
 -- | Driver for iterateArb.
 iterateArbIdx :: SubTypes a
               => a -> (Idx, Maybe Int) -> Int -> Int
-              -> (a -> Q.Property) -> IO (Int, Result a)
+              -> (a -> P.Property) -> IO (Int, Result a)
 iterateArbIdx d (idx, max) tries sz prop =
   maybe (errorMsg "iterateArb 0")
         (\ext -> iterateArb d ext idx tries sz prop)
@@ -45,18 +46,18 @@ iterateArb :: forall a. SubTypes a
   -> Idx                -- ^ Index of sub-value.
   -> Int                -- ^ Maximum number of iterations.
   -> Int                -- ^ Maximum size of value to generate.
-  -> (a -> Q.Property)  -- ^ Property.
+  -> (a -> P.Property)      -- ^ Property.
   -> IO (Int, Result a) -- ^ Number of times precondition is passed and returned
                         -- result.
 iterateArb d ext idx tries max prop = do
-  g <- newStdGen
+  g <- Q.newQCGen
   iterateArb' (0, FailedPreCond) g 0 0
   where
   newMax SubT { unSubT = v } = valDepth v
 
   -- Main loop.  We break out if we ever satisfy the property.  Otherwise, we
   -- return the latest value.
-  iterateArb' :: (Int, Result a) -> StdGen -> Int -> Int -> IO (Int, Result a)
+  iterateArb' :: (Int, Result a) -> Q.QCGen -> Int -> Int -> IO (Int, Result a)
   iterateArb' (i, res) g try currMax
     -- We've exhausted the number of iterations.
     | try >= tries = return (i, res)
@@ -90,11 +91,10 @@ iterateArb d ext idx tries max prop = do
 -- | Make a new random value given a generator and a max size.  Based on the
 -- value's type's arbitrary instance.
 newVal :: forall a. (SubTypes a, Q.Arbitrary a)
-       => a -> StdGen -> Int -> SubT
+       => a -> Q.QCGen -> Int -> SubT
 newVal _ g size =
   let Q.MkGen m = Q.resize size (Q.arbitrary :: Q.Gen a) in
-  let v = m g size in
-  subT v
+  subT (m g size)
 
 --------------------------------------------------------------------------------
 
@@ -107,7 +107,7 @@ replace d idx SubT { unSubT = v } = replaceAtIdx d idx v
 
 -- | Make a QuickCheck Result by applying a property function to a value and
 -- then get out the Result using our result type.
-resultify :: (a -> Q.Property) -> a -> IO (Result a)
+resultify :: (a -> P.Property) -> a -> IO (Result a)
 resultify prop a = do
   P.MkRose r _ <- res fs
   return $ maybe FailedPreCond -- Failed precondition (discard)
@@ -120,8 +120,9 @@ resultify prop a = do
     | not b && not (P.expect r) = Result a -- expected failure and got it
     | otherwise                 = FailedProp -- We'll just discard it.
 
-  Q.MkGen { Q.unGen = f } = prop a :: Q.Gen P.Prop
-  fs  = P.unProp $ f err err       :: P.Rose P.Result
+  P.MkProperty { P.unProperty = Q.MkGen { Q.unGen = f } }
+      = prop a :: P.Property
+  fs  = P.unProp $ f err err            :: P.Rose P.Result
   res = P.protectRose . P.reduceRose
 
   -- XXX A hack!  Means we failed the property because it failed, not because of

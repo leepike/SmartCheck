@@ -4,3 +4,4 @@ dist
 examples/qc-overwhelm
 cabal.config
 packages*
+.cabal-sandbox

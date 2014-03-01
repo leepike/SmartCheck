@@ -1,6 +1,7 @@
 Name:                smartcheck
 Version:             0.1
 Synopsis:            A smarter QuickCheck.
+Homepage:            https://github.com/leepike/SmartCheck
 Description:         See the README.md.
 License:             BSD3
 License-file:        LICENSE.md
@@ -12,6 +13,10 @@ Build-type:          Simple
 Extra-source-files:
 
 Cabal-version:       >=1.10
+
+source-repository head
+  type:     git
+  location: https://github.com/leepike/SmartCheck.git
 
 Library
   Exposed-modules:   Test.SmartCheck,
@@ -26,7 +31,7 @@ Library
                      Test.SmartCheck.Types
 
   Build-depends:     base >= 4.0 && < 5,
-                     QuickCheck >= 2.6,
+                     QuickCheck >= 2.7,
                      mtl,
                      random >= 1.0.1.1,
                      containers >= 0.4,
@@ -53,7 +58,7 @@ executable sc-regression
   Hs-source-dirs:    examples
   Build-depends:     base >= 4.0 && < 5,
                      smartcheck,
-                     QuickCheck >= 2.4.2,
+                     QuickCheck >= 2.7,
                      mtl,
                      random >= 1.0.1.1,
                      containers >= 0.4,

@@ -8,8 +8,12 @@ module Test.SmartCheck
   ( -- ** Main interface function.
     smartCheck
 
+    -- ** Interface for reading in a counterexample.
+  , smartCheckCex
+
   -- ** Type of SmartCheck properties.
   , ScProperty()
+
   -- ** Implication for SmartCheck properties.
   , (-->)
 
@@ -33,6 +37,7 @@ module Test.SmartCheck
 import Test.SmartCheck.Args
 import Test.SmartCheck.Types
 import Test.SmartCheck.Matches
+import Test.SmartCheck.Property
 import Test.SmartCheck.Reduce
 import Test.SmartCheck.Extrapolate
 import Test.SmartCheck.Render
@@ -50,56 +55,75 @@ smartCheck :: forall a prop.
   , Generic a, ConNames (Rep a)
   , ScProp prop, Q.Testable prop
   ) => ScArgs -> (a -> prop) -> IO ()
-smartCheck args scProp = do
+smartCheck args scProp =
   -- Run standard QuickCheck or read in value.
-  (mcex, prop) <-
-    if qc args then runQCInit (qcArgs args) scProp
-      else do smartPrtLn "Input value to SmartCheck:"
-              mcex <- fmap Just (readLn :: IO a)
-              return (mcex, propify scProp)
+  smartCheckRun args =<< if qc args
+                           then runQCInit (qcArgs args) scProp
+                           else smartCheckInput scProp
 
+-- | Interface for reading in a counterexample already generated.  (Does not
+-- require 'Arbitrary' or 'Testable' constraints.)
+smartCheckCex :: forall a prop.
+  ( Read a, SubTypes a
+  , Generic a, ConNames (Rep a)
+  , ScProp prop
+  ) => ScArgs -> (a -> prop) -> IO ()
+smartCheckCex args scProp =
+  smartCheckRun args =<< smartCheckInput scProp
+
+smartCheckInput :: forall a prop.
+  ( Read a, SubTypes a
+  , Generic a, ConNames (Rep a)
+  , ScProp prop
+  ) => (a -> prop) -> IO (Maybe a, a -> Q.Property)
+smartCheckInput scProp = do
+  smartPrtLn "Input value to SmartCheck:"
+  mcex <- fmap Just (readLn :: IO a)
+  return (mcex, propify scProp)
+
+smartCheckRun :: forall a.
+  ( Read a, SubTypes a
+  , Generic a, ConNames (Rep a)
+  ) => ScArgs -> (Maybe a, a -> Q.Property) -> IO ()
+smartCheckRun args (origMcex, origProp) = do
   smartPrtLn $
     "(If any stage takes too long, try modifying the standard "
       ++ "arguments (see Args.hs).)"
-  runSmartCheck prop mcex
-
+  smartCheck' [] origMcex origProp
   where
-  runSmartCheck :: (a -> Q.Property) -> Maybe a -> IO ()
-  runSmartCheck origProp = smartCheck' [] origProp
+  smartCheck' :: [(a, Replace Idx)]
+              -> Maybe a
+              -> (a -> Q.Property)
+              -> IO ()
+  smartCheck' ds mcex prop =
+    maybe (maybeDoneMsg >> return ()) go mcex
     where
-    smartCheck' :: [(a, Replace Idx)]
-                -> (a -> Q.Property)
-                -> Maybe a
-                -> IO ()
-    smartCheck' ds prop mcex = do
-      maybe (maybeDoneMsg >> return ()) go mcex
-      where
-      go cex = do
-          -- Run the smart reduction algorithm.
-        d <- smartRun args cex prop
-        -- If we asked to extrapolate values, do so.
-        valIdxs <- forallExtrap args d origProp
-        -- If we asked to extrapolate constructors, do so, again with the
-        -- original property.
-        csIdxs <- existsExtrap args d valIdxs origProp
+    go cex = do
+        -- Run the smart reduction algorithm.
+      d <- smartRun args cex prop
+      -- If we asked to extrapolate values, do so.
+      valIdxs <- forallExtrap args d origProp
+      -- If we asked to extrapolate constructors, do so, again with the
+      -- original property.
+      csIdxs <- existsExtrap args d valIdxs origProp
 
-        let replIdxs = Replace valIdxs csIdxs
-        -- If either kind of extrapolation pass yielded fruit, prettyprint it.
-        showExtrapOutput args valIdxs csIdxs replIdxs d
+      let replIdxs = Replace valIdxs csIdxs
+      -- If either kind of extrapolation pass yielded fruit, prettyprint it.
+      showExtrapOutput args valIdxs csIdxs replIdxs d
 
-        -- Ask the user if she wants to try again.
-        runAgainMsg
-        s <- getLine
+      -- Ask the user if she wants to try again.
+      runAgainMsg
+      s <- getLine
 
-        if s == ""
-          -- If so, then loop, with the new prop.
-          then do let oldVals  = (d,replIdxs):ds
-                  let matchesProp a =
-                              not (matchesShapes a oldVals)
-                        Q.==> prop a
-                  mcex' <- runQC (qcArgs args) matchesProp
-                  smartCheck' oldVals matchesProp mcex'
-          else smartPrtLn "Done."
+      if s == ""
+        -- If so, then loop, with the new prop.
+        then do let oldVals  = (d,replIdxs):ds
+                let matchesProp a =
+                            not (matchesShapes a oldVals)
+                      Q.==> prop a
+                mcex' <- runQC (qcArgs args) matchesProp
+                smartCheck' oldVals mcex' matchesProp
+        else smartPrtLn "Done."
 
   maybeDoneMsg = smartPrtLn "No value to smart-shrink; done."
 
@@ -191,58 +215,3 @@ genProp prop = Q.forAllShrink Q.arbitrary Q.shrink prop
 
 --------------------------------------------------------------------------------
 
--- | Type for SmartCheck properties.  Moral equivalent of QuickCheck's
--- `Property` type.
-data ScProperty = Implies (Bool, Bool)
-                | Simple  Bool
-  deriving (Show, Read, Eq)
-
-instance Q.Testable ScProperty where
-  property (Simple prop)         = Q.property prop
-  property (Implies prop)        = Q.property (toQCImp prop)
-  exhaustive (Simple prop)       = Q.exhaustive prop
-  exhaustive (Implies prop)      = Q.exhaustive (toQCImp prop)
-
--- same as ==>
-infixr 0 -->
--- | Moral equivalent of QuickCheck's `==>` operator.
-(-->) :: Bool -> Bool -> ScProperty
-pre --> post = Implies (pre, post)
-
--- Helper function.
-toQCImp :: (Bool, Bool) -> Q.Property
-toQCImp (pre, post) = pre Q.==> post
-
--- | Turn a function that returns a `Bool` into a QuickCheck `Property`.
-class ScProp prop where
-  scProperty :: [String] -> prop -> Q.Property
-  qcProperty :: prop -> Q.Property
-
--- | Instance without preconditions.
-instance ScProp Bool where
-  scProperty _ res = Q.property res
-  qcProperty       = Q.property
-
--- | Wrapped properties.
-instance ScProp ScProperty where
-  scProperty _ (Simple res)     = Q.property res
-  scProperty _ (Implies prop)   = Q.property $ toQCImp prop
-
-  qcProperty   (Simple res)     = Q.property res
-  qcProperty   (Implies prop)   = Q.property $ toQCImp prop
-
--- | Beta-reduction.
-instance (Q.Arbitrary a, Q.Testable prop, Show a, Read a, ScProp prop)
-  => ScProp (a -> prop) where
-  scProperty (str:strs) f = Q.property $ scProperty strs (f (read str))
-  scProperty _          _ = errorMsg "Insufficient values applied to property!"
-  qcProperty              = Q.property
-
-propifyWithArgs :: (Read a, ScProp prop)
-  => [String] -> (a -> prop) -> (a -> Q.Property)
-propifyWithArgs strs prop = \a -> scProperty strs (prop a)
-
-propify :: ScProp prop => (a -> prop) -> (a -> Q.Property)
-propify prop = \a -> qcProperty (prop a)
-
---------------------------------------------------------------------------------

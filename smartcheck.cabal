@@ -25,6 +25,7 @@ Library
                      Test.SmartCheck.DataToTree,
                      Test.SmartCheck.Extrapolate,
                      Test.SmartCheck.Matches,
+                     Test.SmartCheck.Property,
                      Test.SmartCheck.Reduce,
                      Test.SmartCheck.Render,
                      Test.SmartCheck.SmartGen,

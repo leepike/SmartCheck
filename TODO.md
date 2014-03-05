@@ -1,5 +1,14 @@
-TODO
------------------------------------------------
+# QuickCheck Integration
+
+* Have QC return the value itself rather than a string.
+
+* We don't want QC to do *any* shrinking itself.  We need to rip out QC's own
+  arbitrary instances.  Or perhaps, better, leave them and use them but directly
+  from SC, making sure that quickCheckWithResult never shrinks.  Indeed, we
+  already require arbitrary instances for the type being tested (for the
+  arbitrary method).
+
+# TODO
 
 * Make sure I can use extrapolation on its own, without reduce.
 
@@ -8,7 +17,7 @@ TODO
 
 * Right now, in DataToTree, sub (and functions it depends on) fail silently if
   you give them an index that is out of bounds.  Perhaps I should return a
-  Maybe?  
+  Maybe?
 
 * Have extrapolate check whether we've run out of sub constructors and let the
   user know.
@@ -45,7 +54,7 @@ get their constructors, too.
 
 * Bug with XMonad stuff.  Look in examples/StackSet.  There you'll see that
   getAtIdx does not get the same value as replaceAtIdx.  I'm working on
-  narrowing the bug in StackSetMinBug.  
+  narrowing the bug in StackSetMinBug.
 
 Won't Do / Can't Do
 -----------------------------------------------
@@ -75,8 +84,8 @@ Won't Do / Can't Do
   * With QuickCheck, there are essentially two passes: (1) make some arbitrary
     values and test them, and (2) shrink the values.
 
-Done
------------------------------------------------
+# Done
+
 * ~~Rename examples/Test to examples/MutRecData~~
 
   * ~~Rename it in the README, too.~~

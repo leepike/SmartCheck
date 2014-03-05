@@ -5,11 +5,8 @@
 -- | Interface module.
 
 module Test.SmartCheck
-  ( -- ** Main interface function.
+  ( -- ** Main SmartCheck interface.
     smartCheck
-
-    -- ** Interface for reading in a counterexample.
-  , smartCheckCex
 
   -- ** Type of SmartCheck properties.
   , ScProperty()
@@ -50,26 +47,16 @@ import Generics.Deriving
 --------------------------------------------------------------------------------
 
 -- | Main interface function.
-smartCheck :: forall a prop.
-  ( Read a, Q.Arbitrary a, SubTypes a
+smartCheck ::
+  ( Read a, SubTypes a
   , Generic a, ConNames (Rep a)
-  , ScProp prop, Q.Testable prop
+  , ScProp prop
   ) => ScArgs -> (a -> prop) -> IO ()
 smartCheck args scProp =
   -- Run standard QuickCheck or read in value.
   smartCheckRun args =<< if qc args
                            then runQCInit (qcArgs args) scProp
                            else smartCheckInput scProp
-
--- | Interface for reading in a counterexample already generated.  (Does not
--- require 'Arbitrary' or 'Testable' constraints.)
-smartCheckCex :: forall a prop.
-  ( Read a, SubTypes a
-  , Generic a, ConNames (Rep a)
-  , ScProp prop
-  ) => ScArgs -> (a -> prop) -> IO ()
-smartCheckCex args scProp =
-  smartCheckRun args =<< smartCheckInput scProp
 
 smartCheckInput :: forall a prop.
   ( Read a, SubTypes a
@@ -174,7 +161,7 @@ runAgainMsg = putStrLn $
 
 -- | Run QuickCheck initially, to get counterexamples for each argument,
 -- includding the one we want to focus on for SmartCheck, plus a `Property`.
-runQCInit :: (Show a, Read a, Q.Arbitrary a, ScProp prop, Q.Testable prop)
+runQCInit :: (Show a, Read a, Q.Arbitrary a, ScProp prop)
           => Q.Args -> (a -> prop) -> IO (Maybe a, a -> Q.Property)
 runQCInit args scProp = do
   res <- Q.quickCheckWithResult args (genProp $ propify scProp)

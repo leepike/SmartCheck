@@ -60,7 +60,6 @@ instance Serial a => Serial (N a) where
 
 instance Serial T where
   series = cons5 T
-
 -- SmallCheck --------------------------
 
 -- SmartCheck --------------------------

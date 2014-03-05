@@ -1,7 +1,13 @@
 -- | Type classes for making SmartCheck Properties (analogous to QuickCheck's
 -- 'Property' class.
 
-module Test.SmartCheck.Property where
+module Test.SmartCheck.Property
+  ( (-->)
+  , propify
+  , propifyWithArgs
+  , ScProp()
+  , ScProperty()
+  ) where
 
 import qualified Test.QuickCheck as Q
 import Test.SmartCheck.Types
@@ -9,7 +15,7 @@ import Test.SmartCheck.Types
 --------------------------------------------------------------------------------
 
 -- | Type for SmartCheck properties.  Moral equivalent of QuickCheck's
--- `Property` type.
+-- 'Property' type.
 data ScProperty = Implies (Bool, Bool)
                 | Simple  Bool
   deriving (Show, Read, Eq)
@@ -22,15 +28,11 @@ instance Q.Testable ScProperty where
 
 -- same as ==>
 infixr 0 -->
--- | Moral equivalent of QuickCheck's `==>` operator.
+-- | Moral equivalent of QuickCheck's '==>' operator.
 (-->) :: Bool -> Bool -> ScProperty
 pre --> post = Implies (pre, post)
 
--- Helper function.
-toQCImp :: (Bool, Bool) -> Q.Property
-toQCImp (pre, post) = pre Q.==> post
-
--- | Turn a function that returns a `Bool` into a QuickCheck `Property`.
+-- | Turn a function that returns a 'Bool' into a QuickCheck 'Property'.
 class ScProp prop where
   scProperty :: [String] -> prop -> Q.Property
   qcProperty :: prop -> Q.Property
@@ -54,6 +56,10 @@ instance (Q.Arbitrary a, Q.Testable prop, Show a, Read a, ScProp prop)
   scProperty (str:strs) f = Q.property $ scProperty strs (f (read str))
   scProperty _          _ = errorMsg "Insufficient values applied to property!"
   qcProperty              = Q.property
+
+-- Helper function.
+toQCImp :: (Bool, Bool) -> Q.Property
+toQCImp (pre, post) = pre Q.==> post
 
 propifyWithArgs :: (Read a, ScProp prop)
   => [String] -> (a -> prop) -> (a -> Q.Property)

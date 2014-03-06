@@ -29,6 +29,7 @@ Library
                      Test.SmartCheck.Reduce,
                      Test.SmartCheck.Render,
                      Test.SmartCheck.SmartGen,
+                     Test.SmartCheck.Test,
                      Test.SmartCheck.Types
 
   Build-depends:     base >= 4.0 && < 5,

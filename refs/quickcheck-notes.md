@@ -97,3 +97,19 @@ away in `forAllShrink` (and `shrinking`), after which we have a `Property` data
 structure.  Note, for example, in the call to `counterexample` in `forAllShrink`
 there is an explicit use of `show`.
 
+One final thing to note: this infrastructure is just for shrinking.  New tests,
+and their potential shrinks, in the Rose Tree are generated in runATest:
+
+    unProp (f rnd1 size)
+
+Note:
+
+    foobar :: Int -> Int
+    foobar i = unGen inGen (mkQCGen i) 10
+      where
+      inGen :: Gen Int
+      inGen = do
+        let f :: Int -> Int
+            f x = x + 10
+        x <- arbitrary
+        return (f x)

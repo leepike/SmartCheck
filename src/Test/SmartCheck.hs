@@ -8,14 +8,11 @@ module Test.SmartCheck
   ( -- ** Main SmartCheck interface.
     smartCheck
 
-  -- ** Type of SmartCheck properties.
-  , ScProperty()
-
-  -- ** Implication for SmartCheck properties.
-  , (-->)
+    -- ** User-suppplied counterexample interface.
+  , smartCheckInput
 
   -- ** Run QuickCheck and get a result.
-  , runQCInit
+  , runQC
 
   -- ** Arguments
   , module Test.SmartCheck.Args
@@ -35,7 +32,6 @@ import Test.SmartCheck.Args
 import Test.SmartCheck.ConstructorGen
 import Test.SmartCheck.Extrapolate
 import Test.SmartCheck.Matches
-import Test.SmartCheck.Property
 import Test.SmartCheck.Reduce
 import Test.SmartCheck.Render
 import Test.SmartCheck.Test
@@ -49,28 +45,26 @@ import Generics.Deriving
 
 -- | Main interface function.
 smartCheck ::
-  ( Read a, SubTypes a
+  ( SubTypes a
   , Generic a, ConNames (Rep a)
-  , ScProp prop
+  , Q.Testable prop
   ) => ScArgs -> (a -> prop) -> IO ()
 smartCheck args scProp =
-  -- Run standard QuickCheck or read in value.
-  smartCheckRun args =<< if qc args
-                           then runQCInit (qcArgs args) scProp
-                           else smartCheckInput scProp
+  smartCheckRun args =<< runQC (qcArgs args) scProp
 
 smartCheckInput :: forall a prop.
-  ( Read a, SubTypes a
+  ( SubTypes a
   , Generic a, ConNames (Rep a)
-  , ScProp prop
-  ) => (a -> prop) -> IO (Maybe a, a -> Q.Property)
-smartCheckInput scProp = do
+  , Q.Testable prop
+  , Read a
+  ) => ScArgs -> (a -> prop) -> IO ()
+smartCheckInput args scProp = do
   smartPrtLn "Input value to SmartCheck:"
   mcex <- fmap Just (readLn :: IO a)
-  return (mcex, propify scProp)
+  smartCheckRun args (mcex, propify scProp)
 
 smartCheckRun :: forall a.
-  ( Read a, SubTypes a
+  ( SubTypes a
   , Generic a, ConNames (Rep a)
   ) => ScArgs -> (Maybe a, a -> Q.Property) -> IO ()
 smartCheckRun args (origMcex, origProp) = do
@@ -98,18 +92,18 @@ smartCheckRun args (origMcex, origProp) = do
       let replIdxs = Replace valIdxs csIdxs
       -- If either kind of extrapolation pass yielded fruit, prettyprint it.
       showExtrapOutput args valIdxs csIdxs replIdxs d
-
-      -- Ask the user if she wants to try again.
+      -- Try again?
       runAgainMsg
-      s <- getLine
 
+      s <- getLine
       if s == ""
         -- If so, then loop, with the new prop.
         then do let oldVals  = (d,replIdxs):ds
                 let matchesProp a =
                             not (matchesShapes a oldVals)
                       Q.==> prop a
-                mcex' <- runQC (qcArgs args) matchesProp
+--                mcex' <- runQC (qcArgs args) matchesProp
+                (mcex', _) <- runQC (qcArgs args) (Q.noShrinking . matchesProp)
                 smartCheck' oldVals mcex' matchesProp
         else smartPrtLn "Done."
 
@@ -158,44 +152,29 @@ runAgainMsg = putStrLn $
 
 --------------------------------------------------------------------------------
 
--- XXX I have to parse a string from QC to get the counterexamples.
-
 -- | Run QuickCheck initially, to get counterexamples for each argument,
--- includding the one we want to focus on for SmartCheck, plus a `Property`.
-runQCInit :: (Show a, Read a, Q.Arbitrary a, ScProp prop)
+-- includding the one we want to focus on for SmartCheck, plus a 'Property'.  We
+-- allow QuickCheck to attempt to shrink all arguments except the first here.
+runQC :: (Show a, Q.Arbitrary a, Q.Testable prop)
           => Q.Args -> (a -> prop) -> IO (Maybe a, a -> Q.Property)
-runQCInit args scProp = do
-  res <- Q.quickCheckWithResult args (Q.property $ propify scProp)
-  return $ maybe
-    -- 2nd arg should never be evaluated if the first arg is Nothing.
-    (Nothing, errorMsg "Bug in runQCInit")
-    ((\(cex, p) -> (Just cex, p)) . parse)
-    (getOut res)
-  where
-  parse outs = (read $ head cexs, prop')
-    where cexs = lenChk ((< 2) . length) outs
-          prop' = propifyWithArgs (tail cexs) scProp
+runQC args scProp = do
+  (mCex, res) <- scQuickCheckWithResult args scProp
+  return $ if failureRes res
+             then (mCex, propify scProp)
+             else (Nothing, propify scProp)
 
--- | Run QuickCheck only analyzing the SmartCheck value, holding the other
--- values constant.
-runQC :: (Show a, Read a, Q.Arbitrary a)
-      => Q.Args -> (a -> Q.Property) -> IO (Maybe a)
-runQC args prop = do
-  res <- Q.quickCheckWithResult args (Q.noShrinking $ Q.property prop)
-  return $ fmap parse (getOut res)
-  where
-  parse outs = read $ head cexs
-    where cexs = lenChk ((/= 2) . length) outs
 
-lenChk :: ([String] -> Bool) -> [String] -> [String]
-lenChk chk ls = if chk ls then errorMsg "No value to SmartCheck!"
-                   else tail ls
-
-getOut :: Q.Result -> Maybe [String]
-getOut res =
+-- | Returns 'True' if a counterexample is returned and 'False' otherwise.
+failureRes :: Q.Result -> Bool
+failureRes res =
   case res of
-    Q.Failure _ _ _ _ _ _ _ _ _ out -> Just $ lines out
-    _                               -> Nothing
+    Q.Failure _ _ _ _ _ _ _ _ _ _ -> True
+    _                             -> False
+
+-- | Turn a function that returns a 'Testable' type into one that returns a
+-- 'Property', without touching the argument.
+propify :: Q.Testable prop => (a -> prop) -> (a -> Q.Property)
+propify prop = Q.property . prop
 
 --------------------------------------------------------------------------------
 

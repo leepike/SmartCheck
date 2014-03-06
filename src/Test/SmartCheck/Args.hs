@@ -18,10 +18,6 @@ data ScArgs =
                                      --------------
          , qcArgs       :: Q.Args    -- ^ QuickCheck arguments
                                      --------------
-         , qc           :: Bool      -- ^ Should we run QuickCheck?  (If not,
-                                     --   you are expected to pass in data to
-                                     --   analyze.)
-                                     --------------
          , scMaxSize    :: Int       -- ^ Maximum size of data to generate, in
                                      --   terms of the size parameter of
                                      --   QuickCheck's Arbitrary instance for
@@ -64,7 +60,6 @@ data ScArgs =
 scStdArgs :: ScArgs
 scStdArgs = ScArgs { format       = PrintTree
                    , qcArgs       = Q.stdArgs
-                   , qc           = True
                    , scMaxSize    = 10
                    , scMaxDepth   = Nothing
                    ---------------------

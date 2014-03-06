@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 -- A made up protocol translation.
 
@@ -10,21 +11,28 @@ import Control.Monad
 import Test.QuickCheck
 import Test.SmartCheck
 
--- Input format 
+import GHC.Generics
+import Data.Typeable
 
-data Input = Input 
+-- Input format
+
+data Input = Input
   { header :: Header }
-  deriving (Typeable, Show, Eq, Read)
+  deriving (Generic, Typeable, Show, Eq, Read)
 
-data Header = Header 
+instance SubTypes Input
+
+data Header = Header
   { name   :: String
   , id     :: String
   , size   :: Int -- total number of Strings and Ints in the fields.
-  , fields :: Fields 
+  , fields :: Fields
   , misc   :: [String] }
-  deriving (Data, Typeable, Show, Eq, Read)
+  deriving (Generic, Typeable, Show, Eq, Read)
 
-data Fields = Fields 
+instance SubTypes Header
+
+data Fields = Fields
   { f0   :: Ins
   , f1   :: Ins
   , f2   :: Ins
@@ -36,17 +44,23 @@ data Fields = Fields
   , f8   :: Ins
   , f9   :: Ins
   , fn   :: Ins' }
-  deriving (Typeable, Show, Eq, Read)
+  deriving (Generic, Typeable, Show, Eq, Read)
 
-data Ins = Strs [String] 
+instance SubTypes Fields
+
+data Ins = Strs [String]
          | Ints [Int]
          | Else [String]
-  deriving (Typeable, Show, Eq, Read)
+  deriving (Generic, Typeable, Show, Eq, Read)
 
-data Ins' = Strs' [String] 
+instance SubTypes Ins
+
+data Ins' = Strs' [String]
          | Ints' [Int]
          | Else' [String]
-  deriving (Typeable, Show, Eq, Read)
+  deriving (Generic, Typeable, Show, Eq, Read)
+
+instance SubTypes Ins'
 
 -- Output format
 data Output = Output
@@ -69,7 +83,7 @@ instance Arbitrary Ins' where
 instance Arbitrary Fields where
   arbitrary = do arbs <- mapM (\_ -> arbitrary :: Gen Ins) [0..9::Int]
                  last <- arbitrary :: Gen Ins'
-                 let f = Fields (arbs !! 0) (arbs !! 1) (arbs !! 2) (arbs !! 3) (arbs !! 4) 
+                 let f = Fields (arbs !! 0) (arbs !! 1) (arbs !! 2) (arbs !! 3) (arbs !! 4)
                                 (arbs !! 5) (arbs !! 6) (arbs !! 7) (arbs !! 8) (arbs !! 9) last
                  return f
 
@@ -78,7 +92,7 @@ instance Arbitrary Header where
                  let fs = [a0, a1, a2, a3, a4, a5, a6, a7, a8, a9]
                  let res = (foldl' (\x y -> x + cnt' y) 0 fs) + cnt'' a10
                  liftM5 Header arbitrary arbitrary (return res) (return f) arbitrary
-    where 
+    where
     cnt' (Strs ls) = length ls
     cnt' (Ints ls) = length ls
     cnt' _         = 0
@@ -92,27 +106,27 @@ instance Arbitrary Input where
 -- Collect up all the Ins then count the number of Ints and Strs.
 -- BUG: Forget to count Ints' but count Strs.
 trans :: Input -> Output
-trans m = Output sz strs ints 
+trans m = Output sz strs ints
 
-  where 
+  where
   (Fields a0 a1 a2 a3 a4 a5 a6 a7 a8 a9 a10) = (fields . header) m
   fs = [a0, a1, a2, a3, a4, a5, a6, a7, a8, a9]
   strs = concat $ getStrs' a10 : map getStrs fs
-  ints = concat $ getInts' a10 : map getInts fs 
+  ints = concat $ getInts' a10 : map getInts fs
   sz   = length strs + length ints
 
-  getStrs (Strs ls)   = ls 
+  getStrs (Strs ls)   = ls
   getStrs _           = []
-  getStrs' (Strs' ls) = ls 
+  getStrs' (Strs' ls) = ls
   getStrs' _          = []
 
-  getInts (Ints ls) = ls 
+  getInts (Ints ls) = ls
   getInts _         = []
 --  getInts' (Ints' ls) = ls -- XXX BUG!
   getInts' _        = []
-  
+
 correctSize :: Input -> Property
-correctSize m = 
+correctSize m =
   property $ (size $ header m) == (outSize $ trans m)
 
 protocolTest :: IO ()

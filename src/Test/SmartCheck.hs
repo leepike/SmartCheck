@@ -32,13 +32,14 @@ module Test.SmartCheck
   ) where
 
 import Test.SmartCheck.Args
-import Test.SmartCheck.Types
+import Test.SmartCheck.ConstructorGen
+import Test.SmartCheck.Extrapolate
 import Test.SmartCheck.Matches
 import Test.SmartCheck.Property
 import Test.SmartCheck.Reduce
-import Test.SmartCheck.Extrapolate
 import Test.SmartCheck.Render
-import Test.SmartCheck.ConstructorGen
+import Test.SmartCheck.Test
+import Test.SmartCheck.Types
 
 import qualified Test.QuickCheck as Q
 
@@ -164,7 +165,7 @@ runAgainMsg = putStrLn $
 runQCInit :: (Show a, Read a, Q.Arbitrary a, ScProp prop)
           => Q.Args -> (a -> prop) -> IO (Maybe a, a -> Q.Property)
 runQCInit args scProp = do
-  res <- Q.quickCheckWithResult args (genProp $ propify scProp)
+  res <- Q.quickCheckWithResult args (Q.property $ propify scProp)
   return $ maybe
     -- 2nd arg should never be evaluated if the first arg is Nothing.
     (Nothing, errorMsg "Bug in runQCInit")
@@ -180,7 +181,7 @@ runQCInit args scProp = do
 runQC :: (Show a, Read a, Q.Arbitrary a)
       => Q.Args -> (a -> Q.Property) -> IO (Maybe a)
 runQC args prop = do
-  res <- Q.quickCheckWithResult args (genProp prop)
+  res <- Q.quickCheckWithResult args (Q.noShrinking $ Q.property prop)
   return $ fmap parse (getOut res)
   where
   parse outs = read $ head cexs
@@ -195,10 +196,6 @@ getOut res =
   case res of
     Q.Failure _ _ _ _ _ _ _ _ _ out -> Just $ lines out
     _                               -> Nothing
-
-genProp :: (Show a, Q.Testable prop, Q.Arbitrary a)
-        => (a -> prop) -> Q.Property
-genProp prop = Q.forAllShrink Q.arbitrary Q.shrink prop
 
 --------------------------------------------------------------------------------
 

@@ -47,6 +47,8 @@ module Test.SmartCheck.Test
 
 import Prelude hiding (break)
 
+import Test.QuickCheck
+import Test.QuickCheck.Arbitrary
 import Test.QuickCheck.Gen
 import Test.QuickCheck.Property hiding ( Result( reason, theException) )
 import qualified Test.QuickCheck.Property as P
@@ -67,71 +69,17 @@ import Data.List
   , intersperse
   )
 
-import Test.QuickCheck.Arbitrary
-
 --------------------------------------------------------------------------
 -- quickCheck
 
--- * Running tests
-
--- | Args specifies arguments to the QuickCheck driver
-data Args
-  = Args
-  { replay          :: Maybe (QCGen,Int) -- ^ Should we replay a previous test?
-  , maxSuccess      :: Int               -- ^ Maximum number of successful tests before succeeding
-  , maxDiscardRatio :: Int               -- ^ Maximum number of discarded tests per successful test before giving up
-  , maxSize         :: Int               -- ^ Size to use for the biggest test cases
-  , chatty          :: Bool              -- ^ Whether to print anything
-  }
- deriving ( Show, Read )
-
--- | Result represents the test result
-data Result
-  -- | A successful test run
-  = Success
-    { numTests       :: Int               -- ^ Number of tests performed
-    , labels         :: [(String,Int)]    -- ^ Labels and frequencies found during all successful tests
-    , output         :: String            -- ^ Printed output
-    }
-  -- | Given up
-  | GaveUp
-    { numTests       :: Int               --   Number of tests performed
-    , labels         :: [(String,Int)]    --   Labels and frequencies found during all successful tests
-    , output         :: String            --   Printed output
-    }
-  -- | A failed test run
-  | Failure
-    { numTests       :: Int               --   Number of tests performed
-    , numShrinks     :: Int               -- ^ Number of successful shrinking steps performed
-    , numShrinkTries :: Int               -- ^ Number of unsuccessful shrinking steps performed
-    , numShrinkFinal :: Int               -- ^ Number of unsuccessful shrinking steps performed since last successful shrink
-    , usedSeed       :: QCGen             -- ^ What seed was used
-    , usedSize       :: Int               -- ^ What was the test size
-    , reason         :: String            -- ^ Why did the property fail
-    , theException   :: Maybe AnException -- ^ The exception the property threw, if any
-    , labels         :: [(String,Int)]    --   Labels and frequencies found during all successful tests
-    , output         :: String            --   Printed output
-    }
-  -- | A property that should have failed did not
-  | NoExpectedFailure
-    { numTests       :: Int               --   Number of tests performed
-    , labels         :: [(String,Int)]    --   Labels and frequencies found during all successful tests
-    , output         :: String            --   Printed output
-    }
- deriving ( Show )
-
--- | The default test arguments
-stdArgs :: Args
-stdArgs = Args
-  { replay          = Nothing
-  , maxSuccess      = 100
-  , maxDiscardRatio = 10
-  , maxSize         = 100
-  , chatty          = True
--- noShrinking flag?
-  }
-
-scQuickCheckWithResult :: forall a prop. (Show a, Arbitrary a, Testable prop) => Args -> (a -> prop) -> IO (Maybe a, Result)
+-- | Our SmartCheck reimplementation of the main QuickCheck driver.  We want to
+-- distinguish the first argument to a 'Testable' property to be SmartChecked.
+-- In particular: the first argument will not be shrunk (even if there are
+-- default shrink instances for the type).  However, the argument will be grown
+-- according to the the 'maxSize' argument to QuickCheck, in accordance with its
+-- generator.  Other arguments will be shrunk, if they have shrinking instances.
+scQuickCheckWithResult :: forall a prop. (Show a, Arbitrary a, Testable prop)
+  => Args -> (a -> prop) -> IO (Maybe a, Result)
 scQuickCheckWithResult a p = (if chatty a then withStdioTerminal else withNullTerminal) $ \tm -> do
      rnd <- case replay a of
               Nothing      -> newQCGen

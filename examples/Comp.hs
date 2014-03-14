@@ -13,7 +13,7 @@ import Data.Typeable
 -----------------------------------------------------------------
 
 data I = I Int
-  deriving (Eq, Read, Show, Typeable, Generic)
+  deriving (Eq, Show, Typeable, Generic)
 
 instance Arbitrary I where
   arbitrary = liftM I arbitrary
@@ -25,7 +25,7 @@ instance Ord I where
 
 data X = X0 I
        | X1 I
-  deriving (Read, Show, Typeable, Generic)
+  deriving (Show, Typeable, Generic)
 
 instance Arbitrary X where
   arbitrary = oneof [ liftM X0 arbitrary
@@ -47,7 +47,7 @@ instance Eq X where
 
 data A = A0 Int
        | A1 Int
-  deriving (Eq, Read, Show, Typeable, Generic)
+  deriving (Eq, Show, Typeable, Generic)
 
 instance Ord A where
   compare (A0 i) (A0 j) = compare i j
@@ -62,7 +62,7 @@ instance Arbitrary A where
 instance SubTypes A
 
 data L = L [Int]
-  deriving (Read, Show, Typeable, Generic)
+  deriving (Show, Typeable, Generic)
 
 instance Arbitrary L where
   arbitrary = liftM L arbitrary
@@ -70,7 +70,7 @@ instance Arbitrary L where
 instance SubTypes L
 
 data B = B L X
-  deriving (Read, Show, Typeable, Generic)
+  deriving (Show, Typeable, Generic)
 
 instance Arbitrary B where
   arbitrary = liftM2 B arbitrary arbitrary

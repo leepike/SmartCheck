@@ -165,7 +165,6 @@ runQC args scProp = do
              then (mCex, propify scProp)
              else (Nothing, propify scProp)
 
-
 -- | Returns 'True' if a counterexample is returned and 'False' otherwise.
 failureRes :: Q.Result -> Bool
 failureRes res =

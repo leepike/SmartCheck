@@ -83,7 +83,7 @@ replaceWithVars format d idxs vars =
   f :: Tree VarRepl -> (String, Idx) -> Tree VarRepl
   f tree (var, idx) = Node (rootLabel tree) $
     case getIdxForest sf idx of
-      Nothing                 -> errorMsg "replaceWithVars"
+      Nothing                 -> errorMsg "replaceWithVars1"
       Just (Node (Right _) _) -> sf -- Don't replace anything
       Just (Node (Left  _) _) -> forestReplaceChildren sf idx (Right var)
 
@@ -94,7 +94,7 @@ replaceWithVars format d idxs vars =
   -- data.  showForest is one of our generic methods.
   t :: Tree VarRepl
   t = let forest = showForest d in
-      if null forest then errorMsg "replaceWithVars"
+      if null forest then errorMsg "replaceWithVars2"
          else fmap Left (head forest) -- Should be a singleton
 
   -- Note: we put value idxs before constrs, since they take precedence.

@@ -75,8 +75,8 @@ iterateArb d ext idx tries max prop = do
               Result x      -> return (i+1, Result x)
     where
     (size, g0) = randomR (0, currMax) g
-    s = sample ext g size
     sample SubT { unSubT = v } = newVal v
+    s = sample ext g size
     rec res' =
       iterateArb' res' g0 (try + 1)
         -- XXX what ratio is right to increase size of values?  This gives us

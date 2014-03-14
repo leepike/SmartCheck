@@ -162,8 +162,8 @@ runQC :: forall a prop . (Show a, Q.Arbitrary a, Q.Testable prop)
 runQC args scProp = do
   (mCex, res) <- scQuickCheckWithResult args scProp
   return $ if failureRes res
-             then (mCex, propify scProp)
-             else (Nothing, propify scProp)
+             then (mCex,    Q.property . scProp)
+             else (Nothing, Q.property . scProp)
 
 -- | Returns 'True' if a counterexample is returned and 'False' otherwise.
 failureRes :: Q.Result -> Bool

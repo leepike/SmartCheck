@@ -106,11 +106,11 @@ resultToMaybe res =
 -- | Get the maximum depth of d's subforest at idx.  Intuitively, it's the
 -- maximum number of constructors you have *below* the constructor at idx.  So
 -- for a unary constructor C, the value [C, C, C]
-
+--
 -- (:) C
 --   (:) C
 --     (:) C []
-
+--
 -- At (Idx 0 0) in v, we're at C, so subValSize v (Idx 0 0) == 0.
 -- At (Idx 0 1) in v, we're at (C : C : []), so subValSize v (Idx 0 1) == 2, since
 -- we have the constructors :, C (or :, []) in the longest path underneath.

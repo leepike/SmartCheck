@@ -109,10 +109,7 @@ instance Show SubT where
   show (SubT t) = show t
 
 -- | This class covers algebraic datatypes that can be transformed into Trees.
--- subTypes is the main method, placing values into trees.  For types that can't
--- be put into a *structural* order (e.g., Int), we don't want SmartCheck to
--- touch them, so that aren't placed in the tree (the baseType method tells
--- subTypes which types have this property).
+-- subTypes is the main method, placing values into trees.
 --
 -- for a datatype with constructors A and C,
 --
@@ -243,7 +240,9 @@ instance GST a => GST (M1 i k a) where
   gsz (M1 a) = gsz a
 
 instance (Show a, Q.Arbitrary a, SubTypes a, Typeable a) => GST (K1 i a) where
-  gst (K1 a) = if baseType a then [] else [ Node (subT a) (subTypes a) ]
+  gst (K1 a) = if baseType a
+                 then []
+                 else [ Node (subT a) (subTypes a) ]
 
   grc (K1 a) forest c =
     case forest of

@@ -50,7 +50,6 @@ module Test.SmartCheck.Test
 import Prelude hiding (break)
 
 import Test.QuickCheck
-import Test.QuickCheck.Arbitrary
 import Test.QuickCheck.Gen
 import Test.QuickCheck.Property hiding ( Result( reason, theException) )
 import qualified Test.QuickCheck.Property as P

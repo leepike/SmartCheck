@@ -48,6 +48,12 @@ the method of the `Testable` class.  So if you have more arguments to the
 function, they'll get consumed.  Recall for each argument for the function,
 we'll call `forAllShrink arbitrary shrink f` again...  So here,
 
+Note that the new random value is produced in 'forAllShrink', where there is an
+
+    x <- gen
+
+As for some types,
+
     props :: a -> Rose Property
       ===> alpha-renames to
     props :: a -> Rose (Gen Prop)
@@ -97,8 +103,8 @@ away in `forAllShrink` (and `shrinking`), after which we have a `Property` data
 structure.  Note, for example, in the call to `counterexample` in `forAllShrink`
 there is an explicit use of `show`.
 
-One final thing to note: this infrastructure is just for shrinking.  New tests,
-and their potential shrinks, in the Rose Tree are generated in runATest:
+New tests, and their potential shrinks, in the Rose Tree are generated in
+`runATest`:
 
     unProp (f rnd1 size)
 
@@ -113,3 +119,5 @@ Note:
             f x = x + 10
         x <- arbitrary
         return (f x)
+
+Will return new values for new inputs.

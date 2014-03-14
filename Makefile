@@ -2,7 +2,7 @@
 # please use tabs (8 width)
 
 PACKAGES = quickcheck
-CABAL_INSTALL = cabal install --force-reinstalls
+CABAL_INSTALL = cabal install
 
 .PHONY: all
 all: cabal-build
@@ -13,9 +13,8 @@ cabal-build: .cabal-sandbox $(PACKAGES)
 .cabal-sandbox: $(MAKEFILE_LIST)
 	cabal sandbox init
 
-quickcheck: .cabal-sandbox
-	cd $@; cabal sandbox init --sandbox ../.cabal-sandbox
-	cd $@; 	$(CABAL_INSTALL)
+$(PACKAGES): .cabal-sandbox
+	cabal sandbox add-source $@
 
 sandbox-clean:
 	rm -rf cabal.sandbox.config .cabal-sandbox

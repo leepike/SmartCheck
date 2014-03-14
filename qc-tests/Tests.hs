@@ -5,7 +5,7 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Tests where
+module Main where
 
 import qualified Test.QuickCheck as Q
 

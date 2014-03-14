@@ -340,23 +340,26 @@ instance SubTypes ()      where baseType _    = True
 -- --  toConstrAndBase = toConstrAndBase'
 --  showForest    = showForest'
 
--- For container types like list, if it's over a baseType, we don't want to
--- evaluate the container either.  The intuition is that, e.g., for [Int], it'll
--- be shrunk enough by QuickCheck and doesn't really have "interesting
--- structure".
+-- For example, this makes String a baseType automatically.
+-- instance (Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes [a] where
+--   subTypes      = if baseType (undefined :: a) then \_ -> []
+--                     else gst . from
+--   baseType _    = baseType (undefined :: a)
+--   replaceChild x forest y = if baseType (undefined :: a)
+--                               then replaceChild' x forest y
+--                               else fmap to $ grc (from x) forest y
+--   toConstr      = if baseType (undefined :: a) then toConstr'
+--                     else gtc . from
+--   showForest    = if baseType (undefined :: a) then showForest'
+--                     else gsf . from
 
 -- For example, this makes String a baseType automatically.
 instance (Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes [a] where
-  subTypes      = if baseType (undefined :: a) then \_ -> []
-                    else gst . from
-  baseType _    = baseType (undefined :: a)
-  replaceChild x forest y = if baseType (undefined :: a)
-                              then replaceChild' x forest y
-                              else fmap to $ grc (from x) forest y
-  toConstr      = if baseType (undefined :: a) then toConstr'
-                    else gtc . from
-  showForest    = if baseType (undefined :: a) then showForest'
-                    else gsf . from
+  subTypes      = gst . from
+  baseType _    = False
+  replaceChild x forest y = fmap to $ grc (from x) forest y
+  toConstr      = gtc . from
+  showForest    = gsf . from
 
 instance (Integral a, Q.Arbitrary a, SubTypes a, Typeable a)
   => SubTypes (Ratio a) where

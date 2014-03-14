@@ -17,7 +17,7 @@ import Data.Typeable
 data Exp = C Int
          | Add Exp Exp
          | Div Exp Exp
-  deriving (Read, Show, Typeable, Generic)
+  deriving (Show, Typeable, Generic)
 
 instance SubTypes Exp
 
@@ -93,3 +93,22 @@ divSubValue =
   Add (Div (C 5) (C (-12))) (Add (Add (C 2) (C 4)) (Add (C 7) (Div (C 3) (Add (C (-5)) (C 5)))))
 
 --------------------------------------------------------------------------------
+
+-- data Foo = Foo Int Int
+--          | Bar Int Int
+--   deriving (Show, Typeable, Generic)
+
+-- instance SubTypes Foo
+
+-- instance Arbitrary Foo where
+--   arbitrary = do a <- arbitrary
+--                  b <- arbitrary
+--                  v <- arbitrary
+--                  return $ if v then Foo a b else Bar a b
+
+-- prop_foo :: Foo -> Int -> Int -> Bool
+-- prop_foo (Foo i j) k l = i /= k || j /= l || (k < 10 && l < 10)
+-- prop_foo (Bar i j) k l = i /= k || j /= l || (k < 10 && l < 10)
+
+-- runfoo :: IO ()
+-- runfoo = smartCheck scStdArgs prop_foo

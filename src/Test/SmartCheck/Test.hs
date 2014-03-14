@@ -35,8 +35,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE ExistentialQuantification #-}
 
--- | The main test loop.
+-- | SmartCheck's interface to QuickCheck.
+
 module Test.SmartCheck.Test
   ( scQuickCheckWithResult
   , stdArgs
@@ -164,12 +166,17 @@ giveUp st _f =
        )
      success st
      theOutput <- terminalOutput (terminal st)
-     return (Nothing, GaveUp{ numTests = numSuccessTests st
-                            , labels   = summary st
-                            , output   = theOutput
-                            })
+     return ( Nothing
+            , GaveUp{ numTests = numSuccessTests st
+                    , labels   = summary st
+                    , output   = theOutput
+                    }
+            )
 
-runATest :: forall a. (Arbitrary a) => State -> (QCGen -> Int -> (a -> Prop)) -> IO (Maybe a, Result)
+runATest :: forall a. (Arbitrary a)
+         => State
+         -> (QCGen -> Int -> (a -> Prop))
+         -> IO (Maybe a, Result)
 runATest st f =
   do -- CALLBACK before_test
      putTemp (terminal st)
@@ -189,7 +196,7 @@ runATest st f =
          genA = unGen arbitrary
      let rndA = genA rnd1 size
 
-     let mkRes a = return (Just rndA, a)
+     let mkRes res = return (Just rndA, res)
 
      MkRose res ts <- protectRose (reduceRose (unProp (p rndA)))
      callbackPostTest st res
@@ -226,7 +233,8 @@ runATest st f =
                               numTests = numSuccessTests st+1,
                               output = theOutput }
              else
-              mkRes  Failure{ usedSeed       = randomSeed st -- correct! (this will be split first)
+              mkRes  Failure{ -- correct! (this will be split first)
+                              usedSeed       = randomSeed st
                             , usedSize       = size
                             , numTests       = numSuccessTests st+1
                             , numShrinks     = numShrinks

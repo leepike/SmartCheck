@@ -61,7 +61,7 @@ smartCheckInput :: forall a prop.
 smartCheckInput args scProp = do
   smartPrtLn "Input value to SmartCheck:"
   mcex <- fmap Just (readLn :: IO a)
-  smartCheckRun args (mcex, propify scProp)
+  smartCheckRun args (mcex, Q.property . scProp)
 
 smartCheckRun :: forall a.
   ( SubTypes a
@@ -69,7 +69,7 @@ smartCheckRun :: forall a.
   ) => ScArgs -> (Maybe a, a -> Q.Property) -> IO ()
 smartCheckRun args (origMcex, origProp) = do
   smartPrtLn $
-    "(If any stage takes too long, try modifying the standard "
+    "(If any stage takes too long, try modifying SmartCheck's standard "
       ++ "arguments (see Args.hs).)"
   smartCheck' [] origMcex origProp
   where
@@ -102,7 +102,6 @@ smartCheckRun args (origMcex, origProp) = do
                 let matchesProp a =
                             not (matchesShapes a oldVals)
                       Q.==> prop a
---                mcex' <- runQC (qcArgs args) matchesProp
                 (mcex', _) <- runQC (qcArgs args) (Q.noShrinking . matchesProp)
                 smartCheck' oldVals mcex' matchesProp
         else smartPrtLn "Done."
@@ -152,10 +151,13 @@ runAgainMsg = putStrLn $
 
 --------------------------------------------------------------------------------
 
--- | Run QuickCheck initially, to get counterexamples for each argument,
--- includding the one we want to focus on for SmartCheck, plus a 'Property'.  We
--- allow QuickCheck to attempt to shrink all arguments except the first here.
-runQC :: (Show a, Q.Arbitrary a, Q.Testable prop)
+-- | Run QuickCheck, to get a counterexamples for each argument, including the
+-- one we want to focus on for SmartCheck, which is the first argument.  That
+-- argument is never shrunk by QuickCheck, but others may be shrunk by
+-- QuickCheck.  Returns the value (if it exists) and a 'Property' (by applying
+-- the 'property' method to the 'Testable' value).  In each iteration of
+-- 'runQC', non-SmartCheck arguments are not necessarily held constant
+runQC :: forall a prop . (Show a, Q.Arbitrary a, Q.Testable prop)
           => Q.Args -> (a -> prop) -> IO (Maybe a, a -> Q.Property)
 runQC args scProp = do
   (mCex, res) <- scQuickCheckWithResult args scProp
@@ -170,11 +172,6 @@ failureRes res =
   case res of
     Q.Failure _ _ _ _ _ _ _ _ _ _ -> True
     _                             -> False
-
--- | Turn a function that returns a 'Testable' type into one that returns a
--- 'Property', without touching the argument.
-propify :: Q.Testable prop => (a -> prop) -> (a -> Q.Property)
-propify prop = Q.property . prop
 
 --------------------------------------------------------------------------------
 

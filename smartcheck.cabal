@@ -18,6 +18,10 @@ source-repository head
   type:     git
   location: https://github.com/leepike/SmartCheck.git
 
+flag regression-flag
+  default:              False
+  description:          add libraries for regression testing
+
 Library
   Exposed-modules:   Test.SmartCheck,
                      Test.SmartCheck.Args,
@@ -31,13 +35,24 @@ Library
                      Test.SmartCheck.Test,
                      Test.SmartCheck.Types
 
-  Build-depends:     base >= 4.0 && < 5,
-                     QuickCheck >= 2.7,
-                     mtl,
-                     random >= 1.0.1.1,
-                     containers >= 0.4,
-                     generic-deriving >= 1.2.1,
-                     ghc-prim
+  if flag(regression-flag)
+    Build-depends:     base >= 4.0 && < 5,
+                       QuickCheck >= 2.7,
+                       mtl,
+                       random >= 1.0.1.1,
+                       containers >= 0.4,
+                       generic-deriving >= 1.2.1,
+                       ghc-prim,
+                       testing-feat,
+                       smallcheck
+  else
+    Build-depends:     base >= 4.0 && < 5,
+                       QuickCheck >= 2.7,
+                       mtl,
+                       random >= 1.0.1.1,
+                       containers >= 0.4,
+                       generic-deriving >= 1.2.1,
+                       ghc-prim
 
   default-language:  Haskell2010
 
@@ -51,7 +66,7 @@ Library
     -fno-warn-orphans
 
 -- Tries some SmartCheck on small examples in a REPL.
-executable sc-regression
+executable sc-examples
   Hs-source-dirs:    examples
   Main-is:           Tests.hs
   Other-modules:     Div0,

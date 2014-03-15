@@ -280,6 +280,8 @@ processing library.
 
 \section{A Motivating Example}\label{sec:example}
 
+\todo{need to test with arbitrary for ints turned off.  (Use newtype)}
+
 \begin{figure}[ht]
 \begin{code}
 type I   = [Int16]
@@ -657,10 +659,11 @@ super-class.  \ttp{SubTypes} has the following methods:
 \begin{itemize}
 \item \ttp{size} returns the size of a value---intuitively, the number of
   constructors contained within it,
-\item \ttp{index} returns a \emph{sub-value} at an breadth-first index in a
+\item \ttp{index} returns a \emph{sub-value} at a breadth-first index in a
   value,\footnote{Rather than indexes, an alternative representation is to use a
-    zipper data structure~\cite{zipper}; see Section~\ref{sec:conclusions} for a
-    discussion.}
+    zipper data structure~\cite{zipper} to traverse data.  We have chosen
+    explicit indexes to write simple tail-recursive algorithms that can easily
+    be transcribed to imperative languages.}
 \item \ttp{replace} replaces a sub-value at a particular focus (returning the
   original value if the index is out-of-bounds),
 \item \ttp{constr} returns a string representation of the constructor tagging
@@ -922,32 +925,45 @@ counterexamples, the only construct in which variable capture is possible.
 
 \subsubsection{Opaque Types}\label{sec:base}
 
-The number of constructors in an algebraic data value primarily determines how
-large it is.  In some cases, the size of fields that come from primitive
-types, like \ttp{Int} or \ttp{Char}, have less of a role in understanding a
-counterexample, so in general, we want to prevent our reduction algorithm from
-spending time shrinking values from these types.
+SmartCheck focuses on efficiently shrinking and generalizing large data
+structures.  It is not intended as a general replacement for QuickCheck's
+\ttp{shrink} method.  Consequently, SmartCheck ignores ``primitive'' types
+without value constructors, such as \ttp{Char}, \ttp{Int}, and \ttp{Word16}.
+Our experience is that for the kinds of properties with counterexamples that
+contain massive data structures, shrinking primitive types does not
+significantly help in understanding them.  Furthermore, by ignoring these types
+by fiat, shrinking time is dependent only on the size of a data structure as
+measured by the number of constructors.
 
-Consequently, we distinguish a class of types referred to as \emph{opaque
-  types}.  If the reduction algorithm encounters a opaque type, it is ignored.
-By default, this includes ``primitive'' types (e.g., \ttp{Int}, \ttp{Word},
-\ttp{Float}, \ttp{Bool}, and \ttp{Char}).  We also treat recursive container
-types like lists specially: lists of opaque types are considered to be opaque
-types themselves.  This prevents the algorithm from analyzing, for example,
-strings.  A list of non-opaque-types, however, is shrunk by the algorithm.
+We generalize the idea of ignoring primitive types by introducing the concept of
+\emph{opaque types}.  If the reduction algorithm encounters a opaque type, it is
+ignored.  Opaque types include the primitive types mentioned above, but in the
+user can declare any substructure in a data type to be a opaque type by
+providing custom instances, .  Doing so effectively treats values from that type
+as ``black boxes'', making SmartCheck more efficient if the user knows that some
+portion of the structure cannot be shrunk or is irrelevant to the property.
 
-By providing custom instances, the user can declare any substructure in a data
-type to be a opaque type.  Doing so effectively treats values from that type as
-``black boxes'' for SmartCheck, making SmartCheck more efficient if the user
-knows that some portion of the structure cannot be shrunk or is irrelevant to
-the property.
 
-Conversely, if the user wishes to shrink types that are treated as opaque by
-default, she can sometimes do so before handing the counterexample to
-SmartCheck, say by using QuickCheck's shrink instances to shrink base types
-while leaving the remaining structure for SmartCheck to shrink.  In the future,
-depending on user experiences, default instances for types can be removed so
-that SmartCheck's reduction algorithm does not ignore values from those types.
+
+%% The number of constructors in an algebraic data value primarily determines how
+%% large it is.  In some cases, the size of fields that come from primitive
+%% types, like \ttp{Int} or \ttp{Char}, have less of a role in understanding a
+%% counterexample, so in general, we want to prevent our reduction algorithm from
+%% spending time shrinking values from these types.
+
+
+%% By default, this includes ``primitive'' types (e.g., \ttp{Int}, \ttp{Word},
+%% \ttp{Float}, \ttp{Bool}, and \ttp{Char}).  We also treat recursive container
+%% types like lists specially: lists of opaque types are considered to be opaque
+%% types themselves.  This prevents the algorithm from analyzing, for example,
+%% strings.  A list of non-opaque-types, however, is shrunk by the algorithm.
+
+%% Conversely, if the user wishes to shrink types that are treated as opaque by
+%% default, she can sometimes do so before handing the counterexample to
+%% SmartCheck, say by using QuickCheck's shrink instances to shrink base types
+%% while leaving the remaining structure for SmartCheck to shrink.  In the future,
+%% depending on user experiences, default instances for types can be removed so
+%% that SmartCheck's reduction algorithm does not ignore values from those types.
 
 \subsection{Reduction Algorithm Optimizations}\label{sec:optimizations}
 The reduction algorithm description above omits some details and optimizations
@@ -1815,7 +1831,7 @@ stack of windows associated with each workspace defined:
 %
 \begin{code}
 removeFromWorkspace ws =
-  ws \{ stack = stack ws >>= filter (/=w) \}
+  ws \{ stack = stack ws >>= filter (/= w) \}
 \end{code}
 %
 \noindent
@@ -1823,7 +1839,7 @@ Now, suppose the programmer makes a simple typo and instead writes
 %
 \begin{code}
 removeFromWorkspace ws =
-  ws \{ stack = stack ws >>= filter (==w) \}
+  ws \{ stack = stack ws >>= filter (== w) \}
 \end{code}
 %
 \noindent

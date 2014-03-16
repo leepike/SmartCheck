@@ -183,9 +183,11 @@ test f rnds run = do
   app ""
   app ""
 
+  -- Time and size of value.
   appendFile (f ++ "_time.csv") (mkCSV $ plot 200 times)
---  appendFile (f ++ "_timelog.csv") (mkCSV $ plot rnds (map (log . (+1)) times))
   appendFile (f ++ "_vals.csv") (mkCSV $ plot 50 szs)
+
+--  appendFile (f ++ "_timelog.csv") (mkCSV $ plot rnds (map (log . (+1)) times))
 --  appendFile (f ++ "_valslog.csv") (mkCSV $ plot rnds (map (log . (+100)) szs))
 
 -- For gnuplot ---------------------------------------
@@ -246,7 +248,7 @@ size :: T -> Int
 size t = sum $ map length (toList t)
 
 logFile :: String
-logFile = "init.log"
+logFile = "regression.log"
 
 main :: IO ()
 main = do
@@ -268,6 +270,6 @@ main = do
 smtChk :: IO ()
 smtChk = smartCheck scStdArgs { scMaxForall = 20
                               , scMinForall = 25
-                              , format = PrintString 
+                              , format = PrintString
                               } prop
 #endif

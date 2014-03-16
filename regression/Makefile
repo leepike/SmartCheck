@@ -1,7 +1,7 @@
 TARGETS=qcNone.out qc10.out feat.out qcjh.out sc.out
 LOG=init.log
-RNDS=2000
-SRC=InitEx3
+RNDS=10
+SRC=PaperExample1.hs
 
 all : $(TARGETS)
 

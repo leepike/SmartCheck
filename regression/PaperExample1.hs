@@ -11,8 +11,10 @@ module Main where
 import Test.SmartCheck
 import Test.SmartCheck.Reduce
 import Test.QuickCheck
+#ifdef small
 import Test.LazySmallCheck hiding (Property, test, (==>))
 import qualified Test.LazySmallCheck as S
+#endif
 
 import GHC.Generics hiding (P, C)
 import Data.Typeable
@@ -25,26 +27,24 @@ import Data.Maybe
 import Data.Time
 import System.Environment
 
+#ifdef feat
 import Test.Feat
+#endif
 
 -----------------------------------------------------------------
 
 -- Let's try to generate a product type of long lists when all we need is a
 -- single element to have a long list.
 
--- Container so that we don't have base types.
-
 -----------------------------------------------------------------
 
-data N a = N a
-  deriving (Read, Show, Typeable, Generic)
+type I = [Int16]
 
-type I = [N Int16]
-
-data T = T (N Word8) I I I I
-  deriving (Read, Show, Typeable, Generic)
+data T = T (Word8) I I I I
+  deriving (Show, Typeable, Generic)
 
 -- SmallCheck --------------------------
+#ifdef small
 enum :: (Enum b, Integral a, Num b) => a -> [b]
 enum d = [(-d')..d']
   where d' = fromIntegral d
@@ -55,22 +55,15 @@ instance Serial Int16 where
 instance Serial Word8 where
   series = drawnFrom . enum
 
-instance Serial a => Serial (N a) where
-  series = cons1 N
-
 instance Serial T where
   series = cons5 T
+#endif
 -- SmallCheck --------------------------
 
 -- SmartCheck --------------------------
 instance SubTypes I
-instance SubTypes a => SubTypes (N a)
 instance SubTypes T
 -- SmartCheck --------------------------
-
-instance Arbitrary a => Arbitrary (N a) where
-  arbitrary = liftM N arbitrary
-  shrink (N i) = map N (shrink i)
 
 -- qc/shrink takes over 1m seconds
 instance Arbitrary T where
@@ -81,7 +74,7 @@ instance Arbitrary T where
                        arbitrary arbitrary arbitrary
 #endif
 
-#if defined(qcNone) || defined(sc) || defined(feat)
+#if defined(qcNone) || defined(feat)
   shrink _ = []
 #endif
 #ifdef qcjh
@@ -106,14 +99,14 @@ instance Arbitrary T where
 #endif
 
 -- Feat --------------------------------
-deriveEnumerable ''N
+#ifdef feat
 deriveEnumerable ''T
+#endif
 -- Feat --------------------------------
 
 toList :: T -> [[Int16]]
 toList (T w i0 i1 i2 i3) =
-  [go w] : (map . map) go [i0, i1, i2, i3]
-  where go (N i) = fromIntegral i
+  [fromIntegral w] : (map . map) fromIntegral [i0, i1, i2, i3]
 
 pre :: T -> Bool
 pre t = all ((>) 256 . sum) (toList t)
@@ -125,8 +118,10 @@ prop :: T -> Property
 prop t = pre t ==> post t
 
 -- Smallcheck --------------------------
+#ifdef small
 prop_sc :: T -> Bool
 prop_sc t = pre t S.==> post t
+#endif
 -- Smallcheck --------------------------
 
 --------------------------------------------------------------------------------
@@ -206,12 +201,22 @@ test' run = do
     Nothing -> return Nothing
     Just r  -> return $ Just (fromRational $ toRational diff, size r)
 
+-- Little driver since we're not using the SC REPL during testing.
 runSC :: IO (Maybe T)
 runSC = do
-  res <- runQC stdArgs prop
+  (res, prop') <- runQC stdArgs prop
   case res of
     Nothing -> return Nothing
-    Just r  -> liftM Just $ smartRun scStdArgs r prop
+    Just r  -> liftM Just $ smartRun scStdArgs r prop'
+
+runQC' :: Args -> IO (Maybe T)
+runQC' args = do
+  -- Hack, since runQC refuses to shrink the first arg, which is assumed to be
+  -- our SC arg.  However, we want to use it so we don't have to read back in
+  -- values.
+  let prop' _ = prop
+  (res, _) <- runQC args prop'
+  return res
 
 --------------------------------------------------------------------------------
 
@@ -227,14 +232,18 @@ main = do
   let rnds = read rnds' :: Int
   let file  = read file' :: String
 #ifdef feat
-  test file rnds (runQC stdArgs {maxSuccess = 10000} prop)
+  test file rnds (runQC' stdArgs {maxSuccess = 10000})
 #endif
 #ifdef sc
   test file rnds runSC
 #endif
 #if defined(qcNone) || defined(qc10) || defined(qc20) || defined(qcjh)
-  test file rnds (runQC stdArgs prop)
+  test file rnds (runQC' stdArgs)
 #endif
 
+-- Tester (not part of the benchmark).
 smtChk :: IO ()
-smtChk = smartCheck scStdArgs {scMaxExtrap = 20, scMinExtrap = 25, format = PrintString } prop
+smtChk = smartCheck scStdArgs { scMaxForall = 20
+                              , scMinForall = 25
+                              , format = PrintString 
+                              } prop

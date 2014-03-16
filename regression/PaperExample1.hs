@@ -38,7 +38,16 @@ import Test.Feat
 
 -----------------------------------------------------------------
 
+#ifdef qcjhint
+-- So that Int16s aren't shrunk by default arbitrary instances.
+newtype J = J { getInt :: Int16 } deriving Show
+#endif
+
+#ifdef qcjhint
+type I = [J]
+#else
 type I = [Int16]
+#endif
 
 data T = T (Word8) I I I I
   deriving (Show, Typeable, Generic)
@@ -61,8 +70,10 @@ instance Serial T where
 -- SmallCheck --------------------------
 
 -- SmartCheck --------------------------
+#ifdef smart
 instance SubTypes I
 instance SubTypes T
+#endif
 -- SmartCheck --------------------------
 
 -- qc/shrink takes over 1m seconds
@@ -77,11 +88,15 @@ instance Arbitrary T where
 #if defined(qcNone) || defined(feat)
   shrink _ = []
 #endif
-#ifdef qcjh
+#if defined(qcjh) || defined(qcjhint)
   shrink (T w i0 i1 i2 i3) = map go xs
     where xs = shrink (w, i0, i1, i2, i3)
           go (w', i0', i1', i2', i3') =
             T w' i0' i1' i2' i3'
+#endif
+#ifdef qcjhint
+instance Arbitrary J where
+  arbitrary = fmap J arbitrary
 #endif
 #if defined(qc10) || defined(qc20)
   shrink (T w i0 i1 i2 i3) =
@@ -106,7 +121,12 @@ deriveEnumerable ''T
 
 toList :: T -> [[Int16]]
 toList (T w i0 i1 i2 i3) =
+#ifdef qcjhint
+  [fromIntegral w] : (map . map) (fromIntegral . getInt) [i0, i1, i2, i3]
+#else
   [fromIntegral w] : (map . map) fromIntegral [i0, i1, i2, i3]
+#endif
+
 
 pre :: T -> Bool
 pre t = all ((>) 256 . sum) (toList t)
@@ -119,8 +139,8 @@ prop t = pre t ==> post t
 
 -- Smallcheck --------------------------
 #ifdef small
-prop_sc :: T -> Bool
-prop_sc t = pre t S.==> post t
+prop_small :: T -> Bool
+prop_small t = pre t S.==> post t
 #endif
 -- Smallcheck --------------------------
 
@@ -201,6 +221,7 @@ test' run = do
     Nothing -> return Nothing
     Just r  -> return $ Just (fromRational $ toRational diff, size r)
 
+#ifdef smart
 -- Little driver since we're not using the SC REPL during testing.
 runSC :: IO (Maybe T)
 runSC = do
@@ -208,6 +229,7 @@ runSC = do
   case res of
     Nothing -> return Nothing
     Just r  -> liftM Just $ smartRun scStdArgs r prop'
+#endif
 
 runQC' :: Args -> IO (Maybe T)
 runQC' args = do
@@ -234,16 +256,18 @@ main = do
 #ifdef feat
   test file rnds (runQC' stdArgs {maxSuccess = 10000})
 #endif
-#ifdef sc
+#ifdef smart
   test file rnds runSC
 #endif
-#if defined(qcNone) || defined(qc10) || defined(qc20) || defined(qcjh)
+#if defined(qcNone) || defined(qc10) || defined(qc20) || defined(qcjh) || defined (qcjhint)
   test file rnds (runQC' stdArgs)
 #endif
 
+#ifdef smart
 -- Tester (not part of the benchmark).
 smtChk :: IO ()
 smtChk = smartCheck scStdArgs { scMaxForall = 20
                               , scMinForall = 25
                               , format = PrintString 
                               } prop
+#endif

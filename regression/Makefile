@@ -1,7 +1,8 @@
-TARGETS=qcNone.out qc10.out feat.out qcjh.out sc.out
-LOG=init.log
-RNDS=10
-SRC=PaperExample1.hs
+# We never run small.out since it's not feasible.
+TARGETS=qcNone.out qc10.out feat.out qcjh.out smart.out qcjhint.out
+LOG=regression.log
+RNDS=1
+SRC=PaperExample1
 
 all : $(TARGETS)
 

@@ -44,7 +44,7 @@ Library
                        generic-deriving >= 1.2.1,
                        ghc-prim,
                        testing-feat,
-                       smallcheck
+                       lazysmallcheck
   else
     Build-depends:     base >= 4.0 && < 5,
                        QuickCheck >= 2.7,

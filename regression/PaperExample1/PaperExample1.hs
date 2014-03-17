@@ -8,6 +8,7 @@
 
 module Main where
 
+import Test
 import Test.SmartCheck
 import Test.SmartCheck.Reduce
 import Test.QuickCheck
@@ -18,13 +19,10 @@ import qualified Test.LazySmallCheck as S
 
 import GHC.Generics hiding (P, C)
 import Data.Typeable
-import Control.Monad
 
 import Data.Int
 import Data.Word
-import Data.List
-import Data.Maybe
-import Data.Time
+import Control.Monad
 import System.Environment
 
 #ifdef feat
@@ -148,107 +146,8 @@ prop_small t = pre t S.==> post t
 -- Testing
 --------------------------------------------------------------------------------
 
-test :: FilePath -> Int -> IO (Maybe T) -> IO ()
-test f rnds run = do
-  res <- replicateM rnds (test' run)
-  let res'        = catMaybes res
-  let rnds'       = length res'
-  let app str     = appendFile logFile (str ++ "\n")
-  let avg vals    = sum vals / fromIntegral rnds'
-  let med vals    = sort vals !! (rnds' `div` 2)
-  let times = fst $ unzip res'
-  let szs :: [Double]
-      szs = map fromIntegral (snd $ unzip res')
-  let stdDev vals = sqrt (avg distances)
-        where
-        distances = map (\x -> (x - m)^(2::Integer)) vals
-        m = avg vals
-  let percentile n vals = sort vals !! ((rnds' `div` 100) * n)
-  -- http://en.wikipedia.org/wiki/Median_absolute_deviation
-  let medAbsDev vals = med (map dist vals)
-        where dist v = abs (v - median)
-              median = med vals
-
-  app "***************"
-  print res
-  app $ "Num     : " ++ show rnds'
-  app $ "std dev : " ++ show (stdDev $ map (fromRational . toRational) times)
-                     ++ ", " ++ show (stdDev szs)
-  app $ "Avg     : " ++ show (avg times) ++ ", " ++ show (avg szs)
-  app $ "Med     : " ++ show (med times) ++ ", " ++ show (med szs)
-  app $ "75%     : " ++ show (percentile 75 times) ++ ", " ++ show (percentile 75 szs)
-  app $ "95%     : " ++ show (percentile 95 times) ++ ", " ++ show (percentile 95 szs)
-  app $ "99%     : " ++ show (percentile 99 times) ++ ", " ++ show (percentile 99 szs)
-  app $ "MAD     : " ++ show (medAbsDev times) ++ ", " ++ show (medAbsDev szs)
-  app ""
-  app ""
-
-  -- Time and size of value.
-  appendFile (f ++ "_time.csv") (mkCSV $ plot 200 times)
-  appendFile (f ++ "_vals.csv") (mkCSV $ plot 50 szs)
-
---  appendFile (f ++ "_timelog.csv") (mkCSV $ plot rnds (map (log . (+1)) times))
---  appendFile (f ++ "_valslog.csv") (mkCSV $ plot rnds (map (log . (+100)) szs))
-
--- For gnuplot ---------------------------------------
-mkCSV :: Show a => [(a,a)] -> String
-mkCSV [] = "\n"
-mkCSV ((x,y):rst) = show x ++ ", " ++ show y ++ "\n" ++ mkCSV rst
-
--- Make 100 compartments to put data in.
-plot :: Double -> [Double] -> [(Double,Double)]
-plot comparts vals = filter (\(_,n) -> n /= 0.0) $ cz vs (min' + compartSz, 0)
-  where
-  vs          = sort vals
-  (min',max') = (head vs, last vs)
-  compartSz   = (max' - min') / comparts
-
-  -- Count how many values are in each compartment.  (1st element is top of
-  -- compartment, 2nd is how many seen.)
-  cz :: [Double] -> (Double,Double) -> [(Double,Double)]
-  cz [] _ = []
-  cz (v:vs') (c,n) | v <= c    = cz vs' (c,n+1)
-                   | otherwise = (c,n) : cz (v:vs') (c + compartSz, 0)
-
-type Res = Maybe (Double, Int)
-
-test' :: IO (Maybe T) -> IO Res
-test' run = do
-  start <- getCurrentTime
-  res <- run
-  stop <- getCurrentTime
-  let diff = diffUTCTime stop start
-  print diff
-  case res of
-    Nothing -> return Nothing
-    Just r  -> return $ Just (fromRational $ toRational diff, size r)
-
-#ifdef smart
--- Little driver since we're not using the SC REPL during testing.
-runSC :: IO (Maybe T)
-runSC = do
-  (res, prop') <- runQC stdArgs prop
-  case res of
-    Nothing -> return Nothing
-    Just r  -> liftM Just $ smartRun scStdArgs r prop'
-#endif
-
-runQC' :: Args -> IO (Maybe T)
-runQC' args = do
-  -- Hack, since runQC refuses to shrink the first arg, which is assumed to be
-  -- our SC arg.  However, we want to use it so we don't have to read back in
-  -- values.
-  let prop' _ = prop
-  (res, _) <- runQC args prop'
-  return res
-
---------------------------------------------------------------------------------
-
 size :: T -> Int
 size t = sum $ map length (toList t)
-
-logFile :: String
-logFile = "regression.log"
 
 main :: IO ()
 main = do
@@ -256,13 +155,13 @@ main = do
   let rnds = read rnds' :: Int
   let file  = read file' :: String
 #ifdef feat
-  test file rnds (runQC' stdArgs {maxSuccess = 10000})
+  test file rnds (runQC' stdArgs {maxSuccess = 10000} prop) size
 #endif
 #ifdef smart
-  test file rnds runSC
+  test file rnds (runSC prop) size
 #endif
 #if defined(qcNone) || defined(qc10) || defined(qc20) || defined(qcjh) || defined (qcjhint)
-  test file rnds (runQC' stdArgs)
+  test file rnds (runQC' stdArgs prop) size
 #endif
 
 #ifdef smart

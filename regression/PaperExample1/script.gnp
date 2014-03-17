@@ -12,7 +12,7 @@ set nologscale y
 
 ###### Data
 
-set output "Graphs/data.pdf"
+set output "out/data.pdf"
 plot \
 'sc_vals.csv'     using 1:2:(1.0) smooth acsplines  title 'SmartCheck', \
 'qcNone_vals.csv' using 1:2:(1.0) smooth acsplines  title 'QC none', \
@@ -26,7 +26,7 @@ set xlabel "Execution time (seconds)"
 set logscale y
 set yrange [1:1200]
 
-set output "Graphs/time-big.pdf"
+set output "out/time-big.pdf"
 # big!
 plot \
 'qc10_time.csv'   using 1:2:(1.0) smooth acsplines  title 'QC trunc', \
@@ -37,7 +37,7 @@ plot \
 set nologscale y
 
 set yrange [0:35]
-set output "Graphs/time-small.pdf"
+set output "out/time-small.pdf"
 # very small
 plot \
 'sc_time.csv'     using 1:2:(1.0) smooth acsplines  title 'SmartCheck', \

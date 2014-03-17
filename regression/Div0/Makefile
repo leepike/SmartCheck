@@ -1,17 +1,10 @@
 LOG					= regression.log
 RNDS				= 1
 DB          = ../../.cabal-sandbox/x86_64-linux-ghc-7.6.3-packages.conf.d
-SRC         = PaperExample1
+SRC         = Div0
 
 # We never run small.out since it's not feasible.
-TARGETS			= qcNone.out  \
-              qc10.out		\
-              feat.out		\
-              qcjh.out		\
-              smart.out		\
-              qcjhint.out
-
-GRAPHS      = data.pdf time-big.pdf time-small.pdf
+TARGETS			= qc.out smart.out
 
 all : $(TARGETS)
 
@@ -23,8 +16,8 @@ all : $(TARGETS)
 	echo $@ >> $(LOG)
 	./out/$@ \"out/$*\" $(RNDS)
 
-%.pdf : $(TARGETS)
-	gnuplot script.gnp
+# %.pdf : $(TARGETS)
+# 	gnuplot script.gnp
 
 .PHONY : clean
 clean :

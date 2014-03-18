@@ -1,6 +1,3 @@
-LOG					= regression.log
-RNDS				= 1
-DB          = ../../.cabal-sandbox/x86_64-linux-ghc-7.6.3-packages.conf.d
 SRC         = Div0
 
 # We never run small.out since it's not feasible.

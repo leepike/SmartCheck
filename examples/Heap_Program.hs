@@ -36,7 +36,7 @@ deriving instance Typeable OrdA
 deriving instance Generic OrdA
 
 heapProgramTest :: IO ()
-heapProgramTest = SC.smartCheck SC.scStdArgs (\h -> (prop_ToSortedList h))
+heapProgramTest = SC.smartCheck SC.scStdArgs prop_ToSortedList
 
 instance SC.SubTypes OrdA
 instance (SC.SubTypes a, Ord a, Arbitrary a, Generic a)
@@ -217,11 +217,3 @@ prop_ToSortedList (HeapPP _ h) =
   h ==? xs && xs == sort xs
  where
   xs = toSortedList h
-
---------------------------------------------------------------------------
--- main
-
--- main = $(quickCheckAll)
-
---------------------------------------------------------------------------
--- the end.

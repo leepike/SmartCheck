@@ -89,8 +89,7 @@ instance Arbitrary T where
 #if defined(qcjh) || defined(qcjhint)
   shrink (T w i0 i1 i2 i3) = map go xs
     where xs = shrink (w, i0, i1, i2, i3)
-          go (w', i0', i1', i2', i3') =
-            T w' i0' i1' i2' i3'
+          go (w', i0', i1', i2', i3') = T w' i0' i1' i2' i3'
 #endif
 #ifdef qcjhint
 instance Arbitrary J where

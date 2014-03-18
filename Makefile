@@ -52,7 +52,7 @@ EXAMPLES:
 # Comparing SmartCheck to other test frameworks
 
 .PHONY: regression
-regression:
+regression: regression-build
 	$(MAKE) all -C regression
 
 .PHONY: regression-clean

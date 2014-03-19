@@ -11,7 +11,7 @@
 \usepackage{subfigure}
 \usepackage{fancyhdr}
 \usepackage{paralist}
-
+\usepackage{multirow}
 \usepackage{pgf}
 
 \usepackage{listings}
@@ -79,7 +79,7 @@
 
 %% \include{math}
 
-\newenvironment{code}{\begin{alltt}}{\end{alltt}}
+\newenvironment{code}{\begin{alltt}\footnotesize}{\end{alltt}}
 %% \newenvironment{cols}{\begin{tabular}{m{3.6cm}|m{3.6cm}}{Haskell} &
 
 \newcommand{\ttp}[1]{\texttt{#1}}
@@ -496,7 +496,6 @@ Section~\ref{sec:related}).
   \caption{Results for 2000 tests of the program in Figure~\ref{fig:initial}.}
   \label{fig:graphs}
 \end{figure}
-
 
 \begin{table}[ht]
 \footnotesize
@@ -939,9 +938,16 @@ We generalize the idea of ignoring primitive types by introducing the concept of
 \emph{opaque types}.  If the reduction algorithm encounters a opaque type, it is
 ignored.  Opaque types include the primitive types mentioned above, but in the
 user can declare any substructure in a data type to be a opaque type by
-providing custom instances, .  Doing so effectively treats values from that type
+providing custom instances.  Doing so effectively treats values from that type
 as ``black boxes'', making SmartCheck more efficient if the user knows that some
 portion of the structure cannot be shrunk or is irrelevant to the property.
+
+Opaque types can be conditional.  For example, the user may want lists to be
+shrunk in general, unless the element of the list are opaque themselves.  Such a
+definition is possible.
+
+Opaque types are defined by providing the method for \ttp{opaque} in the
+\ttp{SubTypes} type class.
 
 
 
@@ -1946,7 +1952,7 @@ works on!
 %% arrive at as the programmer manually tries to write her own shrink functions or
 %% manually deconstruct a large record.
 
-\subsection{Natural Language Processing}
+\subsection{Natural Language Processing} \label{sec:nlp}
 In 2012, a question was posted on the programming message board
 Stack Overflow asking about how to shrink large nested data
 types.\footnote{\url{http://stackoverflow.com/questions/8788542/how-do-i-get-good-small-shrinks-out-of-quickcheck}}
@@ -1986,10 +1992,102 @@ what the property meant, or how to write a custom shrink method!
 ``Retro-fitting'' SmartCheck to GenI, which is a large software system, required
 some boilerplate work.  Fortunately, because the program already uses
 QuickCheck, \ttp{arbitrary} instances were already defined, but we had to hunt
-down and define default instances for a large number of definitions (indeed, the
-job could have largely been done with Sed and Awk).
+down the data types used to write \ttp{instance Subtypes D}, for each data type
+\ttp{D} (indeed, the job could have largely been done with Sed and Awk).
 
 %-------------------------------------------------------------------------------
+
+\subsection{Benchmarks}
+
+No set of testing benchmarks exists over which to compare different test-case
+generation and minimization approaches.  Therefore, we have collected a small
+number of benchmarks, in addition to the more involved case-studies described
+earlier in this section.
+
+The benchmarks presented, in addition to the motivating example presented in
+Section~\ref{sec:example}, are
+
+\begin{itemize}
+  \item  \emph{Reverse}, with the false property
+\begin{code}
+prop_rev :: [a] -> Bool
+prop_rev ls = ls == reverse ls
+\end{code}
+\noindent
+(the example appears in the original QuickCheck documentation);
+
+  \item \emph{Div0}, a division-by-zero property for a simple calculator
+    language (introduced in Section~\ref{sec:subval});
+
+  \item \emph{Heap}, an example from the QuickCheck test suite, in which an
+    incorrect ``to sorted list'' function is checked.
+\end{itemize}
+
+\noindent
+All benchmarks can be found at
+\url{https://github.com/leepike/SmartCheck/tree/master/regression}.  Benchmarks
+are against QuickCheck~2.7.   The benchmarks only compare the size of shrunk
+values and the time required to generate them using standard arguments to
+QuickCheck and SmartCheck.  We do not benchmark the generalization algorithms,
+since there is no analog in QuickCheck  or other testing frameworks.
+
+\todo{include std dev.}
+\todo{fill in benchmarks!}
+
+\begin{table}[ht]
+\footnotesize
+  \begin{center}
+    \begin{tabular}{|r|r||c|c|}
+\hline
+\multicolumn{2}{|c||}{} & QuickCheck & SmartCheck \\
+\hline \hline
+
+\multirow{4}{*}{Reverse}
+  & Mean       & 0.08s, 69  & 0.53s, 35  \\
+  \cline{2-4}
+  & Median     & 0.07s, 69  & 0.17s, 33  \\
+  \cline{2-4}
+  & Std. dev.  &            &            \\
+  \cline{2-4}
+  & 95\%       & 0.14s, 100 & 1.76s, 65  \\
+  \hline
+
+\multirow{4}{*}{Div0}
+  & Mean       & 0.08s, 69  & 0.53s, 35  \\
+  \cline{2-4}
+  & Median     & 0.07s, 69  & 0.17s, 33  \\
+  \cline{2-4}
+  & Std. dev.  &            &            \\
+  \cline{2-4}
+  & 95\%       & 0.14s, 100 & 1.76s, 65  \\
+  \hline
+
+\multirow{4}{*}{Heap}
+  & Mean       & 0.08s, 69  & 0.53s, 35  \\
+  \cline{2-4}
+  & Median     & 0.07s, 69  & 0.17s, 33  \\
+  \cline{2-4}
+  & Std. dev.  &            &            \\
+  \cline{2-4}
+  & 95\%       & 0.14s, 100 & 1.76s, 65  \\
+  \hline
+    \end{tabular}
+
+  \end{center}
+  \caption{Summarizing data for the graphs in Figure~\ref{fig:graphs}. Entries
+    contain execution time (in seconds) and counterexample sizes (counting
+    constructors).}
+  \label{table:results}
+\end{table}
+
+The \emph{Reverse} benchmark essentially provides a lower-bound on the benefit
+of using SmartCheck to discover small counterexamples, since a list of length
+two falsifies the property (SmartCheck is still useful in generalizing the
+counterexample, however!).  Perhaps surprisingly, SmartCheck still slightly
+outperforms QuickCheck.  The other two benchmarks are slightly larger examples,
+where SmartCheck's benefits are more pronounced.  But again, we emphasize the
+most pronounced benefit comes in much larger examples, like described in
+Section~\ref{sec:nlp}.
 
 
 %-------------------------------------------------------------------------------
@@ -2151,9 +2249,9 @@ and beyond!
 \section*{Acknowledgments}
 I thank Andy Gill, Joe Hurd, John Launchbury, Simon Winwood, and especially John
 Hughes for reading an earlier draft of this paper.  Their deep insights and bug
-catches dramatically improved both the form and content.  This paper was
-submitted (and rejected) from ICFP'13; the anonymous reviewers' suggestions
-improved the presentation and especially the implementation.
+catches dramatically improved both the form and content.  This paper was and
+rejected from ICFP'13; the anonymous reviewers' suggestions improved the
+presentation additional benchmarking.
 
 \bibliographystyle{abbrvnat}
 \bibliography{paper}

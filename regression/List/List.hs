@@ -38,7 +38,7 @@ main = do
 #ifdef qc
   test file rnds (runQC' stdArgs prop_rev :: IO (Maybe [Int])) length
 #else
-  test file rnds (runSC prop_rev) length
+  test file rnds (runSC scStdArgs prop_rev) length
 #endif
 
 --------------------------------------------------------------------------------

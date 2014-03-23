@@ -219,6 +219,6 @@ main = do
 #ifdef qc
   test file rnds (runQC' stdArgs prop_ToSortedList) (sizePP :: HeapPP OrdA -> Int)
 #else
-  test file rnds (runSC prop_ToSortedList) sizePP
+  test file rnds (runSC scStdArgs prop_ToSortedList) sizePP
 #endif
 

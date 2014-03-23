@@ -157,7 +157,7 @@ main = do
   test file rnds (runQC' stdArgs {maxSuccess = 10000} prop) size
 #endif
 #ifdef smart
-  test file rnds (runSC prop) size
+  test file rnds (runSC scStdArgs prop) size
 #endif
 #if defined(qcNone) || defined(qc10) || defined(qc20) || defined(qcjh) || defined (qcjhint)
   test file rnds (runQC' stdArgs prop) size
@@ -167,6 +167,7 @@ main = do
 -- Tester (not part of the benchmark).
 smtChk :: IO ()
 smtChk = smartCheck scStdArgs { scMaxForall = 20
+                              , runForall   = True
                               , scMinForall = 25
                               , format = PrintString
                               } prop

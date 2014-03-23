@@ -99,11 +99,11 @@ runQC' args prop = do
 
 -- Little driver since we're not using the SC REPL during testing.
 runSC :: (Arbitrary b, Show b, Testable a, SubTypes b)
-      => (b -> a) -> IO (Maybe b)
-runSC prop = do
-  (res, prop') <- runQC stdArgs prop
+      => ScArgs -> (b -> a) -> IO (Maybe b)
+runSC args prop = do
+  (res, prop') <- runQC (qcArgs args) prop
   case res of
     Nothing -> return Nothing
-    Just r  -> liftM Just $ smartRun scStdArgs r prop'
+    Just r  -> liftM Just $ smartRun args r prop'
 
 --------------------------------------------------------------------------------

@@ -40,6 +40,7 @@ import Test.SmartCheck.Types
 import qualified Test.QuickCheck as Q
 
 import Generics.Deriving
+import Control.Monad (when)
 
 --------------------------------------------------------------------------------
 
@@ -132,9 +133,10 @@ forallExtrap args d origProp =
 showExtrapOutput :: SubTypes a1
                  => ScArgs -> [a] -> [a] -> Replace Idx -> a1 -> IO ()
 showExtrapOutput args valIdxs csIdxs replIdxs d =
-  if (runForall args || runExists args) && (not $ null (valIdxs ++ csIdxs))
-    then output
-    else smartPrtLn "Could not extrapolate a new value."
+  when (runForall args || runExists args) $ do
+    if null (valIdxs ++ csIdxs)
+      then smartPrtLn "Could not extrapolate a new value."
+      else output
   where
   output = do
     putStrLn ""

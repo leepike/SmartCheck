@@ -1,4 +1,4 @@
-BENCHMARKS = List.reg Div0.reg Heap.reg PaperExample1.reg
+BENCHMARKS = List.reg Div0.reg Heap.reg PaperExample1.reg Parser.reg
 
 .PHONY: all
 all: $(BENCHMARKS)

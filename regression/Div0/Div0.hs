@@ -93,7 +93,7 @@ main = do
 #ifdef qc
   test file rnds (runQC' stdArgs prop_div) size
 #else
-  test file rnds (runSC prop_div) size
+  test file rnds (runSC scStdArgs prop_div) size
 #endif
 
 --------------------------------------------------------------------------------

@@ -523,9 +523,9 @@ Section~\ref{sec:related}).
 \todo{QC without shrinking Ints}
 
 \begin{figure}[ht]
-\includegraphics[scale=0.6]{Graphs/data}
-\includegraphics[scale=0.6]{Graphs/time-big}
-\includegraphics[scale=0.6]{Graphs/time-small}
+\includegraphics[scale=0.6]{../regression/PaperExample1/out/data}
+\includegraphics[scale=0.6]{../regression/PaperExample1/out/time-big}
+\includegraphics[scale=0.6]{../regression/PaperExample1/out/time-small}
   \caption{Results for 2000 tests of the program in Figure~\ref{fig:initial}.}
   \label{fig:graphs}
 \end{figure}
@@ -2070,15 +2070,20 @@ prop_rev ls = ls == reverse ls
 
   \item \emph{Heap}, an example from the QuickCheck test suite, in which an
     incorrect ``to sorted list'' function is checked.
+
+  \item \emph{Parser}, a parser/pretty-printer for a toy imperative language
+    containing a parser bug that switches the arguments of an binary operator.
 \end{itemize}
 
 \noindent
 All benchmarks can be found at
 \url{https://github.com/leepike/SmartCheck/tree/master/regression}.  Benchmarks
-are against QuickCheck~2.7.   The benchmarks only compare the size of shrunk
-values and the time required to generate them using standard arguments to
-QuickCheck and SmartCheck.  We do not benchmark the generalization algorithms,
-since there is no analog in QuickCheck  or other testing frameworks.
+are against
+QuickCheck~2.7.3.\footnote{\url{http://hackage.haskell.org/package/QuickCheck-2.7.3}}
+The benchmarks only compare the size of shrunk values and the time required to
+generate them using standard arguments to QuickCheck and SmartCheck.  We do not
+benchmark the generalization algorithms, since there is no analog in QuickCheck
+or other testing frameworks.
 
 \todo{include std dev.}
 \todo{fill in benchmarks!}

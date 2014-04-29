@@ -10,7 +10,6 @@ module Main where
 import qualified Test.QuickCheck as Q
 
 import Data.Maybe
-import Data.Typeable
 import Data.Tree
 import Control.Monad
 import GHC.Generics

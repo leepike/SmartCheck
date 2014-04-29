@@ -154,11 +154,27 @@ experience by Andy Gill:
 Sometimes the counterexamples found are very large and it is difficult to go
 back to the property and understand why it is a counterexample.
 \end{quote}
-%
-\noindent
-QuickCheck defines a type class \ttp{Arbitrary} that presents a method
-\ttp{arbitrary} for generating random values of a given type.  Gill added another
-method to the type class:
+
+That is, automated testing helps find a counterexample, but it may be a very
+large counterexample.  We are left facing the \emph{shrinking problem}: assume
+there exist a set of inputs $i_0, \ i_1, \ldots, \i_n$, such that for program
+$P$ (modeled as a function mapping inputs to output) and property $\phi$,
+$\phi(P(i_0, \ i_1, \ldots, \i_n))$ is false.  The shrinking problem is to find
+the smallest set of inputs $i'_0, \ i'_1, \ldots, \i'_n$, according to some
+measure, such that $\phi(P(i\_0, \ i\_1, \ldots, \i\_n))$ is also false.
+
+In general, the problem too expensive to solve, since it requires showing that
+for a set of failing inputs, there exist no strictly smaller inputs that also
+cause the property to fail.  Such a demonstration requires exhaustive testing or
+proof.  Solutions to the shrinking problem are therefore approximated to
+efficiently discover sufficiently small inputs causing the input to fail.
+Usually, the shrunk inputs are derived algorithmically (but perhaps
+nondeterministically) from a known larger set of inputs resulting in failure,
+and the inputs may not be minimal.
+
+To address the shrinking problem, QuickCheck defines a type class
+\ttp{Arbitrary} that presents a method \ttp{arbitrary} for generating random
+values of a given type.  Gill added another method to the type class:
 %
 \begin{code}
 smaller :: a -> [a]

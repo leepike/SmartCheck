@@ -5,6 +5,8 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
+-- QuickCheck tests for the implementation of SmartCheck.
+
 module Main where
 
 import qualified Test.QuickCheck as Q

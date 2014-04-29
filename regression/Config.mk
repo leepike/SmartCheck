@@ -1,6 +1,6 @@
-RNDS	= 1
+RNDS	= 100
 LOG		= regression.log
-DB		= ../../.cabal-sandbox/x86_64-linux-ghc-7.6.3-packages.conf.d
+DB		= ../../.cabal-sandbox/*-packages.conf.d
 
 %.out : $(SRC).hs
 	mkdir -p out

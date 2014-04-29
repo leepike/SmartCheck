@@ -14,10 +14,10 @@ set nologscale y
 
 set output "out/data.pdf"
 plot \
-'sc_vals.csv'     using 1:2:(1.0) smooth acsplines  title 'SmartCheck', \
-'qcNone_vals.csv' using 1:2:(1.0) smooth acsplines  title 'QC none', \
-'qc10_vals.csv'   using 1:2:(1.0) smooth acsplines  title 'QC trunc', \
-'qcjh_vals.csv'   using 1:2:(1.0) smooth acsplines  title 'QC tuple'
+'out/smart_vals.csv'  using 1:2:(1.0) smooth acsplines  title 'SmartCheck', \
+'out/qcNone_vals.csv' using 1:2:(1.0) smooth acsplines  title 'QC none',    \
+'out/qc10_vals.csv'   using 1:2:(1.0) smooth acsplines  title 'QC trunc',   \
+'out/qcjh_vals.csv'   using 1:2:(1.0) smooth acsplines  title 'QC tuple'
 
 # 'feat_vals.csv'   using 1:2:(1.0) smooth acsplines  title 'Feat', \
 
@@ -29,8 +29,8 @@ set yrange [1:1200]
 set output "out/time-big.pdf"
 # big!
 plot \
-'qc10_time.csv'   using 1:2:(1.0) smooth acsplines  title 'QC trunc', \
-'qcjh_time.csv'   using 1:2:(1.0) smooth acsplines  title 'QC tuple'
+'out/qc10_time.csv'   using 1:2:(1.0) smooth acsplines  title 'QC trunc', \
+'out/qcjh_time.csv'   using 1:2:(1.0) smooth acsplines  title 'QC tuple'
 
 # 'feat_time.csv'   using 1:2:(1.0) smooth acsplines  title 'Feat', \
 
@@ -40,6 +40,6 @@ set yrange [0:35]
 set output "out/time-small.pdf"
 # very small
 plot \
-'sc_time.csv'     using 1:2:(1.0) smooth acsplines  title 'SmartCheck', \
-'qcNone_time.csv' using 1:2:(1.0) smooth acsplines  title 'QC none'
+'out/smart_time.csv'  using 1:2:(1.0) smooth acsplines  title 'SmartCheck', \
+'out/qcNone_time.csv' using 1:2:(1.0) smooth acsplines  title 'QC none'
 

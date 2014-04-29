@@ -31,18 +31,13 @@ import Test.Feat
 
 -----------------------------------------------------------------
 
--- Let's try to generate a product type of long lists when all we need is a
--- single element to have a long list.
-
------------------------------------------------------------------
-
-#ifdef qcjhint
+#if defined(qcjhint) || defined(qcNone) || defined(qc10) || defined(qc20)
 -- So that Int16s aren't shrunk by default arbitrary instances.
 newtype J = J { getInt :: Int16 } deriving Show
-#endif
-
-#ifdef qcjhint
 type I = [J]
+instance Arbitrary J where
+  arbitrary = fmap J arbitrary
+
 #else
 type I = [Int16]
 #endif
@@ -91,10 +86,6 @@ instance Arbitrary T where
     where xs = shrink (w, i0, i1, i2, i3)
           go (w', i0', i1', i2', i3') = T w' i0' i1' i2' i3'
 #endif
-#ifdef qcjhint
-instance Arbitrary J where
-  arbitrary = fmap J arbitrary
-#endif
 #if defined(qc10) || defined(qc20)
   shrink (T w i0 i1 i2 i3) =
     [ T a b c d e | a <- tk w
@@ -118,7 +109,7 @@ deriveEnumerable ''T
 
 toList :: T -> [[Int16]]
 toList (T w i0 i1 i2 i3) =
-#ifdef qcjhint
+#if defined(qcjhint) || defined(qcNone) || defined(qc10) || defined(qc20)
   [fromIntegral w] : (map . map) (fromIntegral . getInt) [i0, i1, i2, i3]
 #else
   [fromIntegral w] : (map . map) fromIntegral [i0, i1, i2, i3]

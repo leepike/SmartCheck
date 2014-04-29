@@ -1,4 +1,5 @@
 SRC         = PaperExample1
+FRMT        = jpeg
 
 # We never run small.out since it's not feasible.
 TARGETS			= qcNone.out  \
@@ -9,11 +10,9 @@ TARGETS			= qcNone.out  \
 
 # feat.out		\
 
-GRAPHS      = data.pdf time-big.pdf time-small.pdf
+GRAPHS      = data.$(FRMT) time-big.$(FRMT) time-small.$(FRMT)
 
 all : $(TARGETS)
+	gnuplot script.gnp
 
 include ../Config.mk
-
-%.pdf : $(TARGETS)
-	gnuplot script.gnp

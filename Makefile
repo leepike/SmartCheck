@@ -4,25 +4,21 @@
 ################################################################################
 # Building
 
-PACKAGES = quickcheck
 CABAL_INSTALL = cabal install
 
 .PHONY: all
 all: cabal-build
 
 # Regular (default) build
-cabal-build: .cabal-sandbox $(PACKAGES)
+cabal-build: .cabal-sandbox
 	$(CABAL_INSTALL)
 
 # Regression build, requires more packages in the sandbox
-regression-build: .cabal-sandbox $(PACKAGES)
+regression-build: .cabal-sandbox
 	$(CABAL_INSTALL) -fregression-flag
 
 .cabal-sandbox: $(MAKEFILE_LIST)
 	cabal sandbox init
-
-$(PACKAGES): .cabal-sandbox
-	cabal sandbox add-source $@
 
 sandbox-clean:
 	rm -rf cabal.sandbox.config .cabal-sandbox

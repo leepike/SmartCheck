@@ -1,6 +1,6 @@
 {-
 
-The following is modified by Lee Pike 2014 and still retains the following
+The following is modified by Lee Pike (2014) and still retains the following
 license:
 
 Copyright (c) 2000-2012, Koen Claessen

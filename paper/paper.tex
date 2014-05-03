@@ -99,6 +99,7 @@
 
 \newcommand{\undef}[1]{{\bf #1}}
 
+\newcommand{\sci}[2]{\ensuremath{#1 \times 10^{#2}}}
 \begin{document}
 
 %% \conferenceinfo{ICFP'12,} {September 9--15, 2012, Copenhagen, Denmark.}
@@ -311,18 +312,14 @@ processing library.
 
 \section{A Motivating Example}\label{sec:example}
 
-\todo{need to test with arbitrary for ints turned off.  (Use newtype)}
-
 \begin{figure}[ht]
 \begin{code}
 type I   = [Int16]
-data T   = T (Word8) I I I I
+data T   = T I I I I I
 
 toList :: T -> [[Int16]]
-toList (T w i0 i1 i2 i3) =
-  [fromIntegral w] : (map . map) fromIntegral rst
-  where
-  rst = [i0, i1, i2, i3]
+toList (T i0 i1 i2 i3 i4) =
+  (map . map) fromIntegral [i0, i1, i2, i3, i4]
 
 pre :: T -> Bool
 pre t = all ((>) 256 . sum) (toList t)
@@ -337,31 +334,35 @@ prop t = pre t ==> post t
   \label{fig:initial}
 \end{figure}
 
-\todo{redo analysis, check text}
 In this section, we motivate in more detail the challenges in shrinking
-counterexamples (we focus on shrinking and only touch on generalization here).
+counterexamples by comparing manual approaches using QuickCheck to SmartCheck.
+(We focus on shrinking rather than generalization here since counterexample
+generalization is unique to SmartCheck.)  We will show how a small data type and
+simple property can result in large counterexamples without any shrinking.  Then
+we show the difficulty in designing an efficient shrink implementation manually,
+which is required when using QuickCheck; we will walk through a couple of poor
+designs before arriving at a ``canonical'' manual solution.  However, even the
+canonical solution produces significantly larger counterexamples and takes
+significantly longer to produce them than SmartCheck, even though SmartCheck's
+shrinking strategy is completely automatic and generic.
+
 Consider the example in Figure~\ref{fig:initial}.\footnote{All examples and
   algorithms in this paper are presented in Haskell 2010~\cite{haskell2010} plus
   the language extensions of existential type quantification and scoped type
-  variables.  We use Haskell \ttp{Prelude} functions, \ttp{mapMaybe} from
-  \ttp{Data.Maybe}, and \ttp{liftM} and \ttp{replicateM} from
-  \ttp{Control.Monad}.}  Data type \ttp{T} is a product type containing four
-lists of wrapped \ttp{Int16}s and a single wrapped \ttp{Word8}.  For our
-purposes, it is not important what \ttp{T} models, but for concreteness, suppose
-it models the values in four linked lists in an operating system, together with
-an 8-bit status register.
+  variables.}  Data type \ttp{T} is a product type containing five lists of
+signed 8-bit integers.  For our purposes, it is not important what \ttp{T}
+models, but for concreteness, suppose it models the values in five linked lists.
 
 Now suppose we are modeling some program that serializes values of type \ttp{T}.
 The input to the program satisfies the invariant \ttp{pre}, that the sum of
-values in each list of \ttp{Int16}s is less than or equal to 256 (and by
-definition, the \ttp{Word8} value is less than or equal to 256).  Assuming this,
+values in each list of \ttp{Int16}s is less than or equal to 256.  Assuming this,
 we want to show \ttp{post} holds, that the sum of all the values from \ttp{T} is
 less than $5 * 256$, where five is the number of fields in \ttp{T}.  At first
 glance, the property seems reasonable.  But we have forgotten about underflow;
 for example, the value
 %
 \begin{code}
-T 10 [-20000] [-20000] [] []
+T [-20000] [-20000] [] [] []
 \end{code}
 %
 \noindent
@@ -370,9 +371,9 @@ is implication from the QuickCheck library).
 
 Despite the simplicity of the example, a typical counterexample returned by
 QuickCheck can be large.  With standard settings and no shrinking, the median
-counterexample discovered contains around 70 \ttp{Int16} values, and
-counterexamples can contain over 100 values.  \todo{recheck} Thus, it pays to
-define \ttp{shrink}!
+counterexample discovered contains just under 70 \ttp{Int16} values, and
+counterexamples can contain over 100 values.  Thus, it pays to define
+\ttp{shrink}!
 
 We might first naively try to shrink counterexamples for a data type like
 \ttp{T} by taking the cross-product of shrunk values over the arguments to the
@@ -387,22 +388,40 @@ shrink (T w i0 i1 i2 i3) =
 \end{code}
 %
 \noindent
-While the above definition appears reasonable, there are two problems with it.
-First, the result of (\ttp{shrink t}) is null if any list contained in \ttp{t}
-is null, in which case \ttp{t} will not be shrunk.  More troublesome is that with
-QuickCheck's default \ttp{Arbitrary} instances, the length of potential
-counterexamples returned by \ttp{shrink} can easily exceed $10^{10}$, which is
-an intractable number of tests for QuickCheck to analyze.  The reason for the
-blowup is that shrinking a list \ttp{[a]} produces a list \ttp{[[a]]}, the
-length of which is significantly longer than the original list.  Then, we take
-the cross-product of the generated lists.  For the example above, with some
-counterexamples, the shrinking stage may appear to execute for hours, consuming
-ever more memory, without returning a result.
+While the above definition appears reasonable on first glance, there are two
+problems with it.  First, the result of (\ttp{shrink t}) is null if any list
+contained in \ttp{t} is null, in which case \ttp{t} will not be shrunk.  More
+troublesome is that with QuickCheck's default \ttp{Arbitrary} instances, the
+length of potential counterexamples returned by \ttp{shrink} can easily exceed
+$10^{10}$, which is an intractable number of tests for QuickCheck to analyze.
+The reason for the blowup is that shrinking a list \ttp{[a]} produces a list
+\ttp{[[a]]}, a list of lists; each list is a new shrinking of the original list.
+Then, we take the cross-product of the generated lists.  For the example above,
+with some counterexamples, the shrinking stage may appear to execute for hours,
+consuming ever more memory, without returning a result.
 
-A programmer might try to control the complexity by truncating lists using the
-(\ttp{take n}) function that returns the first $n$ elements of a list.  The
-trade-off is quicker shrinking with a lower probability of finding a smaller
-counterexample.  For example, we might redefine shrink as follows:
+The first way we will control the complexity is focusing on structurally
+shrinking the data type rather than shrinking the base types.  We prevent
+QuickCheck from using its default shrink instance for \ttp{Int16} by defining a
+newtype:
+%
+\begin{code}
+newtype T = T { getInt :: Int16 }
+\end{code}
+%
+\noindent
+Without shrinking the \ttp{Int16}s, the performance is dramatically improved.
+
+Next, a programmer might try to control the complexity by truncating lists using
+truncation where
+%
+\begin{code}
+take n ls
+\end{code}
+%
+returns the first $n$ elements \ttp{ls}.  The trade-off is quicker shrinking
+with a lower probability of finding a smaller counterexample.  For example, we
+might redefine shrink as follows:
 %
 \begin{samepage}
 \begin{code}
@@ -416,13 +435,12 @@ shrink (T w i0 i1 i2 i3) =
 %
 \noindent
 Call this version ``truncated shrink''.  Truncation controls the blowup of the
-input-space; the maximum number of possible new values is $10^5$ in this case.
-While truncation controls the blowup, the downside is that potentially smaller
-counterexamples may be omitted.
+input-space, but the downside is that potentially smaller counterexamples may be
+omitted.
 
-A more clever programmer that understands the semantics of QuickCheck's
-\ttp{shrink} implementation\footnote{The following approach was suggested to
-  the author by John Hughes.} defines a \ttp{shrink} instance as follows:
+Someone who understands the semantics of QuickCheck's \ttp{shrink}
+implementation defines a \ttp{shrink} instance as follows:\footnote{The
+  following approach was suggested to the author by John Hughes.}
 %
 \begin{code}
 shrink (T w i0 i1 i2 i3) = map go xs
@@ -436,14 +454,10 @@ This ``tuple shrink'' definition does not suffer the same shortcomings: it
 shrinks a value even if it contains an empty list, and the combinatorial blowup
 of shrink candidates is avoided, since a pair \ttp{(a,b)} is shrunk by
 attempting to shrink \ttp{a} while holding \ttp{b} constant, then attempting to
-shrink \ttp{b} while holding \ttp{a} constant (and is generalized to larger
-tuples).  Thus, each argument to \ttp{T} is independently shrunk.
-
+shrink \ttp{b} while holding \ttp{a} constant (and is generalized from pairs to
+arbitrary tuples).  Thus, each argument to \ttp{T} is independently shrunk.
 Still, using this definition, from some initial counterexamples, shrinking may
-take over one minute and result in a final counterexample containing just under
-100 \ttp{Int16} values.\footnote{All results reported in the paper are with a
-  GHC-7.6.3-compiled program, using \ttp{-O2}, on a 4-core 2.7GHz Intel~i7
-  processor.}
+result in a final counterexample containing just over 100 \ttp{Int16} values.
 
 SmallCheck is another testing framework for Haskell for which shrinking is
 irrelevant: SmallCheck is guaranteed to return a smallest counterexample, if
@@ -520,13 +534,11 @@ Section~\ref{sec:related}).
 %% violate the precondition.
 %\end{itemize}
 
-\todo{QC without shrinking Ints}
-
 \begin{figure}[ht]
 \includegraphics[scale=0.6]{../regression/PaperExample1/out/data}
-\includegraphics[scale=0.6]{../regression/PaperExample1/out/time-big}
-\includegraphics[scale=0.6]{../regression/PaperExample1/out/time-small}
-  \caption{Results for 2000 tests of the program in Figure~\ref{fig:initial}.}
+%% \includegraphics[scale=0.6]{../regression/PaperExample1/out/time-big}
+%% \includegraphics[scale=0.6]{../regression/PaperExample1/out/time-small}
+  \caption{Results for 1000 tests of the program in Figure~\ref{fig:initial}.}
   \label{fig:graphs}
 \end{figure}
 
@@ -535,21 +547,22 @@ Section~\ref{sec:related}).
   \begin{center}
     \begin{tabular}{|r||c|c|c|c|}
 \hline
-           & QC none    & QC trunc   & QC tuple   & SmartCheck\\
+           & QC none     & QC trunc     & QC tuple    & SmartCheck\\
 \hline \hline
-Mean       & 0.08s, 69  & 0.53s, 35  & 2.24s, 12  & 0.10s, 7\\
+Mean       & 81, 0.013s  & 40, 0.231s   & 13, 0.228s  & 6, 0.022s\\
 \hline
-Median     & 0.07s, 69  & 0.17s, 33  & 1.81s, 13  & 0.10s, 6\\
+Std. dev.  & 21, 0.001   & 21, 1.742    & 7,  0.962   & 4, 0.001s\\
+% Median     & 0.009s, 67  & 0.17s, 33  & 1.81s, 13  & 0.10s, 6\\
 %% \hline
 %% MAD        & 0.02s, 13  & 0.09s, 8   & 0.62s, 3   & 0.02s, 2\\
 \hline
-95\%       & 0.14s, 100 & 1.76s, 65  & 4.06s, 19  & 0.18s, 12\\
+95\%       & 116, 0.025s  & 84, 0.283s  & 26, 0.501s  & 13, 0.039s\\
 \hline
     \end{tabular}
   \end{center}
-  \caption{Summarizing data for the graphs in Figure~\ref{fig:graphs}. Entries
+  \caption{Summarizing data for the graph in Figure~\ref{fig:graphs}. Entries
     contain execution time (in seconds) and counterexample sizes (counting
-    \ttp{N} constructors).}
+    \ttp{Int16} values).}
   \label{table:results}
 \end{table}
 
@@ -557,21 +570,34 @@ To motivate the benefits of SmartCheck reduction algorithm, consider
 Table~\ref{table:results} and the corresponding graphs in
 Figure~\ref{fig:graphs}, giving the results for using QuickCheck and SmartCheck
 on the program shown in Figure~\ref{fig:initial} (we omit SmallCheck, since as
-noted, it is not even feasible for the example with default instances).  We
-graph the final counterexample size and execution time.  Out of 2000 runs, we
-show the number of runs resulting in a shrunk counterexample of a given size (by
-counting \ttp{N} constructors), and we show the number of runs executing within
-a given time limit (in seconds).  Note that we provide two execution-time
-graphs, since time scales differ dramatically (we use a logrithmic scale for the
-$y$ axis in one graph and a linear scale in the other).  In the table, we show
-the mean, median, median, and the results at the 95th percentile values.  (We
-give standard deviations, but not that the plots are not necessarily Gaussian.)
+noted, it is not even feasible for the example with default
+instances).\footnote{All results reported in the paper are with a
+  GHC-7.6.3-compiled program, using \ttp{-O2}, on a 2.8 GHz 4 core i7 with 16GB
+  memory under OSX v. 10.9.2.}  We graph the final counterexample size and
+execution time.
 
 The experiments show three approaches to shrinking with QuickCheck: no shrinking
 (QC none), to provide a baseline, truncated shrinking (QC trunc), as described
-above, in which each list is truncated to 10 elements, and tuple shrinking (QC
-tuple), also described above.  SmartCheck produces smaller counterexamples than
-the other approaches, with a very small tail.
+above, in which each list is truncated to 10 elements and \ttp{Int16} values are
+not shrunk, and tuple shrinking (QC tuple), also described above, and
+\ttp{Int16} values are also not shrunk.
+
+With each shrinking strategy, we generate 1000 runs in which a random
+counterexample is discovered (by QuickCheck), and then shrunk.  We plot the
+number of runs resulting in a shrunk counterexample of a given size.
+
+In Table~\ref{table:results}, we summarize the graphed values and provide
+execution time in seconds as well.  For both execution time and final value
+size, we summarize the mean, median, standard deviation, and the results at the
+95th percentile.  (While we provide the standard deviations, note that the plots
+are not necessarily Gaussian.)
+
+The execution time includes the time to
+discover an initial counterexample as well as time to shrink it.  
+
+SmartCheck produces smaller counterexamples than the other approaches, with a
+very small tail.
+
 
 More dramatic, however, are the differences in execution time.  The execution
 times for SmartCheck include the initial counterexample generation time required
@@ -2096,35 +2122,39 @@ or other testing frameworks.
 \multicolumn{2}{|c||}{} & QuickCheck & SmartCheck \\
 \hline \hline
 
+
 \multirow{4}{*}{Reverse}
-  & Mean       & 0.08s, 69  & 0.53s, 35  \\
+  & Mean       & 2, 0.002s  & 2, \sci{4.8}{4}s  \\
   \cline{2-4}
-  & Median     & 0.07s, 69  & 0.17s, 33  \\
+  & Std. dev.  & 0, 0.002   & 0, \sci{8.1}{4}  \\
   \cline{2-4}
-  & Std. dev.  &            &            \\
-  \cline{2-4}
-  & 95\%       & 0.14s, 100 & 1.76s, 65  \\
+  & 95\%       & 2, 0.007s  & 2, \sci{5.8}{4}s  \\
   \hline
 
 \multirow{4}{*}{Div0}
-  & Mean       & 0.08s, 69  & 0.53s, 35  \\
+  & Mean       & 10, 0.001s  & 5, 0.001s  \\
   \cline{2-4}
-  & Median     & 0.07s, 69  & 0.17s, 33  \\
+  & Std. dev.  & 6, 0.002    & 0, 0.001   \\
   \cline{2-4}
-  & Std. dev.  &            &            \\
-  \cline{2-4}
-  & 95\%       & 0.14s, 100 & 1.76s, 65  \\
+  & 95\%       & 23, 0.002s  & 5, 0.002s \\
   \hline
 
 \multirow{4}{*}{Heap}
-  & Mean       & 0.08s, 69  & 0.53s, 35  \\
+  & Mean       & 15, 0.016s  & 7, 0.007s  \\
   \cline{2-4}
-  & Median     & 0.07s, 69  & 0.17s, 33  \\
+  & Std. dev.  & 1, 0.025    & 2, 0.003   \\
   \cline{2-4}
-  & Std. dev.  &            &            \\
-  \cline{2-4}
-  & 95\%       & 0.14s, 100 & 1.76s, 65  \\
+  & 95\%       & 19, 0.045s  & 12, 0.015s  \\
   \hline
+
+\multirow{4}{*}{Parser}
+  & Mean       & 191, 0.013s  & 16, 0.241s  \\
+  \cline{2-4}
+  & Std. dev.  & 195, 0.018   & 75, 0.800   \\
+  \cline{2-4}
+  & 95\%       & 577, 0.044s  & 14, 0.521s  \\
+  \hline
+
     \end{tabular}
 
   \end{center}
@@ -2133,6 +2163,8 @@ or other testing frameworks.
     constructors).}
   \label{table:results}
 \end{table}
+
+\todo{note that 95 is smaller than average for heap}
 
 The \emph{Reverse} benchmark essentially provides a lower-bound on the benefit
 of using SmartCheck to discover small counterexamples, since a list of length
@@ -2301,11 +2333,10 @@ and beyond!
 \todo{tail-recursive algorithm is fast and easy to port to imperative languages}
 
 \section*{Acknowledgments}
-I thank Andy Gill, Joe Hurd, John Launchbury, Simon Winwood, and especially John
-Hughes for reading an earlier draft of this paper.  Their deep insights and bug
-catches dramatically improved both the form and content.  This paper was and
-rejected from ICFP'13; the anonymous reviewers' suggestions improved the
-presentation additional benchmarking.
+I thank Andy Gill, Joe Hurd, John Launchbury, Simon Winwood, the anonymous
+reviewers of ICFP'13 (from which an early draft of this paper was rejected), and
+especially John Hughes for reading an earlier draft of this paper.  Their deep
+insights and bug catches dramatically improved both the form and content.
 
 \bibliographystyle{abbrvnat}
 \bibliography{paper}

@@ -20,7 +20,7 @@ import Data.Typeable
 data Exp = C Int
          | Add Exp Exp
          | Div Exp Exp
-  deriving (Show, Typeable, Generic)
+  deriving (Show, Read, Typeable, Generic)
 
 instance SubTypes Exp
 
@@ -70,7 +70,7 @@ findVal a@(Add e0 e1)
 findVal _                 = error "not possible"
 
 size :: Exp -> Int
-size exp = case exp of
+size e = case e of
   C _       -> 1
   Add e0 e1 -> 1 + size e0 + size e1
   Div e0 e1 -> 1 + size e0 + size e1
@@ -91,9 +91,9 @@ main = do
   let rnds = read rnds' :: Int
   let file  = read file' :: String
 #ifdef qc
-  test file rnds (runQC' stdArgs prop_div) size
+  test file rnds $ runQC' proxy stdArgs prop_div size
 #else
-  test file rnds (runSC scStdArgs prop_div) size
+  test file rnds $ runSC scStdArgs prop_div size
 #endif
 
 --------------------------------------------------------------------------------

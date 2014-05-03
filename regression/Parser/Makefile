@@ -6,7 +6,3 @@ TARGETS			= qc.out smart.out
 all : $(TARGETS)
 
 include ../Config.mk
-
-# %.pdf : $(TARGETS)
-# 	gnuplot script.gnp
-

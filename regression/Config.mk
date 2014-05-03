@@ -1,10 +1,10 @@
-RNDS	= 100
+RNDS	= 1000
 LOG		= regression.log
 DB		= ../../.cabal-sandbox/*-packages.conf.d
 
 %.out : $(SRC).hs
 	mkdir -p out
-	ghc --make -package-db $(DB) -O2 -D$* -o out/$@ $< ../Test.hs
+	ghc --make -Wall -package-db $(DB) -O2 -D$* -o out/$@ $< ../Test.hs
 	date >> $(LOG)
 	echo "*******************" >> $(LOG)
 	echo $@ >> $(LOG)

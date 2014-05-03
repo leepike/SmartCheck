@@ -10,7 +10,6 @@ module Main where
 
 import Test
 import Test.SmartCheck
-import Test.SmartCheck.Reduce
 import Test.QuickCheck
 #ifdef small
 import Test.LazySmallCheck hiding (Property, test, (==>))
@@ -21,7 +20,6 @@ import GHC.Generics hiding (P, C)
 import Data.Typeable
 
 import Data.Int
-import Data.Word
 import Control.Monad
 import System.Environment
 
@@ -31,19 +29,19 @@ import Test.Feat
 
 -----------------------------------------------------------------
 
-#if defined(qcjhint) || defined(qcNone) || defined(qc10) || defined(qc20)
+#if defined(qcjh) || defined(qcNone) || defined(qc10) || defined(qc20)
 -- So that Int16s aren't shrunk by default arbitrary instances.
-newtype J = J { getInt :: Int16 } deriving Show
+newtype J = J { getInt :: Int16 } deriving (Show, Read)
 type I = [J]
 instance Arbitrary J where
   arbitrary = fmap J arbitrary
-
+  shrink (J i) = map J (shrink i)
 #else
 type I = [Int16]
 #endif
 
-data T = T (Word8) I I I I
-  deriving (Show, Typeable, Generic)
+data T = T I I I I I
+  deriving (Read, Show, Typeable, Generic)
 
 -- SmallCheck --------------------------
 #ifdef small
@@ -81,16 +79,16 @@ instance Arbitrary T where
 #if defined(qcNone) || defined(feat)
   shrink _ = []
 #endif
-#if defined(qcjh) || defined(qcjhint)
-  shrink (T w i0 i1 i2 i3) = map go xs
-    where xs = shrink (w, i0, i1, i2, i3)
-          go (w', i0', i1', i2', i3') = T w' i0' i1' i2' i3'
+#if defined(qcjh)
+  shrink (T i0 i1 i2 i3 i4) = map go xs
+    where xs = shrink (i0, i1, i2, i3, i4)
+          go (i0', i1', i2', i3', i4') = T i0' i1' i2' i3' i4'
 #endif
 #if defined(qc10) || defined(qc20)
-  shrink (T w i0 i1 i2 i3) =
-    [ T a b c d e | a <- tk w
-                  , b <- tk i0, c <- tk i1
-                  , d <- tk i2, e <- tk i3 ]
+  shrink (T i0 i1 i2 i3 i4) =
+    [ T a b c d e | a <- tk i0
+                  , b <- tk i1, c <- tk i2
+                  , d <- tk i3, e <- tk i4 ]
     where
 #ifdef qc10
     sz = 10
@@ -100,6 +98,12 @@ instance Arbitrary T where
 #endif
     tk x = take sz (shrink x)
 #endif
+#if defined(qcNaive)
+  shrink (T i0 i1 i2 i3 i4) =
+    [ T a b c d e | a <- shrink i0
+                  , b <- shrink i1, c <- shrink i2
+                  , d <- shrink i3, e <- shrink i4 ]
+#endif
 
 -- Feat --------------------------------
 #ifdef feat
@@ -108,11 +112,11 @@ deriveEnumerable ''T
 -- Feat --------------------------------
 
 toList :: T -> [[Int16]]
-toList (T w i0 i1 i2 i3) =
-#if defined(qcjhint) || defined(qcNone) || defined(qc10) || defined(qc20)
-  [fromIntegral w] : (map . map) (fromIntegral . getInt) [i0, i1, i2, i3]
+toList (T i0 i1 i2 i3 i4) =
+#if defined(qcjh) || defined(qcNone) || defined(qc10) || defined(qc20)
+  (map . map) (fromIntegral . getInt) [i0, i1, i2, i3, i4]
 #else
-  [fromIntegral w] : (map . map) fromIntegral [i0, i1, i2, i3]
+  (map . map) fromIntegral [i0, i1, i2, i3, i4]
 #endif
 
 
@@ -145,13 +149,13 @@ main = do
   let rnds = read rnds' :: Int
   let file  = read file' :: String
 #ifdef feat
-  test file rnds (runQC' stdArgs {maxSuccess = 10000} prop) size
+  test file rnds $ runQC' proxy stdArgs prop size
 #endif
 #ifdef smart
-  test file rnds (runSC scStdArgs prop) size
+  test file rnds $ runSC scStdArgs prop size
 #endif
-#if defined(qcNone) || defined(qc10) || defined(qc20) || defined(qcjh) || defined (qcjhint)
-  test file rnds (runQC' stdArgs prop) size
+#if defined(qcNone) || defined(qc10) || defined(qc20) || defined(qcjh) || defined(qcNaive)
+  test file rnds $ runQC' proxy stdArgs prop size
 #endif
 
 #ifdef smart

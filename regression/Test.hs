@@ -13,15 +13,15 @@ import Test.SmartCheck.Reduce
 
 --------------------------------------------------------------------------------
 
-test :: FilePath -> Int -> IO (Maybe a) -> (a -> Int) -> IO ()
-test f rnds run size = do
-  res <- replicateM rnds (test' run size)
+test :: FilePath -> Int -> IO Res -> IO ()
+test f rnds run = do
+  res <- replicateM rnds run
   let res'        = catMaybes res
   let rnds'       = length res'
   let app str     = appendFile logFile (str ++ "\n")
   let avg vals    = sum vals / fromIntegral rnds'
   let med vals    = sort vals !! (rnds' `div` 2)
-  let times = fst $ unzip res'
+  let times       = fst $ unzip res'
   let szs :: [Double]
       szs = map fromIntegral (snd $ unzip res')
   let stdDev vals = sqrt (avg distances)
@@ -37,7 +37,7 @@ test f rnds run size = do
   app "***************"
   print res
   app $ "Num     : " ++ show rnds'
-  app $ "std dev : " ++ show (stdDev $ map (fromRational . toRational) times)
+  app $ "std dev : " ++ show (stdDev $ map (fromRational . toRational) times :: Double)
                      ++ ", " ++ show (stdDev szs)
   app $ "Avg     : " ++ show (avg times) ++ ", " ++ show (avg szs)
   app $ "Med     : " ++ show (med times) ++ ", " ++ show (med szs)
@@ -54,16 +54,15 @@ test f rnds run size = do
 
 type Res = Maybe (Double, Int)
 
-test' :: IO (Maybe a) -> (a -> Int) -> IO Res
-test' run size = do
-  start <- getCurrentTime
-  res <- run
-  stop <- getCurrentTime
-  let diff = diffUTCTime stop start
-  print diff
-  case res of
-    Nothing -> return Nothing
-    Just r  -> return $ Just (fromRational $ toRational diff, size r)
+-- test' :: IO (Maybe a) -> (a -> Int) -> IO Res
+-- test' run size = do
+--   start <- getCurrentTime
+--   res <- run
+--   stop <- getCurrentTime
+--   let diff = diffUTCTime stop start
+--   case res of
+--     Nothing -> return Nothing
+--     Just r  -> return $ Just (fromRational $ toRational diff, size r)
 
 -- For gnuplot ---------------------------------------
 mkCSV :: Show a => [(a,a)] -> String
@@ -88,22 +87,39 @@ plot comparts vals = filter (\(_,n) -> n /= 0.0) $ cz vs (min' + compartSz, 0)
 logFile :: String
 logFile = "regression.log"
 
-runQC' :: (Arbitrary b, Show b, Testable a) => Args -> a -> IO (Maybe b)
-runQC' args prop = do
-  -- Hack, since runQC refuses to shrink the first arg, which is assumed to be
-  -- our SC arg.  However, we want to use it so we don't have to read back in
-  -- values.
-  let prop' _ = prop
-  (res, _) <- runQC args prop'
-  return res
+data Proxy a = Proxy
+
+proxy :: Proxy a
+proxy = Proxy
+
+runQC' :: (Testable prop, Read a)
+       => Proxy a -> Args -> prop -> (a -> Int) -> IO Res
+runQC' _ args prop size = do
+  start <- getCurrentTime
+  res   <- quickCheckWithResult args prop
+  stop  <- getCurrentTime
+  let cex = fmap (read . (!!1)) (getOut res)
+  let diff = diffUTCTime stop start
+  return $ fmap (\r -> (fromRational $ toRational diff, size r)) cex
+
+getOut :: Result -> Maybe [String]
+getOut res = case res of
+     Failure{} -> Just $ lines (output res)
+     _         -> Nothing
 
 -- Little driver since we're not using the SC REPL during testing.
 runSC :: (Arbitrary b, Show b, Testable a, SubTypes b)
-      => ScArgs -> (b -> a) -> IO (Maybe b)
-runSC args prop = do
-  (res, prop') <- runQC (qcArgs args) prop
-  case res of
+      => ScArgs -> (b -> a) -> (b -> Int) -> IO Res
+runSC args prop size = do
+  start <- getCurrentTime
+  (mres, prop') <- runQC (qcArgs args) prop
+  res <- case mres of
     Nothing -> return Nothing
     Just r  -> liftM Just $ smartRun args r prop'
+  stop  <- getCurrentTime
+  let diff = diffUTCTime stop start
+  return $ case res of
+    Nothing -> Nothing
+    Just r  -> Just (fromRational $ toRational diff, size r)
 
 --------------------------------------------------------------------------------

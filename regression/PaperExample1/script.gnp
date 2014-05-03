@@ -3,8 +3,8 @@ set title ""
 set term pdfcairo mono dashed linewidth 4
 # set term wxt
 set autoscale
-set xlabel "Final value size (N constructors)"
-set ylabel "Runs (number observed)"
+set xlabel "Final value size"
+set ylabel "Runs with resulting size"
 # set xrange [0:100]
 # set yrange [0:500]
 
@@ -14,32 +14,33 @@ set nologscale y
 
 set output "out/data.pdf"
 plot \
-'out/smart_vals.csv'  using 1:2:(1.0) smooth acsplines  title 'SmartCheck', \
-'out/qcNone_vals.csv' using 1:2:(1.0) smooth acsplines  title 'QC none',    \
-'out/qc10_vals.csv'   using 1:2:(1.0) smooth acsplines  title 'QC trunc',   \
-'out/qcjh_vals.csv'   using 1:2:(1.0) smooth acsplines  title 'QC tuple'
+'out/smart_vals.csv'  using 1:2:(1.0) smooth bezier  title 'SmartCheck', \
+'out/qcNone_vals.csv' using 1:2:(1.0) smooth bezier  title 'QC none',    \
+'out/qc10_vals.csv'   using 1:2:(1.0) smooth bezier  title 'QC trunc',   \
+'out/qcjh_vals.csv'   using 1:2:(1.0) smooth bezier  title 'QC tuple'
 
-# 'feat_vals.csv'   using 1:2:(1.0) smooth acsplines  title 'Feat', \
+# 'feat_vals.csv'   using 1:2:(1.0) smooth bezier  title 'Feat', \
 
 ###### Time
 set xlabel "Execution time (seconds)"
-set logscale y
-set yrange [1:1200]
+# set logscale x
+# set yrange [1:500]
+# set xrange [0:35]
 
 set output "out/time-big.pdf"
 # big!
 plot \
-'out/qc10_time.csv'   using 1:2:(1.0) smooth acsplines  title 'QC trunc', \
-'out/qcjh_time.csv'   using 1:2:(1.0) smooth acsplines  title 'QC tuple'
+'out/qc10_time.csv'   using 1:2:(1.0) smooth bezier  title 'QC trunc', \
+'out/qcjh_time.csv'   using 1:2:(1.0) smooth bezier  title 'QC tuple'
 
-# 'feat_time.csv'   using 1:2:(1.0) smooth acsplines  title 'Feat', \
+# 'feat_time.csv'   using 1:2:(1.0) smooth bezier  title 'Feat', \
 
-set nologscale y
+# set nologscale x
 
-set yrange [0:35]
+# set yrange [0:60]
 set output "out/time-small.pdf"
 # very small
 plot \
-'out/smart_time.csv'  using 1:2:(1.0) smooth acsplines  title 'SmartCheck', \
-'out/qcNone_time.csv' using 1:2:(1.0) smooth acsplines  title 'QC none'
+'out/smart_time.csv'  using 1:2:(1.0) smooth bezier title 'SmartCheck', \
+'out/qcNone_time.csv' using 1:2:(1.0) smooth bezier  title 'QC none'
 

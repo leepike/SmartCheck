@@ -5,8 +5,8 @@ FRMT        = jpeg
 TARGETS			= qcNone.out  \
               qc10.out		\
               qcjh.out		\
-              smart.out		\
-              qcjhint.out
+              smart.out
+
 
 # feat.out		\
 

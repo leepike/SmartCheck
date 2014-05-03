@@ -22,7 +22,6 @@ import Test.QuickCheck.Poly
 
 import Data.List
   ( sort
-  , (\\)
   )
 import Data.Typeable
 
@@ -37,6 +36,12 @@ import qualified Test.SmartCheck as SC
 
 deriving instance Typeable OrdA
 deriving instance Generic OrdA
+
+instance Read OrdA where
+  readsPrec i = \s ->
+    let rd = readsPrec i s :: [(Integer,String)] in
+    let go (i',s') = (OrdA i', s') in
+    map go rd
 
 heapProgramTest :: IO ()
 heapProgramTest = SC.smartCheck SC.scStdArgs prop_ToSortedList
@@ -60,7 +65,7 @@ instance (Ord a, Arbitrary a) => Arbitrary (Heap a) where
 data Heap a
   = Node a (Heap a) (Heap a)
   | Nil
- deriving ( Eq, Ord, Show, Typeable, Generic )
+ deriving ( Eq, Ord, Show, Read, Typeable, Generic )
 
 empty :: Heap a
 empty = Nil
@@ -122,7 +127,7 @@ data HeapP a
   | SafeRemoveMin (HeapP a)
   | Merge (HeapP a) (HeapP a)
   | FromList [a]
- deriving ( Show, Typeable, Generic )
+ deriving ( Show, Read, Typeable, Generic )
 
 heap :: Ord a => HeapP a -> Heap a
 heap Empty             = empty
@@ -172,7 +177,7 @@ instance Arbitrary a => Arbitrary (HeapP a) where
   shrink _                 = []
 
 data HeapPP a = HeapPP (HeapP a) (Heap a)
- deriving ( Show, Typeable, Generic )
+ deriving ( Show, Read, Typeable, Generic )
 
 instance (Ord a, Arbitrary a) => Arbitrary (HeapPP a) where
   arbitrary =
@@ -198,7 +203,7 @@ sizePP :: HeapPP a -> Int
 sizePP (HeapPP h0 h1) = sizeP h0 + sizeH h1
 
 sizeP :: HeapP a -> Int
-sizeP heap = case heap of
+sizeP hp = case hp of
   Empty           -> 1
   Unit _          -> 1
   Insert _ h      -> 1 + sizeP h
@@ -207,9 +212,12 @@ sizeP heap = case heap of
   FromList ls     -> 1 + length ls
 
 sizeH :: Heap a -> Int
-sizeH heap = case heap of
+sizeH hp = case hp of
   Node a h0 h1 -> 1 + sizeH h0 + sizeH h1
   Nil          -> 1
+
+l :: HeapP OrdA
+l = FromList [OrdA 2, OrdA 1]
 
 main :: IO ()
 main = do
@@ -217,8 +225,8 @@ main = do
   let rnds = read rnds' :: Int
   let file  = read file' :: String
 #ifdef qc
-  test file rnds (runQC' stdArgs prop_ToSortedList) (sizePP :: HeapPP OrdA -> Int)
+  test file rnds $ runQC' proxy stdArgs prop_ToSortedList (sizePP :: HeapPP OrdA -> Int)
 #else
-  test file rnds (runSC scStdArgs prop_ToSortedList) sizePP
+  test file rnds $ runSC scStdArgs prop_ToSortedList sizePP
 #endif
 

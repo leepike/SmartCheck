@@ -9,11 +9,7 @@ module Main where
 import Test
 import Test.QuickCheck
 import Test.SmartCheck
-import Control.Monad
 import System.Environment
-
-import GHC.Generics
-import Data.Typeable
 
 -----------------------------------------------------------------
 
@@ -36,9 +32,9 @@ main = do
   let rnds = read rnds' :: Int
   let file  = read file' :: String
 #ifdef qc
-  test file rnds (runQC' stdArgs prop_rev :: IO (Maybe [Int])) length
+  test file rnds $ runQC' (proxy :: Proxy [Int]) stdArgs prop_rev length
 #else
-  test file rnds (runSC scStdArgs prop_rev) length
+  test file rnds $ runSC scStdArgs prop_rev length
 #endif
 
 --------------------------------------------------------------------------------

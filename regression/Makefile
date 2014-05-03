@@ -1,8 +1,9 @@
 DIRS       = List Div0 Heap PaperExample1 Parser
 BENCHMARKS = $(foreach dir, $(DIRS), $(dir).reg)
 CLEANS     = $(foreach dir, $(DIRS), $(dir).clean)
+VERYCLEANS = $(foreach dir, $(DIRS), $(dir).veryclean)
 
-.PHONY: all clean
+.PHONY: all clean veryclean
 
 all: $(BENCHMARKS)
 
@@ -13,3 +14,8 @@ clean: $(CLEANS)
 
 %.clean:
 	$(MAKE) clean -C $*
+
+veryclean: $(VERYCLEANS)
+
+%.veryclean:
+	$(MAKE) veryclean -C $*

@@ -387,7 +387,7 @@ prop_parse :: Lang -> Bool
 prop_parse e = read' (show' e) == e
 
 scargs :: ScArgs
-scargs = scStdArgs { qcArgs  = theArgs
+scargs = scStdArgs { qcArgs  = stdArgs
                                 -- { maxSuccess = 1000
                                 -- , maxSize    = 20  }
                    , format  = PrintString
@@ -398,18 +398,15 @@ scargs = scStdArgs { qcArgs  = theArgs
                    , scMaxReduce = 10
                    }
 
-theArgs :: Args
-theArgs = stdArgs { maxSuccess = 100 }
-
 main :: IO ()
 main = do
   [file', rnds'] <- getArgs
   let rnds = read rnds' :: Int
   let file  = read file' :: String
 #ifdef qc
-  test file rnds (runQC' theArgs prop_parse) size
+  test file rnds $ runQC' proxy stdArgs prop_parse size
 #else
-  test file rnds (runSC scargs prop_parse) size
+  test file rnds $ runSC scargs prop_parse size
 #endif
 
 --------------------------------------------------------------------------------

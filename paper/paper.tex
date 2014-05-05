@@ -340,8 +340,8 @@ counterexamples by comparing manual approaches using QuickCheck to SmartCheck.
 generalization is unique to SmartCheck.)  We will show how a small data type and
 simple property can result in large counterexamples without any shrinking.  Then
 we show the difficulty in designing an efficient shrink implementation manually,
-which is required when using QuickCheck; we will walk through a couple of poor
-designs before arriving at a ``canonical'' manual solution.  However, even the
+which is required when using QuickCheck; we will show a poor
+design before arriving at a ``canonical'' manual solution.  However, even the
 canonical solution produces significantly larger counterexamples and takes
 significantly longer to produce them than SmartCheck, even though SmartCheck's
 shrinking strategy is completely automatic and generic.
@@ -350,8 +350,8 @@ Consider the example in Figure~\ref{fig:initial}.\footnote{All examples and
   algorithms in this paper are presented in Haskell 2010~\cite{haskell2010} plus
   the language extensions of existential type quantification and scoped type
   variables.}  Data type \ttp{T} is a product type containing five lists of
-signed 8-bit integers.  For our purposes, it is not important what \ttp{T}
-models, but for concreteness, suppose it models the values in five linked lists.
+signed 8-bit integers.  %% For our purposes, it is not important what \ttp{T}
+%% models, but for concreteness, suppose it models the values in five linked lists.
 
 Now suppose we are modeling some program that serializes values of type \ttp{T}.
 The input to the program satisfies the invariant \ttp{pre}, that the sum of
@@ -370,9 +370,9 @@ satisfies \ttp{pre} but fails \ttp{post} (the \ttp{==>} operator in the figure
 is implication from the QuickCheck library).
 
 Despite the simplicity of the example, a typical counterexample returned by
-QuickCheck can be large.  With standard settings and no shrinking, the median
-counterexample discovered contains just under 70 \ttp{Int16} values, and
-counterexamples can contain over 100 values.  Thus, it pays to define
+QuickCheck can be large.  With standard settings and no shrinking, the average
+counterexample discovered contains just over 80 \ttp{Int16} values, and over
+five percent contain over 100 values.  Thus, it pays to define
 \ttp{shrink}!
 
 We might first naively try to shrink counterexamples for a data type like
@@ -406,12 +406,10 @@ QuickCheck from using its default shrink instance for \ttp{Int16} by defining a
 newtype:
 %
 \begin{code}
-newtype T = T { getInt :: Int16 }
+newtype J = J { getInt :: Int16 }
 \end{code}
 %
 \noindent
-Without shrinking the \ttp{Int16}s, the performance is dramatically improved.
-
 Next, a programmer might try to control the complexity by truncating lists using
 truncation where
 %
@@ -456,38 +454,9 @@ of shrink candidates is avoided, since a pair \ttp{(a,b)} is shrunk by
 attempting to shrink \ttp{a} while holding \ttp{b} constant, then attempting to
 shrink \ttp{b} while holding \ttp{a} constant (and is generalized from pairs to
 arbitrary tuples).  Thus, each argument to \ttp{T} is independently shrunk.
-Still, using this definition, from some initial counterexamples, shrinking may
-result in a final counterexample containing just over 100 \ttp{Int16} values.
 
-SmallCheck is another testing framework for Haskell for which shrinking is
-irrelevant: SmallCheck is guaranteed to return a smallest counterexample, if
-one exists~\cite{sc}.  SmallCheck does this by enumerating all possible inputs,
-ordered from smallest to largest, up to some user-defined bound.  While
-SmallCheck is effective for testing many programs and properties (in accordance
-with the \emph{small scope hypothesis}~\cite{jackson}), counterexamples to even
-relatively simple properties may be infeasible to discover due to input-space
-explosion.
-
-%% \begin{figure}
-%%   \begin{code}
-%% instance Serial Int16 where
-%%   series d = drawnFrom [(-d')..d']
-%%     where d' = fromIntegral d
-
-%% instance Serial A where series = cons1 A
-%% instance Serial B where series = cons4 B
-%%   \end{code}
-%%   \caption{SmallCheck instances for the data types in
-%%     Figure~\ref{fig:initial}.}
-%%   \label{fig:smallshrink}
-%% \end{figure}
-
-For a product type, SmallCheck must check values produced by taking the
-cross-product of the type's fields at a given depth.  Unfortunately, using
-default instances, SmallCheck fails long before it reaches a depth required to
-discover a counterexample.  (A related library named Feat combines some aspects
-of SmallCheck and QuickCheck~\cite{feat}; we discuss it in
-Section~\ref{sec:related}).
+Finally, with this combination of shrinking tuples and disabling shrinking for
+\ttp{Int16} values, we have an efficient and effective shrinking approach.
 
 
 %% is unable to verify the property from Figure~\ref{fig:initial}, for much the
@@ -549,14 +518,14 @@ Section~\ref{sec:related}).
 \hline
            & QC none     & QC trunc     & QC tuple    & SmartCheck\\
 \hline \hline
-Mean       & 81, 0.013s  & 40, 0.231s   & 13, 0.228s  & 6, 0.022s\\
+Mean       & 83, 0.013s  & 40, 0.064s   & 10, 0.031s  & 6, 0.021s\\
 \hline
-Std. dev.  & 21, 0.001   & 21, 1.742    & 7,  0.962   & 4, 0.001s\\
+Std. dev.  & 22, 0.014   & 20, 0.334    & 4,  0.039   & 4, 0.009\\
 % Median     & 0.009s, 67  & 0.17s, 33  & 1.81s, 13  & 0.10s, 6\\
 %% \hline
 %% MAD        & 0.02s, 13  & 0.09s, 8   & 0.62s, 3   & 0.02s, 2\\
 \hline
-95\%       & 116, 0.025s  & 84, 0.283s  & 26, 0.501s  & 13, 0.039s\\
+95\%       & 119, 0.023s  & 84, 0.153s  & 16, 0.052s  & 13, 0.036s\\
 \hline
     \end{tabular}
   \end{center}
@@ -566,25 +535,19 @@ Std. dev.  & 21, 0.001   & 21, 1.742    & 7,  0.962   & 4, 0.001s\\
   \label{table:results}
 \end{table}
 
-To motivate the benefits of SmartCheck reduction algorithm, consider
-Table~\ref{table:results} and the corresponding graphs in
-Figure~\ref{fig:graphs}, giving the results for using QuickCheck and SmartCheck
-on the program shown in Figure~\ref{fig:initial} (we omit SmallCheck, since as
-noted, it is not even feasible for the example with default
-instances).\footnote{All results reported in the paper are with a
-  GHC-7.6.3-compiled program, using \ttp{-O2}, on a 2.8 GHz 4 core i7 with 16GB
-  memory under OSX v. 10.9.2.}  We graph the final counterexample size and
-execution time.
-
-The experiments show three approaches to shrinking with QuickCheck: no shrinking
-(QC none), to provide a baseline, truncated shrinking (QC trunc), as described
-above, in which each list is truncated to 10 elements and \ttp{Int16} values are
-not shrunk, and tuple shrinking (QC tuple), also described above, and
-\ttp{Int16} values are also not shrunk.
-
-With each shrinking strategy, we generate 1000 runs in which a random
-counterexample is discovered (by QuickCheck), and then shrunk.  We plot the
-number of runs resulting in a shrunk counterexample of a given size.
+The results of our discussion above are summarized in Table~\ref{table:results}
+and the corresponding graph in Figure~\ref{fig:graphs}. They show three
+approaches to shrinking with QuickCheck: no shrinking (QC none), to provide a
+baseline, truncated shrinking (QC trunc) with \ttp{Int16} shrinking disabled, in
+which each list is truncated to 10 elements, and tuple shrinking (QC tuple),
+also with \ttp{Int16} shrinking disabled.  We omit SmallCheck, since as noted,
+it is not even feasible for the example with default instances.\footnote{All
+  results reported in the paper are with a GHC-7.6.3-compiled program, using
+  \ttp{-O2}, on a 2.8 GHz 4~core i7 with 16GB memory under OSX v. 10.9.2.}  We
+graph the final counterexample size, measured in the total number of \ttp{Int16}
+values, and execution time for counterexample discovery and shrinking.
+Figure~\ref{fig:graphs} shows how many of the 1000 runs resulted in a final
+value of a particular size, fitting the data with a Bezier curve.
 
 In Table~\ref{table:results}, we summarize the graphed values and provide
 execution time in seconds as well.  For both execution time and final value
@@ -592,23 +555,25 @@ size, we summarize the mean, median, standard deviation, and the results at the
 95th percentile.  (While we provide the standard deviations, note that the plots
 are not necessarily Gaussian.)
 
-The execution time includes the time to
-discover an initial counterexample as well as time to shrink it.  
+SmartCheck produces consistently small counterexamples and does so
+quickly---even smaller and faster than the best hand-tuned solution---all
+without writing any problem-specific code.  Note that the ``no shrinking''
+example provides a lower-bound on execution time (only including counterexample
+discovery time) and an upper-bound on counterexample size.  In this example, the
+hand-written ``tuple shrink'' algorithm is only slightly slower and produces
+slightly larger results.  In Section~\ref{sec:benchmarks}, we provide additional
+benchmarks, but now we turn to the design of SmartCheck.
 
-SmartCheck produces smaller counterexamples than the other approaches, with a
-very small tail.
-
-
-More dramatic, however, are the differences in execution time.  The execution
-times for SmartCheck include the initial counterexample generation time required
-by QuickCheck (QC none); thus the time required by SmartCheck to shrink a
-counterexample is on average just two hundredths of a second (0.10 - 0.08).  As
-can be seen in the graphs, SmartCheck's execution time scales linearly (like
-QuickCheck without shrinking).  Truncation and tuple shrinking produce very long
-tails; the longest execution time recorded for truncation shrinking and tuple
-shrinking are 88 seconds and 110 seconds, respectively, although these outliers
-can vary wildly.  SmartCheck is largely insensitive to the size of the original
-counterexample provided.
+%% More dramatic, however, are the differences in execution time.  The execution
+%% times for SmartCheck include the initial counterexample generation time
+%% required by QuickCheck (QC none); thus the time required by SmartCheck to
+%% shrink a counterexample is on average just two hundredths of a second (0.10 -
+%% 0.08).  As can be seen in the graphs, SmartCheck's execution time scales
+%% linearly (like QuickCheck without shrinking).  Truncation and tuple shrinking
+%% produce very long tails; the longest execution time recorded for truncation
+%% shrinking and tuple shrinking are 88 seconds and 110 seconds, respectively,
+%% although these outliers can vary wildly.  SmartCheck is largely insensitive
+%% to the size of the original counterexample provided.
 
 %% In regards to generalization, after shrinking the counterexample, SmartCheck
 %% will also generalize it.  Note that for any \ttp{Word8} value in the first
@@ -619,15 +584,15 @@ counterexample provided.
 %% forall x . T x [-20000] [-20000] [] []
 %% \end{code}
 
-Finally, these performance results for SmartCheck are fairly generalizable to
-other types and properties, since the algorithm is not dependent on the specific
-program or property being checked.  However, the results are particularly
-pronounced for counterexamples that are particularly ``deep'' or ``broad'' in
-terms of their tree structure.  %% For programs and properties for which small
-%% counterexamples are easily found, QuickCheck's shrinking is perfectly
-%% acceptable.  Furthermore, user-defined shrink methods may vary significantly
-%% based on the property and counterexample type, so it is not always clear which
-%% implementation to compare against.
+%% Finally, these performance results for SmartCheck are fairly generalizable to
+%% other types and properties, since the algorithm is not dependent on the
+%% specific program or property being checked.  However, the results are
+%% particularly pronounced for counterexamples that are particularly ``deep'' or
+%% ``broad'' in terms of their tree structure.  %% For programs and properties
+%% for which small counterexamples are easily found, QuickCheck's shrinking is
+%% perfectly acceptable.  Furthermore, user-defined shrink methods may vary
+%% significantly based on the property and counterexample type, so it is not
+%% always clear which implementation to compare against.
 We now describe in detail SmartCheck's algorithm for generic shrinking.
 
 
@@ -2072,15 +2037,16 @@ down the data types used to write \ttp{instance Subtypes D}, for each data type
 
 %-------------------------------------------------------------------------------
 
-\subsection{Benchmarks}
+\subsection{Benchmarks}\label{sec:benchmarks}
 
-No set of testing benchmarks exists over which to compare different test-case
-generation and minimization approaches.  Therefore, we have collected a small
-number of benchmarks, in addition to the more involved case-studies described
-earlier in this section.
+Unfortunately, no set of testing benchmarks exists over which to compare
+different test-case generation and minimization approaches.  Therefore, we have
+collected a small number of benchmarks, in addition to the more involved
+case-studies described earlier in this section.
 
 The benchmarks presented, in addition to the motivating example presented in
-Section~\ref{sec:example}, are
+Section~\ref{sec:example}, compare standard SmartCheck against hand-written
+shrink implementations.  The benchmarks are as follows:
 
 \begin{itemize}
   \item  \emph{Reverse}, with the false property
@@ -2102,17 +2068,14 @@ prop_rev ls = ls == reverse ls
 \end{itemize}
 
 \noindent
-All benchmarks can be found at
-\url{https://github.com/leepike/SmartCheck/tree/master/regression}.  Benchmarks
-are against
-QuickCheck~2.7.3.\footnote{\url{http://hackage.haskell.org/package/QuickCheck-2.7.3}}
-The benchmarks only compare the size of shrunk values and the time required to
-generate them using standard arguments to QuickCheck and SmartCheck.  We do not
-benchmark the generalization algorithms, since there is no analog in QuickCheck
-or other testing frameworks.
-
-\todo{include std dev.}
-\todo{fill in benchmarks!}
+All benchmarks can be found
+online.\footnote{\url{https://github.com/leepike/SmartCheck/tree/master/regression}}
+We compare the size of the final counterexample returned (by counting
+constructors) and the time required for counterexample generation and shrinking
+in seconds.  The results are presented in Table~\ref{table:results}.  Again, we
+summarize the mean, median, standard deviation, and the results at the 95th
+percentile.  (While we provide the standard deviations, note that the plots are
+not necessarily Gaussian.)
 
 \begin{table}[ht]
 \footnotesize
@@ -2164,17 +2127,18 @@ or other testing frameworks.
   \label{table:results}
 \end{table}
 
-\todo{note that 95 is smaller than average for heap}
-
 The \emph{Reverse} benchmark essentially provides a lower-bound on the benefit
 of using SmartCheck to discover small counterexamples, since a list of length
 two falsifies the property (SmartCheck is still useful in generalizing the
 counterexample, however!).  Perhaps surprisingly, SmartCheck still slightly
-outperforms QuickCheck.  The other two benchmarks are slightly larger examples,
-where SmartCheck's benefits are more pronounced.  But again, we emphasize the
-most pronounced benefit comes in much larger examples, like described in
-Section~\ref{sec:nlp}.
-
+outperforms QuickCheck.  The other two benchmarks have much larger counterexamples,
+where SmartCheck's benefits are more pronounced.  For example, consider the
+parser example in which the initial counterexample to shrink may be in a large
+parse tree.  SmartCheck performs significantly better than optimal hand-written
+shrink instances, but even SmartCheck can sometimes return large
+counterexamples---this is why the mean counterexample size is larger than the
+size at the 95th percentile: there are a small number of large values not
+successfully shrunk by SmartCheck.
 
 %-------------------------------------------------------------------------------
 \section{Related Work}\label{sec:related}
@@ -2202,6 +2166,18 @@ generic shrinking is as a motivation for generic programming in Haskell's
 motivation was not to design new approaches to counterexample reduction, but
 simply to derive instances for the \ttp{shrink} method.
 
+SmallCheck is another testing framework for Haskell for which shrinking is
+irrelevant: SmallCheck is guaranteed to return a smallest counterexample, if
+one exists~\cite{sc}.  SmallCheck does this by enumerating all possible inputs,
+ordered from smallest to largest, up to some user-defined bound.
+
+While SmallCheck is effective for testing many programs and properties (in
+accordance with the \emph{small scope hypothesis}~\cite{jackson}),
+counterexamples to even relatively simple properties may be practically
+infeasible to discover due to the size of the input space.  For example,
+SmallCheck does not find a counterexample to the example presented in
+Section~\ref{sec:example} after running it for several minutes.
+
 Besides QuickCheck and SmallCheck, another testing framework related to
 SmartCheck is the recent Haskell library Feat~\cite{feat}.  Feat provides
 automated enumerations of algebraic data types in Haskell, allowing for fast
@@ -2219,20 +2195,36 @@ user can choose to exhaustively test an enumeration up to some depth, like with
 SmallCheck, or she can create a uniform distribution of test cases up to some
 depth.
 
-Feat finds small counterexamples effectively, but a limitation compared to
-QuickCheck is that value generation is applicative rather than monadic.
-Consequently, defining custom generators (i.e., instances for \ttp{arbitrary})
-is constrained.  On the other hand, generators can be derived
-automatically with Feat.
+Feat is used to discover counterexamples, not shrink them.  However, shrinking
+is less necessary with Feat, since discovered counterexamples are often small,
+if one is found.  For example, on the overflow example in
+Section~\ref{sec:example}, with a limit of 100 test cases, Feat finds a
+counterexample just two percent of the time, whereas QuickCheck finds one nearly
+100\%.  Even at a limit of 10000, a counterexample is found about 50\% of the
+time (with a correspondingly longer search time).  Sampling from a uniform
+distribution does not work so well here.  Feat does a better job of discovering
+counterexamples in the parser benchmark, but the size of the average
+counterexample contains 500 constructors, with a standard deviation of 500
+(compared with 16 and 75, respectively, for SmartCheck).  Still, Feat is
+powerful at what it does well and can be seamlessly used with SmartCheck, since
+it just defines the \ttp{arbitrary} method.
 
-We have benchmarked Feat as well on the example in the introduction
-(Figure~\ref{fig:initial}).  It performs quite competitively to SmartCheck
-in terms the size of counterexamples discovered: the mean and median number of
-\ttp{N} constructors in the counterexamples returned by Feat are both seven. \todo{check}
-However, Feat performs less well with respect to how long counterexample
-discovery takes: the mean time taken by Feat is 5.60 seconds, with a long tail:
-five percent of runs take over 14 seconds (the mean time taken by
-SmartCheck is 0.12 seconds, and 99\% of runs take less than 0.30 seconds).
+%% When Feat finds a counterexample, it is a small one, rendering shrinking
+%%   A limitation compared to QuickCheck (and SmartCheck, since
+%% SmartCheck uses QuickCheck as a front-end for initial counterexample discovery)
+%% is that value generation is applicative rather than monadic.  Consequently,
+%% defining custom generators (i.e., instances for \ttp{arbitrary}) is constrained.
+%% On the other hand, generators can be derived automatically with Feat.  The main
+%% limitation, however
+
+%% We have benchmarked Feat as well on the example in the introduction
+%% (Figure~\ref{fig:initial}).  It performs quite competitively to SmartCheck in
+%% terms the size of counterexamples discovered: the mean and median number of
+%% \ttp{N} constructors in the counterexamples returned by Feat are both
+%% seven. \todo{check} However, Feat performs less well with respect to how long
+%% counterexample discovery takes: the mean time taken by Feat is 5.60 seconds,
+%% with a long tail: five percent of runs take over 14 seconds (the mean time taken
+%% by SmartCheck is 0.12 seconds, and 99\% of runs take less than 0.30 seconds).
 
 Finally, SmartCheck bears some similarity to QuickSpec, a testing-based library
 that infers equational properties about programs~\cite{qs} insofar as they both
@@ -2328,9 +2320,9 @@ hand.  We hope SmartCheck and the ideas in this paper continue the tradition of
 highly-automated testing and debugging in the functional programming community,
 and beyond!
 
-\todo{mention memoization (generalized tries)}
+%% \todo{mention memoization (generalized tries)}
 
-\todo{tail-recursive algorithm is fast and easy to port to imperative languages}
+%% \todo{tail-recursive algorithm is fast and easy to port to imperative languages}
 
 \section*{Acknowledgments}
 I thank Andy Gill, Joe Hurd, John Launchbury, Simon Winwood, the anonymous

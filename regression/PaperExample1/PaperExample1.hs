@@ -8,7 +8,7 @@
 
 module Main where
 
-import Test
+--import Test
 import Test.SmartCheck
 import Test.QuickCheck
 #ifdef small
@@ -35,7 +35,6 @@ newtype J = J { getInt :: Int16 } deriving (Show, Read)
 type I = [J]
 instance Arbitrary J where
   arbitrary = fmap J arbitrary
-  shrink (J i) = map J (shrink i)
 #else
 type I = [Int16]
 #endif
@@ -143,20 +142,20 @@ prop_small t = pre t S.==> post t
 size :: T -> Int
 size t = sum $ map length (toList t)
 
-main :: IO ()
-main = do
-  [file', rnds'] <- getArgs
-  let rnds = read rnds' :: Int
-  let file  = read file' :: String
-#ifdef feat
-  test file rnds $ runQC' proxy stdArgs prop size
-#endif
-#ifdef smart
-  test file rnds $ runSC scStdArgs prop size
-#endif
-#if defined(qcNone) || defined(qc10) || defined(qc20) || defined(qcjh) || defined(qcNaive)
-  test file rnds $ runQC' proxy stdArgs prop size
-#endif
+-- main :: IO ()
+-- main = do
+--   [file', rnds'] <- getArgs
+--   let rnds = read rnds' :: Int
+--   let file  = read file' :: String
+-- #ifdef feat
+--   test file rnds $ runQC' proxy stdArgs {maxSuccess = 10000} prop size
+-- #endif
+-- #ifdef smart
+--   test file rnds $ runSC scStdArgs prop size
+-- #endif
+-- #if defined(qcNone) || defined(qc10) || defined(qc20) || defined(qcjh) || defined(qcNaive)
+--   test file rnds $ runQC' proxy stdArgs prop size
+-- #endif
 
 #ifdef smart
 -- Tester (not part of the benchmark).

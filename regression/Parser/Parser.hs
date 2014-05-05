@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
 
@@ -20,6 +21,10 @@ import Control.Applicative
 
 import Control.Monad.State
 import Data.Char
+
+#ifdef feat
+import Test.Feat
+#endif
 
 -----------------------------------------------------------------
 
@@ -78,6 +83,17 @@ data Exp = Int Int
 
 instance SubTypes Exp
 
+-- Feat --------------------------------
+#ifdef feat
+deriveEnumerable ''Lang
+deriveEnumerable ''Var
+deriveEnumerable ''Mod
+deriveEnumerable ''Func
+deriveEnumerable ''Stmt
+deriveEnumerable ''Exp
+#endif
+-- Feat --------------------------------
+
 --------------------------------------------------------------------------------
 
 nonEmpty :: Gen [a] -> Gen [a]
@@ -89,18 +105,24 @@ instance Arbitrary Var where
 
 instance Arbitrary Lang where
   arbitrary = Lang <$> nonEmpty arbitrary <*> nonEmpty arbitrary
+#ifndef feat
   shrink (Lang m f) = map go (shrink (m, f))
     where go (a,b) = Lang a b
+#endif
 
 instance Arbitrary Mod where
   arbitrary = Mod <$> nonEmpty arbitrary <*> nonEmpty arbitrary
+#ifndef feat
   shrink (Mod a b) = map go (shrink (a, b))
     where go (x,y) = Mod x y
+#endif
 
 instance Arbitrary Func where
   arbitrary = Func <$> arbitrary <*> nonEmpty arbitrary <*> nonEmpty arbitrary
+#ifndef feat
   shrink (Func f a st) = map go (shrink (a, st))
     where go (x, s) = Func f x s
+#endif
 
 instance Arbitrary Stmt where
   arbitrary = do
@@ -110,10 +132,12 @@ instance Arbitrary Stmt where
     let a1 = Alloc v e
     let a2 = Return e
     elements [a0, a1, a2]
+#ifndef feat
   shrink stmt = case stmt of
     Assign v e -> map (Assign v) (shrink e)
     Alloc v e  -> map (Alloc v) (shrink e)
     Return e   -> map Return (shrink e)
+#endif
 
 instance Arbitrary Exp where
   arbitrary = do
@@ -142,6 +166,7 @@ instance Arbitrary Exp where
                     , Not  <$> goa
                     , And  <$> goa <*> gob
                     ]
+#ifndef feat
   shrink e = case e of
     Int  i    -> map Int (shrink i)
     Bool b    -> map Bool (shrink b)
@@ -152,6 +177,7 @@ instance Arbitrary Exp where
     Not e0    -> map Not (shrink e0)
     And e0 e1 -> map (uncurry And) (zip (shrink e0) (shrink e1))
     Or e0 e1  -> map (uncurry Or) (zip (shrink e0) (shrink e1))
+#endif
 
 --------------------------------------------------------------------------------
 -- "serializer"
@@ -397,15 +423,18 @@ scargs = scStdArgs { qcArgs  = stdArgs
                    , scMaxSize =  5
                    , scMaxReduce = 10
                    }
-
 main :: IO ()
 main = do
   [file', rnds'] <- getArgs
   let rnds = read rnds' :: Int
   let file  = read file' :: String
+#ifdef feat
+  test file rnds $ runQC' proxy stdArgs {maxSuccess = 1000} prop_parse size
+#endif
 #ifdef qc
   test file rnds $ runQC' proxy stdArgs prop_parse size
-#else
+#endif
+#ifdef smart
   test file rnds $ runSC scargs prop_parse size
 #endif
 

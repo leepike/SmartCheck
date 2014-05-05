@@ -7,7 +7,6 @@ TARGETS			= qcNone.out  \
               qcjh.out		\
               smart.out
 
-
 # feat.out		\
 
 GRAPHS      = data.$(FRMT) time-big.$(FRMT) time-small.$(FRMT)

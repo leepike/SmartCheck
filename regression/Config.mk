@@ -1,4 +1,4 @@
-RNDS	= 1000
+RNDS	= 100
 LOG		= regression.log
 DB		= ../../.cabal-sandbox/*-packages.conf.d
 

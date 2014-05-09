@@ -105,23 +105,32 @@ instance Arbitrary Var where
 
 instance Arbitrary Lang where
   arbitrary = Lang <$> nonEmpty arbitrary <*> nonEmpty arbitrary
-#ifndef feat
+#ifdef qc
   shrink (Lang m f) = map go (shrink (m, f))
     where go (a,b) = Lang a b
+#endif
+#ifdef qcGen
+  shrink = genericShrink
 #endif
 
 instance Arbitrary Mod where
   arbitrary = Mod <$> nonEmpty arbitrary <*> nonEmpty arbitrary
-#ifndef feat
+#ifdef qc
   shrink (Mod a b) = map go (shrink (a, b))
     where go (x,y) = Mod x y
+#endif
+#ifdef qcGen
+  shrink = genericShrink
 #endif
 
 instance Arbitrary Func where
   arbitrary = Func <$> arbitrary <*> nonEmpty arbitrary <*> nonEmpty arbitrary
-#ifndef feat
+#ifdef qc
   shrink (Func f a st) = map go (shrink (a, st))
     where go (x, s) = Func f x s
+#endif
+#ifdef qcGen
+  shrink = genericShrink
 #endif
 
 instance Arbitrary Stmt where
@@ -132,11 +141,14 @@ instance Arbitrary Stmt where
     let a1 = Alloc v e
     let a2 = Return e
     elements [a0, a1, a2]
-#ifndef feat
+#ifdef qc
   shrink stmt = case stmt of
     Assign v e -> map (Assign v) (shrink e)
     Alloc v e  -> map (Alloc v) (shrink e)
     Return e   -> map Return (shrink e)
+#endif
+#ifdef qcGen
+  shrink = genericShrink
 #endif
 
 instance Arbitrary Exp where
@@ -166,7 +178,7 @@ instance Arbitrary Exp where
                     , Not  <$> goa
                     , And  <$> goa <*> gob
                     ]
-#ifndef feat
+#ifdef qc
   shrink e = case e of
     Int  i    -> map Int (shrink i)
     Bool b    -> map Bool (shrink b)
@@ -177,6 +189,9 @@ instance Arbitrary Exp where
     Not e0    -> map Not (shrink e0)
     And e0 e1 -> map (uncurry And) (zip (shrink e0) (shrink e1))
     Or e0 e1  -> map (uncurry Or) (zip (shrink e0) (shrink e1))
+#endif
+#ifdef qcGen
+  shrink = genericShrink
 #endif
 
 --------------------------------------------------------------------------------
@@ -431,7 +446,7 @@ main = do
 #ifdef feat
   test file rnds $ runQC' proxy stdArgs {maxSuccess = 1000} prop_parse size
 #endif
-#ifdef qc
+#if defined(qc) || defined(qcGen)
   test file rnds $ runQC' proxy stdArgs prop_parse size
 #endif
 #ifdef smart

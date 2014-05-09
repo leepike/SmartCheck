@@ -118,20 +118,21 @@
 \maketitle
 
 \begin{abstract}
-QuickCheck, developed by Claessen and Hughes, is a powerful library for
-automatic test-case generation.  Because QuickCheck performs random testing,
-some of the counterexamples discovered are very large.  QuickCheck provides an
-interface for the user to write shrink functions to attempt to reduce the size
-of counterexamples.  Hand-written implementations of shrink can be complex,
-inefficient, and consist of significant boilerplate code.  Furthermore,
-shrinking is only one aspect in debugging: counterexample generalization is the
-process of extrapolating from individual counterexamples to a class of
-counterexamples, often requiring a flash of insight from the programmer.  To
-improve counterexample reduction and generalization, we introduce
-\emph{SmartCheck}.  SmartCheck is a debugging tool that reduces algebraic data
-using generic search heuristics to efficiently find smaller counterexamples.  In
-addition to shrinking, SmartCheck also automatically generalizes counterexamples
-to formulas representing classes of counterexamples.  SmartCheck has been implemented for Haskell and is freely available.
+QuickCheck is a powerful library for automatic test-case generation.  Because
+QuickCheck performs random testing, some of the counterexamples discovered are
+very large.  QuickCheck provides an interface for the user to write shrink
+functions to attempt to reduce the size of counterexamples.  Hand-written
+implementations of shrink can be complex, inefficient, and consist of
+significant boilerplate code.  Furthermore, shrinking is only one aspect in
+debugging: counterexample generalization is the process of extrapolating from
+individual counterexamples to a class of counterexamples, often requiring a
+flash of insight from the programmer.  To improve counterexample reduction and
+generalization, we introduce \emph{SmartCheck}.  SmartCheck is a debugging tool
+that reduces algebraic data using generic search heuristics to efficiently find
+smaller counterexamples.  In addition to shrinking, SmartCheck also
+automatically generalizes counterexamples to formulas representing classes of
+counterexamples.  SmartCheck has been implemented for Haskell and is freely
+available.
 \end{abstract}
 
 %% \category{D.2.4}{Software/Program Verification}{Reliability}
@@ -244,11 +245,12 @@ forall values x0 x1 x2 x3:
 \noindent
 The formula quantifies away all the irrelevant portions of the data structure
 with respect to the property, so that the user can focus on the heart of the
-problem in a class of counterexamples.
+problem in a class of counterexamples.  Given a program and large
+counterexample, \emph{SmartCheck} returns such a formula.
 
 \paragraph{SmartCheck}
 Motivated by the problems of reducing and generalizing large counterexamples, we
-developed \emph{SmartCheck}.  SmartCheck takes a counterexample produced by some
+developed SmartCheck.  SmartCheck takes a counterexample produced by some
 oracle and generically minimizes and generalizes the counterexample.
 
 As shown in the motivating example in Section~\ref{sec:example}, SmartCheck
@@ -260,10 +262,10 @@ common shrink implementations often scale in polynomial time or worse.
 Section~\ref{sec:experiments} for examples.)
 
 After presenting some preliminary definitions in
-Section~\ref{sec:preliminaries}, in Section~\ref{sec:shrinking}, we describe the
-generic shrinking algorithm implemented.  The algorithm is particularly novel in
-that it generates new random sub-values during the reduction phase (see related
-work in Section~\ref{sec:related}).
+Section~\ref{sec:preliminaries}, in Section~\ref{sec:shrinking}, we describe
+SmartCheck's generic counterexample reduction algorithm.  The algorithm is
+particularly novel in that it generates new random sub-values during the
+reduction phase (see related work in Section~\ref{sec:related}).
 
 
 %%  than the tuple or list-truncation approaches
@@ -318,11 +320,10 @@ type I   = [Int16]
 data T   = T I I I I I
 
 toList :: T -> [[Int16]]
-toList (T i0 i1 i2 i3 i4) =
-  (map . map) fromIntegral [i0, i1, i2, i3, i4]
+toList (T i0 i1 i2 i3 i4) = [i0, i1, i2, i3, i4]
 
 pre :: T -> Bool
-pre t = all ((>) 256 . sum) (toList t)
+pre t = all ((< 256) . sum) (toList t)
 
 post :: T -> Bool
 post t = (sum . concat) (toList t) < 5 * 256
@@ -350,7 +351,7 @@ Consider the example in Figure~\ref{fig:initial}.\footnote{All examples and
   algorithms in this paper are presented in Haskell 2010~\cite{haskell2010} plus
   the language extensions of existential type quantification and scoped type
   variables.}  Data type \ttp{T} is a product type containing five lists of
-signed 8-bit integers.  %% For our purposes, it is not important what \ttp{T}
+signed 16-bit integers.  %% For our purposes, it is not important what \ttp{T}
 %% models, but for concreteness, suppose it models the values in five linked lists.
 
 Now suppose we are modeling some program that serializes values of type \ttp{T}.
@@ -381,10 +382,10 @@ constructor \ttp{T}.  This can be expressed using Haskell's list-comprehension
 notation:
 %
 \begin{code}
-shrink (T w i0 i1 i2 i3) =
-  [ T a b c d e | a <- shrink w,  b <- shrink i0
-                , c <- shrink i1, d <- shrink i2
-                , e <- shrink i3 ]
+shrink (T i0 i1 i2 i3 i4) =
+  [ T a b c d e | a <- shrink i0, b <- shrink i1
+                , c <- shrink i2, d <- shrink i3
+                , e <- shrink i4 ]
 \end{code}
 %
 \noindent
@@ -406,7 +407,7 @@ QuickCheck from using its default shrink instance for \ttp{Int16} by defining a
 newtype:
 %
 \begin{code}
-newtype J = J { getInt :: Int16 }
+newtype J = J \{ getInt :: Int16 \}
 \end{code}
 %
 \noindent
@@ -691,8 +692,8 @@ super-class.  \ttp{SubTypes} has the following methods:
 \item \ttp{constrs} returns the list of all possible constructors from the
   value's type,
 \item \ttp{opaque} is false when the type of the value is an ``interesting
-  type''; informally, this is a type other than a primitive type like \ttp{Int}
-  or \ttp{Char}.  See Section~\ref{sec:base} for a full discussion.
+  type''; informally, this is a type other than a primitive type like \ttp{Int},
+  \ttp{Char}, or \ttp{Bool}.  See Section~\ref{sec:base} for a full discussion.
 \item \ttp{subVals} returns a tree of all non opaque-type sub-values.  A tree is a
   value with the type
 %
@@ -2325,10 +2326,10 @@ and beyond!
 %% \todo{tail-recursive algorithm is fast and easy to port to imperative languages}
 
 \section*{Acknowledgments}
-I thank Andy Gill, Joe Hurd, John Launchbury, Simon Winwood, the anonymous
-reviewers of ICFP'13 (from which an early draft of this paper was rejected), and
-especially John Hughes for reading an earlier draft of this paper.  Their deep
-insights and bug catches dramatically improved both the form and content.
+I thank Andy Gill, Joe Hurd, John Launchbury, Simon Winwood, Tritan Ravitch, the
+anonymous reviewers of ICFP'13 (from which an earlier draft of this paper was
+rejected), and especially John Hughes.  Their deep insights and bug catches
+dramatically improved the presentation and content.
 
 \bibliographystyle{abbrvnat}
 \bibliography{paper}

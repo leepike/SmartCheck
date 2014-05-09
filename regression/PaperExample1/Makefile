@@ -3,9 +3,10 @@ FRMT        = jpeg
 
 # We never run small.out since it's not feasible.
 TARGETS			= qcNone.out  \
-              qc10.out		\
+              qcGen.out   \
               qcjh.out		\
-              smart.out
+              smart.out   \
+              qc10.out
 
 # feat.out		\
 

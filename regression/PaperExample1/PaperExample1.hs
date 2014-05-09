@@ -8,7 +8,7 @@
 
 module Main where
 
---import Test
+import Test
 import Test.SmartCheck
 import Test.QuickCheck
 #ifdef small
@@ -103,6 +103,9 @@ instance Arbitrary T where
                   , b <- shrink i1, c <- shrink i2
                   , d <- shrink i3, e <- shrink i4 ]
 #endif
+#if defined(qcGen)
+  shrink = genericShrink
+#endif
 
 -- Feat --------------------------------
 #ifdef feat
@@ -115,12 +118,12 @@ toList (T i0 i1 i2 i3 i4) =
 #if defined(qcjh) || defined(qcNone) || defined(qc10) || defined(qc20)
   (map . map) (fromIntegral . getInt) [i0, i1, i2, i3, i4]
 #else
-  (map . map) fromIntegral [i0, i1, i2, i3, i4]
+  [i0, i1, i2, i3, i4]
 #endif
 
 
 pre :: T -> Bool
-pre t = all ((>) 256 . sum) (toList t)
+pre t = all ((< 256) . sum) (toList t)
 
 post :: T -> Bool
 post t = (sum . concat) (toList t) < 5 * 256
@@ -142,20 +145,20 @@ prop_small t = pre t S.==> post t
 size :: T -> Int
 size t = sum $ map length (toList t)
 
--- main :: IO ()
--- main = do
---   [file', rnds'] <- getArgs
---   let rnds = read rnds' :: Int
---   let file  = read file' :: String
--- #ifdef feat
---   test file rnds $ runQC' proxy stdArgs {maxSuccess = 10000} prop size
--- #endif
--- #ifdef smart
---   test file rnds $ runSC scStdArgs prop size
--- #endif
--- #if defined(qcNone) || defined(qc10) || defined(qc20) || defined(qcjh) || defined(qcNaive)
---   test file rnds $ runQC' proxy stdArgs prop size
--- #endif
+main :: IO ()
+main = do
+  [file', rnds'] <- getArgs
+  let rnds = read rnds' :: Int
+  let file  = read file' :: String
+#ifdef feat
+  test file rnds $ runQC' proxy stdArgs {maxSuccess = 10000} prop size
+#endif
+#ifdef smart
+  test file rnds $ runSC scStdArgs prop size
+#endif
+#if defined(qcNone) || defined(qc10) || defined(qc20) || defined(qcjh) || defined(qcNaive) || defined(qcGen)
+  test file rnds $ runQC' proxy stdArgs prop size
+#endif
 
 #ifdef smart
 -- Tester (not part of the benchmark).

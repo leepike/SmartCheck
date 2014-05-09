@@ -31,7 +31,7 @@ main = do
   [file', rnds'] <- getArgs
   let rnds = read rnds' :: Int
   let file  = read file' :: String
-#ifdef qc
+#if defined(qc) || defined(qcGen)
   test file rnds $ runQC' (proxy :: Proxy [Int]) stdArgs prop_rev length
 #else
   test file rnds $ runSC scStdArgs prop_rev length

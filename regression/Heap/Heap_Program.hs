@@ -2,6 +2,7 @@
 
 {-# LANGUAGE ScopedTypeVariables, TemplateHaskell, DeriveDataTypeable, StandaloneDeriving #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
@@ -54,7 +55,7 @@ instance (SC.SubTypes a, Arbitrary a, Generic a)
 instance (SC.SubTypes a, Ord a, Arbitrary a, Generic a)
          => SC.SubTypes (HeapPP a)
 
-instance (Ord a, Arbitrary a) => Arbitrary (Heap a) where
+instance (Ord a, Arbitrary a, Typeable a) => Arbitrary (Heap a) where
   arbitrary = do p <- arbitrary :: Gen (HeapP a)
                  return $ heap p
 
@@ -139,7 +140,7 @@ heap (SafeRemoveMin p) = case removeMin (heap p) of
 heap (Merge p q)       = heap p `merge` heap q
 heap (FromList xs)     = fromList xs
 
-instance Arbitrary a => Arbitrary (HeapP a) where
+instance (Typeable a, Arbitrary a) => Arbitrary (HeapP a) where
   arbitrary = sized arbHeapP
    where
     arbHeapP s =
@@ -162,7 +163,7 @@ instance Arbitrary a => Arbitrary (HeapP a) where
       s1 = s-1
       s2 = s`div`2
 
-
+#ifdef qc
   shrink (Unit x)          = [ Unit x' | x' <- shrink x ]
   shrink (FromList xs)     = [ Unit x | x <- xs ]
                           ++ [ FromList xs' | xs' <- shrink xs ]
@@ -175,18 +176,25 @@ instance Arbitrary a => Arbitrary (HeapP a) where
                           ++ [ Merge p' q | p' <- shrink p ]
                           ++ [ Merge p q' | q' <- shrink q ]
   shrink _                 = []
+#endif
+#ifdef qcGen
+  shrink = genericShrink
+#endif
 
 data HeapPP a = HeapPP (HeapP a) (Heap a)
  deriving ( Show, Read, Typeable, Generic )
 
-instance (Ord a, Arbitrary a) => Arbitrary (HeapPP a) where
+instance (Ord a, Arbitrary a, Typeable a) => Arbitrary (HeapPP a) where
   arbitrary =
     do p <- arbitrary
        return (HeapPP p (heap p))
-
+#ifdef qc
   shrink (HeapPP p _) =
     [ HeapPP p' (heap p') | p' <- shrink p ]
-
+#endif
+#ifdef qcGen
+  shrink = genericShrink
+#endif
 --------------------------------------------------------------------------
 -- properties
 
@@ -224,7 +232,7 @@ main = do
   [file', rnds'] <- getArgs
   let rnds = read rnds' :: Int
   let file  = read file' :: String
-#ifdef qc
+#ifdef defined(qc) || defined(qcGen)
   test file rnds $ runQC' proxy stdArgs prop_ToSortedList (sizePP :: HeapPP OrdA -> Int)
 #else
   test file rnds $ runSC scStdArgs prop_ToSortedList sizePP

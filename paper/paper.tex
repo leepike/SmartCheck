@@ -13,6 +13,7 @@
 \usepackage{paralist}
 \usepackage{multirow}
 \usepackage{pgf}
+\usepackage{nth}
 
 \usepackage{listings}
 \lstset{ %
@@ -99,7 +100,8 @@
 
 \newcommand{\undef}[1]{{\bf #1}}
 
-\newcommand{\sci}[2]{\ensuremath{#1 \times 10^{#2}}}
+%% \newcommand{\sci}[2]{\ensuremath{#1 \times 10^{#2}}}
+\newcommand{\sci}[2]{\ensuremath{#1e^{#2}}}
 \begin{document}
 
 %% \conferenceinfo{ICFP'12,} {September 9--15, 2012, Copenhagen, Denmark.}
@@ -159,11 +161,11 @@ back to the property and understand why it is a counterexample.
 
 That is, automated testing helps find a counterexample, but it may be a very
 large counterexample.  We are left facing the \emph{shrinking problem}: assume
-there exist a set of inputs $i_0, \ i_1, \ldots, \i_n$, such that for program
+there exist a set of inputs $i_0, \ i_1, \ldots, \ i_n$, such that for program
 $P$ (modeled as a function mapping inputs to output) and property $\phi$,
-$\phi(P(i_0, \ i_1, \ldots, \i_n))$ is false.  The shrinking problem is to find
-the smallest set of inputs $i'_0, \ i'_1, \ldots, \i'_n$, according to some
-measure, such that $\phi(P(i\_0, \ i\_1, \ldots, \i\_n))$ is also false.
+$\phi(P(i_0, \ i_1, \ldots, \ i_n))$ is false.  The shrinking problem is to find
+the smallest set of inputs $i'_0, \ i'_1, \ldots, \ i'_n$, according to some
+measure, such that $\phi(P(i\_0, \ i\_1, \ldots, \ i\_n))$ is also false.
 
 In general, the problem too expensive to solve, since it requires showing that
 for a set of failing inputs, there exist no strictly smaller inputs that also
@@ -297,14 +299,14 @@ The third algorithm automatically strengthens properties by omitting ``similar''
 counterexamples to the ones previously observed.  The algorithm is motivated by
 noting that there are often multiple ways in which a property may fail; for
 example, a property stating that pretty-printing an AST and then parsing it
-results in the original AST may fail due to multiple bugs.  During testing, it
-is useful to discover counterexamples arising from each bug in one go.  In
-practice, the problem is solved by discovering a counterexample \ttp{cex},
-abstracting it, and then adding a new precondition to the property that
-informally says ``omit counterexamples of form \ttp{cex}.''  Adding
-preconditions manually is laborious and may cause the programmer to make
-premature fixes to the program, if she believes she has isolated the error
-before she actually does.
+results in the original AST may fail due to multiple bugs, such that each bug in
+isolation is sufficient to cause failure.  During testing, it is useful to
+discover counterexamples arising from all the bugs in one go.  In practice, the
+problem is solved by discovering a counterexample \ttp{cex}, abstracting it, and
+then adding a new precondition to the property that informally says ``omit
+counterexamples of form \ttp{cex}.''  Adding preconditions manually is laborious
+and may cause the programmer to make premature fixes to the program, if she
+believes she has isolated the error before she actually does.
 
 We describe our implementation based on generic programming in
 Section~\ref{sec:implementation}; the implementation is open-source.  In
@@ -459,6 +461,16 @@ arbitrary tuples).  Thus, each argument to \ttp{T} is independently shrunk.
 Finally, with this combination of shrinking tuples and disabling shrinking for
 \ttp{Int16} values, we have an efficient and effective shrinking approach.
 
+The most recent released version of QuickCheck provides a \ttp{genericShrink}
+function for algebraic data types, so the user merely has to declare
+%
+\begin{code}
+shrink = genericShrink
+\end{code}
+%
+\noindent
+to obtain shrink instances.  (The implementation relies on the same generics
+package that SmartCheck does; see Section~\ref{sec:preliminaries}.)
 
 %% is unable to verify the property from Figure~\ref{fig:initial}, for much the
 %% same reason that \ttp{shrink} is inefficient
@@ -515,19 +527,18 @@ Finally, with this combination of shrinking tuples and disabling shrinking for
 \begin{table}[ht]
 \footnotesize
   \begin{center}
-    \begin{tabular}{|r||c|c|c|c|}
+    \begin{tabular}{|r||c|c|c|c|c|c|}
 \hline
-           & QC none     & QC trunc     & QC tuple    & SmartCheck\\
-\hline \hline
-Mean       & 83, 0.013s  & 40, 0.064s   & 10, 0.031s  & 6, 0.021s\\
-\hline
-Std. dev.  & 22, 0.014   & 20, 0.334    & 4,  0.039   & 4, 0.009\\
-% Median     & 0.009s, 67  & 0.17s, 33  & 1.81s, 13  & 0.10s, 6\\
-%% \hline
-%% MAD        & 0.02s, 13  & 0.09s, 8   & 0.62s, 3   & 0.02s, 2\\
-\hline
-95\%       & 119, 0.023s  & 84, 0.153s  & 16, 0.052s  & 13, 0.036s\\
-\hline
+
+              & \multicolumn{2}{c}{Mean} & \multicolumn{2}{c}{Std. dev.} &
+\multicolumn{2}{c}{95\%}\\\hline
+              & size & time  & size & time & size & time \\\hline\hline
+QC none       & 83 & 0.013   & 22 & 0.014   & 119 & 0.023\\\hline
+QC trunc      & 40 & 0.064   & 20 & 0.334   & 84 & 0.153\\\hline
+QC tuple      & 10 & 0.031   & 4 &  0.039   & 16 & 0.052\\\hline
+QC generic    & &        &        &           & &\\\hline
+SmartCheck    & 6 & 0.021s    &  4 & 0.009   & 13 & 0.036\\\hline
+
     \end{tabular}
   \end{center}
   \caption{Summarizing data for the graph in Figure~\ref{fig:graphs}. Entries
@@ -537,16 +548,17 @@ Std. dev.  & 22, 0.014   & 20, 0.334    & 4,  0.039   & 4, 0.009\\
 \end{table}
 
 The results of our discussion above are summarized in Table~\ref{table:results}
-and the corresponding graph in Figure~\ref{fig:graphs}. They show three
+and the corresponding graph in Figure~\ref{fig:graphs}. They show four
 approaches to shrinking with QuickCheck: no shrinking (QC none), to provide a
 baseline, truncated shrinking (QC trunc) with \ttp{Int16} shrinking disabled, in
-which each list is truncated to 10 elements, and tuple shrinking (QC tuple),
-also with \ttp{Int16} shrinking disabled.  We omit SmallCheck, since as noted,
-it is not even feasible for the example with default instances.\footnote{All
-  results reported in the paper are with a GHC-7.6.3-compiled program, using
-  \ttp{-O2}, on a 2.8 GHz 4~core i7 with 16GB memory under OSX v. 10.9.2.}  We
-graph the final counterexample size, measured in the total number of \ttp{Int16}
-values, and execution time for counterexample discovery and shrinking.
+which each list is truncated to 10 elements, tuple shrinking (QC tuple), also
+with \ttp{Int16} shrinking disabled, and finally shrinking using QuickCheck's
+\ttp{genericShrink} (qc generic).  We omit SmallCheck, since as noted, it is not
+even feasible for the example with default instances.\footnote{All results
+  reported in the paper are with a GHC-7.6.3-compiled program, using \ttp{-O2},
+  on a 2.8 GHz 4~core i7 with 16GB memory under OSX v. 10.9.2.}  We graph the
+final counterexample size, measured in the total number of \ttp{Int16} values,
+and execution time for counterexample discovery and shrinking.
 Figure~\ref{fig:graphs} shows how many of the 1000 runs resulted in a final
 value of a particular size, fitting the data with a Bezier curve.
 
@@ -693,9 +705,10 @@ super-class.  \ttp{SubTypes} has the following methods:
   value's type,
 \item \ttp{opaque} is false when the type of the value is an ``interesting
   type''; informally, this is a type other than a primitive type like \ttp{Int},
-  \ttp{Char}, or \ttp{Bool}.  See Section~\ref{sec:base} for a full discussion.
-\item \ttp{subVals} returns a tree of all non opaque-type sub-values.  A tree is a
-  value with the type
+  \ttp{Char}, or \ttp{Bool}, and may be user-defined.  See
+  Section~\ref{sec:base} for a full discussion.
+\item \ttp{subVals} returns a tree of all non opaque-type sub-values.  A tree
+  has the type
 %
   \begin{code}
 data Tree a = Node \{ rootLabel :: a
@@ -744,8 +757,10 @@ opaque tree       = False
 opaque L          = False
 
 subVals (B (B L\sub{0} L\sub{1}) L\sub{2}) =
-  Node (B L\sub{0} L\sub{1}) [Node L\sub{0} [], Node L\sub{1} []]
-       (Node L\sub{1} [])
+  Node (B (B L\sub{0} L\sub{1}) L\sub{2})
+       [ Node (B L\sub{0} L\sub{1}) [Node L\sub{0} [], Node L\sub{1} []]
+       , Node L\sub{2} []
+       ]
 \end{code}
 %
 \noindent
@@ -870,9 +885,10 @@ subsequent algorithms in the paper, functions in {\bf bold font} are left
 undefined but their implementation is described in the text.  The function
 \ttp{reduce} takes flags to customize the algorithm's behavior, a counterexample
 \ttp{cex}, and the property \ttp{prop}.  The reduction begins at the first
-proper sub-value of \ttp{cex}; call it \ttp{v}.  When the index \ttp{idx}
-becomes out-of-bounds and returns \ttp{Nothing}, the algorithm terminates.
-Otherwise, a list of new random values are generated.
+proper sub-value of \ttp{cex}; call it \ttp{v} (this is an optimization
+described in Section~\ref{sec:variant}).  When the index \ttp{idx} becomes
+out-of-bounds and returns \ttp{Nothing}, the algorithm terminates.  Otherwise, a
+list of new random values are generated.
 %
 \begin{code}
 sizedArbitrary :: SubTypes a => Size -> a -> IO a
@@ -912,7 +928,7 @@ in constant time.
 Having described the reduction algorithm, there are two important details about
 its design we describe below.
 
-\subsubsection{Variant Counterexample Hypothesis}
+\subsubsection{Variant Counterexample Hypothesis}\label{sec:variant}
 A motivation for the design of the reduction algorithm is something we call the
 \emph{variant counterexample hypothesis}: in the search space of possible values
 from a given type \ttp{T}, if a known counterexample \ttp{cex} is a variant
@@ -925,14 +941,15 @@ definition counterexample can only be reduced to smaller function definition
 counterexamples, the only construct in which variable capture is possible.
 
 Recall that the algorithm begins at the \emph{first} sub-value of the
-counterexample rather than the 0th sub-value.  The 0th sub-value of \ttp{cex} is
-\ttp{cex} itself.  No invariant of the algorithm would be violated by beginning
-with the 0th sub-value, and in particular, the algorithm would still terminate.
-However, we begin with a strict sub-value because of the hypothesis.
+counterexample rather than the zeroth sub-value.  The zeroth sub-value of
+\ttp{cex} is \ttp{cex} itself.  No invariant of the algorithm would be violated
+by beginning with the zeroth sub-value, and in particular, the algorithm would
+still terminate.  However, we begin with a strict sub-value because of the
+hypothesis.
 
 The hypothesis may be incorrect for some properties, in which case SmartCheck
 may potentially fail to discover a smaller counterexample.  However, in
-Sections~\ref{sec:existential} and~\ref{sec:precondition}, we describe an
+Sections~\ref{sec:existential} and~\ref{sec:precondition}, we describe 
 approaches to generalize counterexamples based on discovering new counterexample
 variants.  These generalization techniques are executed in an (optional)
 generalization phase, run after the reduction phase, in which this hypothesis is
@@ -971,15 +988,15 @@ by fiat, shrinking time is dependent only on the size of a data structure as
 measured by the number of constructors.
 
 We generalize the idea of ignoring primitive types by introducing the concept of
-\emph{opaque types}.  If the reduction algorithm encounters a opaque type, it is
+\emph{opaque types}.  If the reduction algorithm encounters an opaque type, it is
 ignored.  Opaque types include the primitive types mentioned above, but in the
-user can declare any substructure in a data type to be a opaque type by
+user can declare any substructure in a data type to be an opaque type by
 providing custom instances.  Doing so effectively treats values from that type
 as ``black boxes'', making SmartCheck more efficient if the user knows that some
 portion of the structure cannot be shrunk or is irrelevant to the property.
 
 Opaque types can be conditional.  For example, the user may want lists to be
-shrunk in general, unless the element of the list are opaque themselves.  Such a
+shrunk in general, unless the elements of the list are opaque themselves.  Such a
 definition is possible.
 
 Opaque types are defined by providing the method for \ttp{opaque} in the
@@ -1045,7 +1062,7 @@ holds on an expression, then the evaluator returns \ttp{Just} a value:
 \begin{code}
 divSubTerms :: Exp -> Bool
 divSubTerms (C _)         = True
-odivSubTerms (Div _ (C 0)) = False
+divSubTerms (Div _ (C 0)) = False
 divSubTerms (Add e0 e1)   =  divSubTerms e0
                           && divSubTerms e1
 divSubTerms (Div e0 e1)   =  divSubTerms e0
@@ -1242,7 +1259,7 @@ programmer must have a flash of insight in which she generalizes the
 counterexample to a set of counterexamples for which the program and property
 fails.  The generalization step is an important yet under-appreciated step in
 the debugging process.  A characterizing formula reduces the noise in favor of
-the signal by abstracting away portions of large counterexample that are
+the signal by abstracting away portions of a large counterexample that are
 irrelevant to why it violates the property.
 
 The characterization of counterexamples that most helps the programmer should
@@ -1253,6 +1270,11 @@ these two extremes that we call universal and existential sub-value
 generalization, respectively.  We then describe a third approach to
 generalization to automatically strengthen a property's precondition to obtain
 new counterexamples.
+
+In SmartCheck, the universal and existential generalization phases run after a
+counterexample has been minimized.  Precondition strengthening is used when
+iteratively generating multiple counterexamples, so it is interspersed with
+counterexample reduction.
 
 \subsection{Universal Sub-Value Generalization}\label{sec:universal}
 Consider again the calculator language from Section~\ref{sec:subval}.  The
@@ -1319,7 +1341,7 @@ allFail args cex idx vs prop =
   \label{fig:universal}
 \end{figure}
 
-The extrapolation algorithm is shown in Figure~\ref{fig:universal}; let sketch
+The extrapolation algorithm is shown in Figure~\ref{fig:universal}; let us sketch
 its specification.  The algorithm is similar to the reduction algorithm in
 Figure~\ref{fig:reduction} (and in the implementation, the algorithms are
 generalized and combined).  The function \ttp{extrapolate} returns a list of
@@ -1460,7 +1482,7 @@ divSubTerms (Div _ (C 0)) = False
 \end{code}
 %
 \noindent
-Then the following would all counterexamples:
+Then the following would all be counterexamples:
 %
 \begin{code}
 Div (Add (C 3) (C 2)) (C 0)
@@ -1687,6 +1709,11 @@ The first equation holds because we ignore opaque types, so the arguments to
 at index 0, and they match (the third equation).  The same reasoning holds for
 the fourth equation.
 
+SmartCheck can run in a real-eval-print loop (REPL), discovering new
+counterexamples, shrinking them, generalizing them, and then repeating.  In each
+iteration of the REPL, the property precondition is strengthened, requiring that
+\ttp{matchesShape} does not hold on the current counterexample candidate and
+\emph{any} previous counterexample generalization already discovered.
 
 \section{Implementation and Usage}\label{sec:implementation}
 
@@ -2027,14 +2054,14 @@ the way to the bottom, it got me a \emph{huge} chunk of the way there!
 \end{quote}
 
 \noindent
-Recall that through the entire process, we never had to learn how GenI works,
-what the property meant, or how to write a custom shrink method!
+Through the entire process, we never had to learn how GenI works, what the
+property meant, or how to write a custom shrink method!
 
-``Retro-fitting'' SmartCheck to GenI, which is a large software system, required
-some boilerplate work.  Fortunately, because the program already uses
-QuickCheck, \ttp{arbitrary} instances were already defined, but we had to hunt
-down the data types used to write \ttp{instance Subtypes D}, for each data type
-\ttp{D} (indeed, the job could have largely been done with Sed and Awk).
+%% ``Retro-fitting'' SmartCheck to GenI, which is a large software system, required
+%% some boilerplate work.  Fortunately, because the program already uses
+%% QuickCheck, \ttp{arbitrary} instances were already defined, but we had to hunt
+%% down the data types used to write \ttp{instance Subtypes D}, for each data type
+%% \ttp{D} (indeed, the job could have largely been done with Sed and Awk).
 
 %-------------------------------------------------------------------------------
 
@@ -2073,51 +2100,38 @@ All benchmarks can be found
 online.\footnote{\url{https://github.com/leepike/SmartCheck/tree/master/regression}}
 We compare the size of the final counterexample returned (by counting
 constructors) and the time required for counterexample generation and shrinking
-in seconds.  The results are presented in Table~\ref{table:results}.  Again, we
+in seconds.  The results are presented in Table~\ref{table:benchmarks}.  Again, we
 summarize the mean, median, standard deviation, and the results at the 95th
 percentile.  (While we provide the standard deviations, note that the plots are
 not necessarily Gaussian.)
 
+\todo{generic or hand-written?}
+
 \begin{table}[ht]
-\footnotesize
+\scriptsize
   \begin{center}
-    \begin{tabular}{|r|r||c|c|}
+    \begin{tabular}{|r|r||c|c|c|c|c|c|}
+
 \hline
-\multicolumn{2}{|c||}{} & QuickCheck & SmartCheck \\
-\hline \hline
+  \multicolumn{2}{|c||}{} & \multicolumn{2}{c|}{Mean} & \multicolumn{2}{c|}{Std. dev.} &
+\multicolumn{2}{c|}{95\%}\\\cline{3-8}
+  \multicolumn{2}{|c||}{} & size & time & size & time & size & time \\\hline\hline
 
+\multirow{2}{*}{Reverse}
+  & QC & 2 & 0.002         & 0 & 0.002         & 2 & 0.007 \\\cline{2-8}
+  & SC & 2 & \sci{4.8}{-4} & 0 & \sci{8.1}{-4} & 2 & \sci{5.8}{-4}\\\hline\hline
 
-\multirow{4}{*}{Reverse}
-  & Mean       & 2, 0.002s  & 2, \sci{4.8}{4}s  \\
-  \cline{2-4}
-  & Std. dev.  & 0, 0.002   & 0, \sci{8.1}{4}  \\
-  \cline{2-4}
-  & 95\%       & 2, 0.007s  & 2, \sci{5.8}{4}s  \\
-  \hline
+\multirow{2}{*}{Div0}
+  & QC & 10 & 0.001 & 6 & 0.002 & 23 & 0.002 \\\cline{2-8}
+  & SC & 5 & 0.001  & 0 & 0.001 & 5 & 0.002  \\\hline\hline
 
-\multirow{4}{*}{Div0}
-  & Mean       & 10, 0.001s  & 5, 0.001s  \\
-  \cline{2-4}
-  & Std. dev.  & 6, 0.002    & 0, 0.001   \\
-  \cline{2-4}
-  & 95\%       & 23, 0.002s  & 5, 0.002s \\
-  \hline
+\multirow{2}{*}{Heap}
+  & QC & 15 & 0.016  & 1 & 0.025 & 19 & 0.045 \\\cline{2-8}
+  & SC & 7  & 0.007  & 2 & 0.003 & 12 & 0.015 \\\hline\hline
 
-\multirow{4}{*}{Heap}
-  & Mean       & 15, 0.016s  & 7, 0.007s  \\
-  \cline{2-4}
-  & Std. dev.  & 1, 0.025    & 2, 0.003   \\
-  \cline{2-4}
-  & 95\%       & 19, 0.045s  & 12, 0.015s  \\
-  \hline
-
-\multirow{4}{*}{Parser}
-  & Mean       & 191, 0.013s  & 16, 0.241s  \\
-  \cline{2-4}
-  & Std. dev.  & 195, 0.018   & 75, 0.800   \\
-  \cline{2-4}
-  & 95\%       & 577, 0.044s  & 14, 0.521s  \\
-  \hline
+\multirow{2}{*}{Parser}
+  & QC &  191 & 0.013 & 195 & 0.018 & 577 & 0.044 \\\cline{2-8}
+  & SC &  16  & 0.241 & 75  & 0.800 & 14  & 0.521 \\\hline
 
     \end{tabular}
 
@@ -2125,7 +2139,7 @@ not necessarily Gaussian.)
   \caption{Summarizing data for the graphs in Figure~\ref{fig:graphs}. Entries
     contain execution time (in seconds) and counterexample sizes (counting
     constructors).}
-  \label{table:results}
+  \label{table:benchmarks}
 \end{table}
 
 The \emph{Reverse} benchmark essentially provides a lower-bound on the benefit

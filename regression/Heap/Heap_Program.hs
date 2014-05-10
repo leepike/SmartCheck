@@ -14,9 +14,11 @@ module Main where
 --------------------------------------------------------------------------
 -- imports
 
+#if defined(qc) || defined(qcGen) || defined(smart)
 import Test
-import Test.SmartCheck
 import System.Environment
+#endif
+import Test.SmartCheck
 
 import Test.QuickCheck
 import Test.QuickCheck.Poly
@@ -227,14 +229,16 @@ sizeH hp = case hp of
 l :: HeapP OrdA
 l = FromList [OrdA 2, OrdA 1]
 
+#if defined(qc) || defined(qcGen) || defined(smart)
 main :: IO ()
 main = do
   [file', rnds'] <- getArgs
   let rnds = read rnds' :: Int
   let file  = read file' :: String
-#ifdef defined(qc) || defined(qcGen)
+#if defined(qc) || defined(qcGen)
   test file rnds $ runQC' proxy stdArgs prop_ToSortedList (sizePP :: HeapPP OrdA -> Int)
 #else
   test file rnds $ runSC scStdArgs prop_ToSortedList sizePP
+#endif
 #endif
 

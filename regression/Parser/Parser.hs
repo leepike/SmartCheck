@@ -9,10 +9,13 @@ module Main where
 
 import Prelude hiding (showList, mod)
 
+#if defined(qc) || defined(qcGen) || defined(smart)
 import Test
+import System.Environment
+#endif
+
 import Test.QuickCheck
 import Test.SmartCheck
-import System.Environment
 import Data.List
 
 import GHC.Generics
@@ -438,6 +441,8 @@ scargs = scStdArgs { qcArgs  = stdArgs
                    , scMaxSize =  5
                    , scMaxReduce = 10
                    }
+
+#if defined(qc) || defined(qcGen) || defined(smart)
 main :: IO ()
 main = do
   [file', rnds'] <- getArgs
@@ -452,7 +457,7 @@ main = do
 #ifdef smart
   test file rnds $ runSC scargs prop_parse size
 #endif
-
+#endif
 --------------------------------------------------------------------------------
 
 {-

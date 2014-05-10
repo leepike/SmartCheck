@@ -6,11 +6,13 @@
 
 module Main where
 
+#if defined(qc) || defined(qcGen) || defined(smart)
 import Test
+import System.Environment
+#endif
 import Test.QuickCheck
 import Test.SmartCheck
 import Control.Monad
-import System.Environment
 
 import GHC.Generics
 import Data.Typeable
@@ -89,6 +91,7 @@ divTest = smartCheck args prop_div
                    , runForall  = True
                    }
 
+#if defined(qc) || defined(qcGen) || defined(smart)
 main :: IO ()
 main = do
   [file', rnds'] <- getArgs
@@ -98,6 +101,7 @@ main = do
   test file rnds $ runQC' proxy stdArgs prop_div size
 #else
   test file rnds $ runSC scStdArgs prop_div size
+#endif
 #endif
 
 --------------------------------------------------------------------------------

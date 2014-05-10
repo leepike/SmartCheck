@@ -8,7 +8,11 @@
 
 module Main where
 
+#if defined(qcjh) || defined(qcNone) || defined(qc10) || defined(qc20) || defined(feat) || defined(qcGen) || defined(smart) || defined(small)
 import Test
+import System.Environment
+#endif
+
 import Test.SmartCheck
 import Test.QuickCheck
 #ifdef small
@@ -21,7 +25,6 @@ import Data.Typeable
 
 import Data.Int
 import Control.Monad
-import System.Environment
 
 #ifdef feat
 import Test.Feat
@@ -145,6 +148,7 @@ prop_small t = pre t S.==> post t
 size :: T -> Int
 size t = sum $ map length (toList t)
 
+#if defined(qcjh) || defined(qcNone) || defined(qc10) || defined(qc20) || defined(feat) || defined(qcGen) || defined(smart) || defined(small)
 main :: IO ()
 main = do
   [file', rnds'] <- getArgs
@@ -159,6 +163,7 @@ main = do
 #if defined(qcNone) || defined(qc10) || defined(qc20) || defined(qcjh) || defined(qcNaive) || defined(qcGen)
   test file rnds $ runQC' proxy stdArgs prop size
 #endif
+#endif
 
 #ifdef smart
 -- Tester (not part of the benchmark).
@@ -169,3 +174,4 @@ smtChk = smartCheck scStdArgs { scMaxForall = 20
                               , format = PrintString
                               } prop
 #endif
+

@@ -6,10 +6,14 @@
 
 module Main where
 
+
+#if defined(qc) || defined(qcGen) || defined(smart)
 import Test
+import System.Environment
+#endif
+
 import Test.QuickCheck
 import Test.SmartCheck
-import System.Environment
 
 -----------------------------------------------------------------
 
@@ -26,6 +30,7 @@ revTest = smartCheck args prop_rev
                    , runForall  = True
                    }
 
+#if defined(qc) || defined(qcGen) || defined(smart)
 main :: IO ()
 main = do
   [file', rnds'] <- getArgs
@@ -35,6 +40,7 @@ main = do
   test file rnds $ runQC' (proxy :: Proxy [Int]) stdArgs prop_rev length
 #else
   test file rnds $ runSC scStdArgs prop_rev length
+#endif
 #endif
 
 --------------------------------------------------------------------------------

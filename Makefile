@@ -34,18 +34,7 @@ configure:
 	git submodule update
 
 ################################################################################
-# Testing SmartCheck
-
-BIN = .cabal-sandbox/bin
-
-.PHONY: QC_TEST EXAMPLES
-QC_TEST:
-	$(BIN)/sc-qc
-EXAMPLES:
-	$(BIN)/sc-examples
-
-################################################################################
-# Comparing SmartCheck to other test frameworks
+# Testing/comparing SmartCheck to other test frameworks
 
 .PHONY: regression
 regression: regression-build

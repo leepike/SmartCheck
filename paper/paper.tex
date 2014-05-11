@@ -112,7 +112,7 @@
 %\preprintfooter{}   % 'preprint' option specified.
 
 \title{SmartCheck: Automatic and Efficient Counterexample Reduction and Generalization}
-\subtitle{UNPUBLISHED DRAFT}
+%\subtitle{UNPUBLISHED DRAFT}
 
 \authorinfo{Lee Pike}
            {Galois, Inc.}
@@ -255,13 +255,10 @@ Motivated by the problems of reducing and generalizing large counterexamples, we
 developed SmartCheck.  SmartCheck takes a counterexample produced by some
 oracle and generically minimizes and generalizes the counterexample.
 
-As shown in the motivating example in Section~\ref{sec:example}, SmartCheck
-can shrink more than an order-of-magnitude faster than even the most efficient hand-written
-shrink implementations for some properties and programs.  As well, the time
-required to shrink scales linearly with the size of the counterexample---other
-common shrink implementations often scale in polynomial time or worse.
-(Shrinking time is important in real-world uses; see
-Section~\ref{sec:experiments} for examples.)
+%% As shown in the motivating example in Section~\ref{sec:example}, SmartCheck
+%% generates smaller counterexamples faster than hand-written or generated
+%% QuickCheck shrinking, for some properties and programs.  (Shrinking time is
+%% important in real-world uses; see Section~\ref{sec:experiments} for examples.)  
 
 After presenting some preliminary definitions in
 Section~\ref{sec:preliminaries}, in Section~\ref{sec:shrinking}, we describe
@@ -344,10 +341,10 @@ generalization is unique to SmartCheck.)  We will show how a small data type and
 simple property can result in large counterexamples without any shrinking.  Then
 we show the difficulty in designing an efficient shrink implementation manually,
 which is required when using QuickCheck; we will show a poor
-design before arriving at a ``canonical'' manual solution.  However, even the
-canonical solution produces significantly larger counterexamples and takes
-significantly longer to produce them than SmartCheck, even though SmartCheck's
-shrinking strategy is completely automatic and generic.
+design before arriving at a ``canonical'' manual solution.%%   However, even the
+%% canonical solution produces significantly larger counterexamples and takes
+%% significantly longer to produce them than SmartCheck, even though SmartCheck's
+%% shrinking strategy is completely automatic and generic.
 
 Consider the example in Figure~\ref{fig:initial}.\footnote{All examples and
   algorithms in this paper are presented in Haskell 2010~\cite{haskell2010} plus
@@ -461,16 +458,17 @@ arbitrary tuples).  Thus, each argument to \ttp{T} is independently shrunk.
 Finally, with this combination of shrinking tuples and disabling shrinking for
 \ttp{Int16} values, we have an efficient and effective shrinking approach.
 
-The most recent released version of QuickCheck provides a \ttp{genericShrink}
-function for algebraic data types, so the user merely has to declare
+In early 2014, QuickCheck added the ability to derive \ttp{shrink} instances for
+algebraic data type using the same generic package that SmartCheck does; see
+Section~\ref{sec:preliminaries}.  (The first release of the SmartCheck software
+was mid-2012.)  With this new feature, the user declares
 %
 \begin{code}
 shrink = genericShrink
 \end{code}
 %
 \noindent
-to obtain shrink instances.  (The implementation relies on the same generics
-package that SmartCheck does; see Section~\ref{sec:preliminaries}.)
+to obtain efficient shrink instances.
 
 %% is unable to verify the property from Figure~\ref{fig:initial}, for much the
 %% same reason that \ttp{shrink} is inefficient
@@ -533,11 +531,11 @@ package that SmartCheck does; see Section~\ref{sec:preliminaries}.)
               & \multicolumn{2}{c}{Mean} & \multicolumn{2}{c}{Std. dev.} &
 \multicolumn{2}{c}{95\%}\\\hline
               & size & time  & size & time & size & time \\\hline\hline
-QC none       & 83 & 0.013   & 22 & 0.014   & 119 & 0.023\\\hline
+none          & 83 & 0.013   & 22 & 0.014   & 119 & 0.023\\\hline
 QC trunc      & 40 & 0.064   & 20 & 0.334   & 84 & 0.153\\\hline
-QC tuple      & 10 & 0.031   & 4 &  0.039   & 16 & 0.052\\\hline
-QC generic    & &        &        &           & &\\\hline
-SmartCheck    & 6 & 0.021s    &  4 & 0.009   & 13 & 0.036\\\hline
+QC tuple      & 10 & 0.031   & 4  & 0.039   & 16 & 0.052\\\hline
+QC generic    & 13 & 0.204   & 7  & 0.946   & 28 & 0.543\\\hline
+SmartCheck    & 6 & 0.021s   & 4  & 0.009   & 13 & 0.036\\\hline
 
     \end{tabular}
   \end{center}
@@ -548,13 +546,13 @@ SmartCheck    & 6 & 0.021s    &  4 & 0.009   & 13 & 0.036\\\hline
 \end{table}
 
 The results of our discussion above are summarized in Table~\ref{table:results}
-and the corresponding graph in Figure~\ref{fig:graphs}. They show four
-approaches to shrinking with QuickCheck: no shrinking (QC none), to provide a
-baseline, truncated shrinking (QC trunc) with \ttp{Int16} shrinking disabled, in
-which each list is truncated to 10 elements, tuple shrinking (QC tuple), also
-with \ttp{Int16} shrinking disabled, and finally shrinking using QuickCheck's
-\ttp{genericShrink} (qc generic).  We omit SmallCheck, since as noted, it is not
-even feasible for the example with default instances.\footnote{All results
+and the corresponding graph in Figure~\ref{fig:graphs}.  First, we show the
+results of no shrinking (labeled `none') as a baseline in terms of worst-case
+value size.  Then we show four approaches to shrinking, as described above:
+truncated shrinking (`QC trunc') with \ttp{Int16} shrinking disabled, in which
+each list is truncated to 10 elements, tuple shrinking (`QC tuple'), also with
+\ttp{Int16} shrinking disabled, and finally shrinking using QuickCheck's
+\ttp{genericShrink} (`QC generic').\footnote{All results
   reported in the paper are with a GHC-7.6.3-compiled program, using \ttp{-O2},
   on a 2.8 GHz 4~core i7 with 16GB memory under OSX v. 10.9.2.}  We graph the
 final counterexample size, measured in the total number of \ttp{Int16} values,
@@ -563,19 +561,25 @@ Figure~\ref{fig:graphs} shows how many of the 1000 runs resulted in a final
 value of a particular size, fitting the data with a Bezier curve.
 
 In Table~\ref{table:results}, we summarize the graphed values and provide
-execution time in seconds as well.  For both execution time and final value
-size, we summarize the mean, median, standard deviation, and the results at the
-95th percentile.  (While we provide the standard deviations, note that the plots
-are not necessarily Gaussian.)
+execution time (including both counterexample discovery and shrinking) in
+seconds as well.  For both execution time and final value size, we summarize the
+mean, median, standard deviation, and the results at the 95th percentile.
+(While we provide the standard deviations, note that the plots are not
+necessarily Gaussian.)
 
 SmartCheck produces consistently small counterexamples and does so
 quickly---even smaller and faster than the best hand-tuned solution---all
-without writing any problem-specific code.  Note that the ``no shrinking''
-example provides a lower-bound on execution time (only including counterexample
+without writing any problem-specific code.  Note that the `none' example
+provides a lower-bound on execution time (only including counterexample
 discovery time) and an upper-bound on counterexample size.  In this example, the
 hand-written ``tuple shrink'' algorithm is only slightly slower and produces
-slightly larger results.  In Section~\ref{sec:benchmarks}, we provide additional
-benchmarks, but now we turn to the design of SmartCheck.
+slightly larger results than SmartCheck.  (QuickCheck's generic shrinking under
+performs the ``tuple shrink'' likely because the generic shrink implementation
+shrinks the \ttp{Int16} values.)
+
+In Section~\ref{sec:benchmarks}, we provide additional benchmarks, but now we
+turn to the design of SmartCheck.
+
 
 %% More dramatic, however, are the differences in execution time.  The execution
 %% times for SmartCheck include the initial counterexample generation time
@@ -606,7 +610,7 @@ benchmarks, but now we turn to the design of SmartCheck.
 %% perfectly acceptable.  Furthermore, user-defined shrink methods may vary
 %% significantly based on the property and counterexample type, so it is not
 %% always clear which implementation to compare against.
-We now describe in detail SmartCheck's algorithm for generic shrinking.
+
 
 
 
@@ -801,12 +805,15 @@ For simplicity, we omit here Generics-specific super-class constraints on the
 
 \section{Shrinking Data}\label{sec:shrinking}
 In this section, we describe how to efficiently and generically shrink algebraic
-data values.  Recall the basic idea behind the \ttp{shrink}
-method of the \ttp{Arbitrary} class: generate a list of values, each of which is
-smaller than the current counterexample.  Each of the new values generated
-may not bear any relationship to the original counterexample other than being
-smaller.  SmartCheck pursues an approach that searches for smaller but
-structurally similar counterexamples, as we make precise below.
+data values.  Recall the basic idea behind the \ttp{shrink} method of the
+\ttp{Arbitrary} class: generate a list of values, each of which is smaller than
+the current counterexample.  Each of the new values generated may not bear any
+relationship to the original counterexample other than being smaller.
+SmartCheck pursues an approach that searches for smaller but structurally
+similar counterexamples, as we make precise below.  Perhaps the most significant
+difference between SmartCheck's reduction algorithm and QuickCheck shrink
+implementations is that the latter is deterministic.  SmartCheck combines
+counterexample search with shrinking.
 
 We describe the algorithm in Section~\ref{sec:reduct} and then describe
 algorithmic details in Section~\ref{sec:details}.  Some optimizations to the
@@ -1001,8 +1008,6 @@ definition is possible.
 
 Opaque types are defined by providing the method for \ttp{opaque} in the
 \ttp{SubTypes} type class.
-
-\todo{reference into with QC, no int shrinking}
 
 
 %% The number of constructors in an algebraic data value primarily determines how
@@ -2032,8 +2037,6 @@ $\ldots$ I tend to get an incomprehensible page full of output. $\ldots$
   implementations, I also find that QC starts taking a very long time.
 \end{quote}
 
-\todo{how long unanswered?}
-
 \noindent
 The question relates to the Geni natural language processing (NLP) package
 implemented in Haskell~\cite{kow}.  Specifically, counterexamples to a property
@@ -2070,11 +2073,13 @@ property meant, or how to write a custom shrink method!
 Unfortunately, no set of testing benchmarks exists over which to compare
 different test-case generation and minimization approaches.  Therefore, we have
 collected a small number of benchmarks, in addition to the more involved
-case-studies described earlier in this section.
+case-studies described earlier in this section.  However, these are contrived
+insofar as initial counterexamples for them are discovered quickly.
 
 The benchmarks presented, in addition to the motivating example presented in
-Section~\ref{sec:example}, compare standard SmartCheck against hand-written
-shrink implementations.  The benchmarks are as follows:
+Section~\ref{sec:example}, compare standard SmartCheck against QuickCheck's
+generic shrink implementation, which is, in general, as good or better than
+hand-written shrink implementations.  The benchmarks are as follows:
 
 \begin{itemize}
   \item  \emph{Reverse}, with the false property
@@ -2092,7 +2097,8 @@ prop_rev ls = ls == reverse ls
     incorrect ``to sorted list'' function is checked.
 
   \item \emph{Parser}, a parser/pretty-printer for a toy imperative language
-    containing a parser bug that switches the arguments of an binary operator.
+    containing a parser bug that switches the arguments of an binary expression
+    operator.
 \end{itemize}
 
 \noindent
@@ -2105,8 +2111,6 @@ summarize the mean, median, standard deviation, and the results at the 95th
 percentile.  (While we provide the standard deviations, note that the plots are
 not necessarily Gaussian.)
 
-\todo{generic or hand-written?}
-
 \begin{table}[ht]
 \scriptsize
   \begin{center}
@@ -2118,20 +2122,20 @@ not necessarily Gaussian.)
   \multicolumn{2}{|c||}{} & size & time & size & time & size & time \\\hline\hline
 
 \multirow{2}{*}{Reverse}
-  & QC & 2 & 0.002         & 0 & 0.002         & 2 & 0.007 \\\cline{2-8}
-  & SC & 2 & \sci{4.8}{-4} & 0 & \sci{8.1}{-4} & 2 & \sci{5.8}{-4}\\\hline\hline
+  & QC & 2 & 0.002       & 0 & 0.002       & 2 & 0.003 \\\cline{2-8}
+  & SC & 2 & \sci{4}{-4} & 0 & \sci{5}{-4} & 2 & \sci{7}{-4}\\\hline\hline
 
 \multirow{2}{*}{Div0}
-  & QC & 10 & 0.001 & 6 & 0.002 & 23 & 0.002 \\\cline{2-8}
-  & SC & 5 & 0.001  & 0 & 0.001 & 5 & 0.002  \\\hline\hline
+  & QC & 5  & 0.004 & 1 & 0.006 & 7  & 0.015 \\\cline{2-8}
+  & SC & 5  & 0.001 & 0 & 0.001 & 5  & 0.001  \\\hline\hline
 
 \multirow{2}{*}{Heap}
-  & QC & 15 & 0.016  & 1 & 0.025 & 19 & 0.045 \\\cline{2-8}
-  & SC & 7  & 0.007  & 2 & 0.003 & 12 & 0.015 \\\hline\hline
+  & QC & 19 & \sci{9}{-4}  & 9 & 0.001 & 36 & 0.001 \\\cline{2-8}
+  & SC & 7  & 0.006        & 2 & 0.002 & 10 & 0.010 \\\hline\hline
 
 \multirow{2}{*}{Parser}
-  & QC &  191 & 0.013 & 195 & 0.018 & 577 & 0.044 \\\cline{2-8}
-  & SC &  16  & 0.241 & 75  & 0.800 & 14  & 0.521 \\\hline
+  & QC &  4   & 0.024 & 0  & 0.020 & 4 & 0.061 \\\cline{2-8}
+  & SC &  6   & 0.116 & 2  & 0.083 & 9 & 0.230 \\\hline
 
     \end{tabular}
 
@@ -2143,23 +2147,24 @@ not necessarily Gaussian.)
 \end{table}
 
 The \emph{Reverse} benchmark essentially provides a lower-bound on the benefit
-of using SmartCheck to discover small counterexamples, since a list of length
-two falsifies the property (SmartCheck is still useful in generalizing the
-counterexample, however!).  Perhaps surprisingly, SmartCheck still slightly
-outperforms QuickCheck.  The other two benchmarks have much larger counterexamples,
-where SmartCheck's benefits are more pronounced.  For example, consider the
-parser example in which the initial counterexample to shrink may be in a large
-parse tree.  SmartCheck performs significantly better than optimal hand-written
-shrink instances, but even SmartCheck can sometimes return large
-counterexamples---this is why the mean counterexample size is larger than the
-size at the 95th percentile: there are a small number of large values not
-successfully shrunk by SmartCheck.
+shrinking in general, since the original counterexamples are generally close to
+being minimal.  Surprisingly, SmartCheck slightly outperforms QuickCheck in
+efficiency.  The other three benchmarks have larger counterexamples, so the
+benefit of shrinking is more pronounced.
+
+SmartCheck finds smaller counterexamples in the \emph{Div0} and \emph{Heap}
+benchmarks, while QuickCheck shrinking finds smaller counterexamples faster in
+the \emph{Parser} example.  The \emph{Parser} example is one in which
+SmartCheck's strategy of generating random values during counterexample
+reduction is not a benefit, and so this is why it likely under performs a
+generic \ttp{shrink} method.  Moreover, because SmartCheck uses QuickCheck as a
+front-end, the two approaches are complementary: QuickCheck shrinking can be
+used instead of or in combination with SmartCheck reduction.
 
 %-------------------------------------------------------------------------------
 \section{Related Work}\label{sec:related}
 
-Other researchers have also investigated counterexample shrinking.  Zeller
-and Hildebrandt describe an application of greedy search to shrink
+Zeller and Hildebrandt describe an application of greedy search to shrink
 counterexamples they call ``delta-debugging'' (DD)~\cite{dd}.  The authors apply
 their work to shrinking HTML inputs to crash Mozilla and shrinking C programs to
 trigger a bug in GCC.  Subsequent generalizations are reported by Misherghi and

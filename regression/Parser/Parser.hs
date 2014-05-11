@@ -3,7 +3,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
 
--- | Toy "parser"/"serializer" (with a bug).
+-- | Toy "parser"/"serializer" (with a bug) in And parsing.
 
 module Main where
 
@@ -155,32 +155,20 @@ instance Arbitrary Stmt where
 #endif
 
 instance Arbitrary Exp where
-  arbitrary = do
-    i <- Int  <$> arbitrary
-    b <- Bool <$> arbitrary
-    a <- Add  <$> g <*> g
-    s <- Sub  <$> g <*> g
-    m <- Mul  <$> g <*> g
-    d <- Div  <$> g <*> g
-    t <- Not  <$> g
-    n <- And  <$> g <*> g
-    o <- Or   <$> g <*> g
-    elements [i, b, a, s, m, d, t, n, o]
+  arbitrary = go
     where
-    igen = Int  <$> arbitrary
-    bgen = Bool <$> arbitrary
-    g :: Gen Exp
-    g = go =<< choose (1::Int, 10)
-    go 0 = oneof [igen, bgen]
-    go i = do let goa = go =<< choose (0, i)
-              let gob = go =<< choose (0, i)
-              oneof [ Add  <$> goa <*> gob
-                    , Sub  <$> goa <*> gob
-                    , Mul  <$> goa <*> gob
-                    , Div  <$> goa <*> gob
-                    , Not  <$> goa
-                    , And  <$> goa <*> gob
-                    ]
+    go = go' =<< choose (0::Int, 100)
+    go' 0 = oneof [Bool <$> arbitrary, Int <$> arbitrary]
+    go' i = let g = go' =<< choose (0::Int, i-1) in
+            frequency [ (10, Not <$> g)
+                      , (100, And <$> g <*> g)
+                      , (100, Or  <$> g <*> g)
+                      , (100, Add  <$> g <*> g)
+                      , (100, Sub  <$> g <*> g)
+                      , (100, Mul  <$> g <*> g)
+                      , (100, Div  <$> g <*> g)
+                      ]
+
 #ifdef qc
   shrink e = case e of
     Int  i    -> map Int (shrink i)
@@ -343,6 +331,12 @@ instance Read' Exp where
 
           | isPrefixOf "And"  e = run e $ do
                                     modify (strip "And")
+                                    e0 <- state (procParens read')
+                                    e1 <- state (procParens read')
+                                    -- XXX Bug!
+                                    return (And e1 e0)
+          | isPrefixOf "Or"  e = run e $ do
+                                    modify (strip "Or")
                                     e0 <- state (procParens read')
                                     e1 <- state (procParens read')
                                     -- XXX Bug!

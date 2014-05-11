@@ -15,7 +15,8 @@ set nologscale y
 set output "out/data.pdf"
 plot \
 'out/smart_vals.csv'  using 1:2:(1.0) smooth bezier  title 'SmartCheck', \
-'out/qcNone_vals.csv' using 1:2:(1.0) smooth bezier  title 'QC none',    \
+'out/qcNone_vals.csv' using 1:2:(1.0) smooth bezier  title 'none',    \
+'out/qcGen_vals.csv'  using 1:2:(1.0) smooth bezier  title 'QC generic', \
 'out/qc10_vals.csv'   using 1:2:(1.0) smooth bezier  title 'QC trunc',   \
 'out/qcjh_vals.csv'   using 1:2:(1.0) smooth bezier  title 'QC tuple'
 

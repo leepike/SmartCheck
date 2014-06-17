@@ -102,8 +102,9 @@ reduce args prop cex = reduce' 1
     | Just v <- index cex idx
     = do vs <- newVals (getSize v)
                  (scMaxReduce args) v
-         maybe (reduce' (idx+1)) (reduce args prop)
-               (test cex idx vs prop)
+         case test cex idx vs prop of
+           Nothing -> reduce' (idx+1)
+           Just a  -> reduce args prop a
     | otherwise = return cex
 
 test :: SubTypes a => a -> Idx -> [SubVal]
@@ -124,14 +125,16 @@ reduceOpt args prop cex = reduce' 1
   where
   reduce' idx
     | Just v <- index cex idx
-    = maybe (test' v idx) (reduceOpt args prop)
-            (testHole v)
+    = case testHole v of
+        Nothing -> test' v idx
+        Just a  -> reduceOpt args prop a
     | otherwise = return cex
 
   test' v idx = do
     vs <- newVals (getSize v) (scMaxReduce args) v
-    maybe (reduce' (idx+1)) (reduceOpt args prop)
-          (test cex idx vs prop)
+    case test cex idx vs prop of
+      Nothing -> reduce' (idx+1)
+      Just a  -> reduceOpt args prop a
 
   testHole (SubVal a) = do
     a' <- cast a :: Maybe a

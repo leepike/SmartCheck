@@ -2184,9 +2184,12 @@ difference: HDD (and DD) is deterministic, so the algorithm only succeeds in
 reducing the counterexample only if a new counterexample can be constructed from
 the original one.  Our approach combines the speed of delta debugging with the
 power of QuickCheck to \emph{randomly} discover structurally smaller
-counterexamples; in short, this is the first treatment we know of that
-integrates counterexample generation with counterexample reduction.
-Furthermore, neither paper explores the idea of counterexample generalization.
+counterexamples.  The idea of randomization in test-case reduction was developed
+at approximately the same time as SmartCheck and first reported in the domain of
+reducing C~programs that demonstrate compiler bugs~\cite{regehr}.  We believe our
+work is the first to explore the technique in a more general setting.
+Furthermore, we believe ours is the first to explore the idea of counterexample
+generalization.
 
 Within the functional programming community, one of the few treatments of
 generic shrinking is as a motivation for generic programming in Haskell's

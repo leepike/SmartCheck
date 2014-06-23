@@ -106,9 +106,11 @@
 
 \newcommand{\xmonad}{\textsc{xmonad}}
 
-%% \conferenceinfo{ICFP'12,} {September 9--15, 2012, Copenhagen, Denmark.}
-%% \CopyrightYear{2012}
-%% \copyrightdata{978-1-4503-1054-3/12/09}
+\exclusivelicense
+\conferenceinfo{Haskell~'14}{September 6, 2014, Gothenburg, Sweden.}
+\CopyrightYear{2014}
+\copyrightdata{978-1-4503-3041-1/14/09}
+\doi{2633357.2633365}
 
 %\titlebanner{banner above paper title}        % These are ignored unless
 %\preprintfooter{}   % 'preprint' option specified.
@@ -139,13 +141,13 @@ counterexamples.  SmartCheck has been implemented for Haskell and is freely
 available.
 \end{abstract}
 
-%% \category{D.2.4}{Software/Program Verification}{Reliability}
+\category{D.2.5}{Software Engineering}{Testing and Debugging}
 
 %% \terms
 %% Languages, Verification
 
-%% \keywords
-%% embedded domain-specific language, compiler, verification
+\keywords
+property-based testing; test-case generalization; delta-debugging
 
 \section{Introduction}\label{sec:intro}
 The QuickCheck testing framework was a revolutionary step-forward in
@@ -203,38 +205,60 @@ of how shrinking in QuickCheck works and the semantics of the property and
 program being evaluated.  Bad definitions can be so slow or so ineffective at
 shrinking that they are unusable.
 
+\begin{figure}[ht]
+\begin{code}
+\scriptsize
+StackSet \{current = Screen \{workspace = Workspace
+\{tag = NonNegative \{getNonNegative = 0\}, layout = -1, stack =
+Just (Stack \{focus = `S', up ="", down = ""\})\}, screen = 1,
+screenDetail = 1\}, visible = [Screen \{workspace = Workspace
+\{tag = NonNegative \{getNonNegative = 2\}, layout = -1, stack =
+Nothing\}, screen = 2, screenDetail = -1\},Screen \{workspace =
+Workspace \{tag = NonNegative \{getNonNegative = 3\}, layout = -1,
+stack = Nothing\}, screen = 0, screenDetail = -1\}], hidden =
+[Workspace \{tag = NonNegative \{getNonNegative = 1\}, layout = -1,
+stack = Just (Stack \{focus = `NUL', up = "", down = ""\})\},
+Workspace \{tag = NonNegative \{getNonNegative = 4\}, layout = -1,
+stack = Just (Stack \{focus = `I', up = "", down = ""\})\}],
+floating = fromList []\}
+\end{code}
+  \caption{Counterexample returned by QuickCheck for a bug-injected version of \xmonad.}
+  \label{fig:xmonadex}
+\end{figure}
+
 In addition, shrinking is one side of the coin when it comes to making
 counterexamples more understandable: the other side is extrapolation from
 individual counterexamples to a class of counterexamples.  This leap of
 abstraction is often implicitly made by the programmer in determining the reason
-why counterexamples fail the property.  For example, the following is a
-relatively small counterexample returned when QuickChecking a property in (a
-bug-injected version of) \xmonad, a popular X11 window manager written in
-Haskell~\cite{xmonad}:
-%
-\medskip%
-\begin{sloppypar}
-%\footnotesize
-\noindent%
-\ttp{StackSet \{current = Screen \{workspace = Workspace \{tag = NonNegative
-      \{getNonNegative = 0\}, layout = -1, stack = Just (Stack \{focus = 'S', up =
-        "", down = ""\})\}, screen = 1, screenDetail = 1\}, visible = [Screen
-    \{workspace = Workspace \{tag = NonNegative \{getNonNegative = 2\}, layout = -1,
-        stack = Nothing\}, screen = 2, screenDetail = -1\},Screen \{workspace =
-      Workspace \{tag = NonNegative \{getNonNegative = 3\}, layout = -1, stack =
-        Nothing\}, screen = 0, screenDetail = -1\}], hidden = [Workspace \{tag =
-      NonNegative \{getNonNegative = 1\}, layout = -1, stack = Just (Stack \{focus
-        = `\char`\\NUL', up = "", down = ""\})\},Workspace \{tag = NonNegative
-      \{getNonNegative = 4\}, layout = -1, stack = Just (Stack \{focus = 'I', up =
-        "", down = ""\})\}], floating = fromList []\} }
-\end{sloppypar}
-\medskip%
-\noindent
-(This counterexample uses Haskell's default \ttp{Show} instances, which uses
-record syntax.)  Programmers may be familiar with having to debug
-a ``wall of text'' as shown above.  What if instead a
-formula like the following were returned, stating that for any well-typed
-values $x_0$, $x_1$, $x_2$, and $x_3$, tested, a counterexample is found?
+why counterexamples fail the property.  For example, Figure~\ref{fig:xmonadex}
+contains a relatively small counterexample returned when QuickChecking a
+property in (a bug-injected version of) \xmonad, a popular X11 window manager
+written in Haskell~\cite{xmonad}.  (This counterexample uses Haskell's default
+\ttp{Show} instances, which uses record syntax.)  Programmers may be familiar
+with having to debug a ``wall of text'' as shown above.  What if instead a
+formula like the following were returned, stating that for any well-typed values
+$x_0$, $x_1$, $x_2$, and $x_3$, tested, a counterexample is found?
+
+%% %
+
+%% \medskip%
+%% \begin{sloppypar}
+%% %\footnotesize
+%% \noindent%
+%% \ttp{StackSet \{current = Screen \{workspace = Workspace \{tag = NonNegative
+%%       \{getNonNegative = 0\}, layout = -1, stack = Just (Stack \{focus = 'S', up =
+%%         "", down = ""\})\}, screen = 1, screenDetail = 1\}, visible = [Screen
+%%     \{workspace = Workspace \{tag = NonNegative \{getNonNegative = 2\}, layout = -1,
+%%         stack = Nothing\}, screen = 2, screenDetail = -1\},Screen \{workspace =
+%%       Workspace \{tag = NonNegative \{getNonNegative = 3\}, layout = -1, stack =
+%%         Nothing\}, screen = 0, screenDetail = -1\}], hidden = [Workspace \{tag =
+%%       NonNegative \{getNonNegative = 1\}, layout = -1, stack = Just (Stack \{focus
+%%         = `\char`\\NUL', up = "", down = ""\})\},Workspace \{tag = NonNegative
+%%       \{getNonNegative = 4\}, layout = -1, stack = Just (Stack \{focus = 'I', up =
+%%         "", down = ""\})\}], floating = fromList []\} }
+%% \end{sloppypar}
+%% \medskip%
+%% \noindent
 
 %
 \begin{samepage}
@@ -1048,12 +1072,17 @@ search the space of potential counterexamples is to test a counterexample's
 For example, consider a simple calculator language containing constants,
 addition, and division, together with an evaluator that checks if the divisor is
 0 and returning \ttp{Nothing} in that case:
+
+\pagebreak
+
 %
 \begin{code}
 data Exp = C Int
          | Add Exp Exp
          | Div Exp Exp
-
+\end{code}
+%
+\begin{code}
 eval :: Exp -> Maybe Int
 eval (C i) = Just i
 eval (Add e0 e1) =

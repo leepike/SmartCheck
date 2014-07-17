@@ -26,6 +26,8 @@ module Test.SmartCheck.Types
 import GHC.Generics
 import Data.Tree
 import Data.Typeable
+import Control.Applicative
+import Control.Monad (ap)
 
 -- For instances
 import Data.Word
@@ -59,6 +61,10 @@ instance Functor Result where
   fmap _ FailedPreCond = FailedPreCond
   fmap _ FailedProp    = FailedProp
   fmap f (Result a)    = Result (f a)
+
+instance Applicative Result where
+ pure  = return
+ (<*>) = ap
 
 instance Monad Result where
   return a            = Result a

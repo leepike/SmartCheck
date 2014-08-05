@@ -5,3 +5,4 @@ cabal.config
 packages*
 .cabal-sandbox
 examples
+*.dyn_*

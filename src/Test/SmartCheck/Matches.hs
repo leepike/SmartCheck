@@ -25,6 +25,7 @@ matchesShapes d = any (matchesShape d)
 -- their structures.
 matchesShape :: forall a . SubTypes a => a -> (a, Replace Idx) -> Bool
 matchesShape a (b, Replace idxVals idxConstrs)
+  | baseType a && baseType b = True
   | toConstr a /= toConstr b = False
   | Just a' <- aRepl         = let x = subTypes a' in
                                let y = subTypes b  in
@@ -34,7 +35,7 @@ matchesShape a (b, Replace idxVals idxConstrs)
   where
   foldEqConstrs :: (Tree SubT, Tree SubT) -> Bool
   foldEqConstrs (Node (SubT l0) sts0, Node (SubT l1) sts1)
-    -- Don't need a baseType test, since they don't ever appear in subTypes.
+    | baseType l0 && baseType l1 = next
     | toConstr l0 == toConstr l1 = next
     | otherwise                  = False
     where next = all foldEqConstrs (zip sts0 sts1)

@@ -20,7 +20,7 @@ module Test.SmartCheck.Types
   , grc
   , gtc
   , gsf
-  , gsz
+--  , gsz
   ) where
 
 import GHC.Generics
@@ -49,28 +49,31 @@ data Replace a = Replace { unVals :: [a], unConstrs :: [a] }
 --------------------------------------------------------------------------------
 
 -- | Possible results of iterateArb.
-data Result a = FailedPreCond -- ^ Couldn't satisfy the precondition of a
-                              --   QuickCheck property
-              | FailedProp    -- ^ Failed the property---either we expect
-                              --   failure and it passes or we expect to pass it
-                              --   and we fail.
-              | Result a      -- ^ Satisfied it, with the satisfying value.
+data Result a =
+    BaseType      -- ^ Base type. Won't analyze.
+  | FailedPreCond -- ^ Couldn't satisfy the precondition of a QuickCheck
+                  --   property
+  | FailedProp    -- ^ Failed the property---either we expect failure and it
+                  --   passes or we expect to pass it and we fail.
+  | Result a      -- ^ Satisfied it, with the satisfying value.
   deriving (Show, Read, Eq)
 
 instance Functor Result where
+  fmap _ BaseType      = BaseType
   fmap _ FailedPreCond = FailedPreCond
   fmap _ FailedProp    = FailedProp
   fmap f (Result a)    = Result (f a)
 
-instance Applicative Result where
- pure  = return
- (<*>) = ap
-
 instance Monad Result where
   return a            = Result a
+  BaseType      >>= _ = BaseType
   FailedPreCond >>= _ = FailedPreCond
   FailedProp    >>= _ = FailedProp
   Result a      >>= f = f a
+
+instance Applicative Result where
+ pure  = return
+ (<*>) = ap
 
 -------------------------------------------------------------------------------
 -- Indexing
@@ -124,11 +127,13 @@ instance Show SubT where
 --
 class (Q.Arbitrary a, Show a, Typeable a) => SubTypes a where
   -----------------------------------------------------------
+  -- | Turns algebraic data into a forest representation.
   subTypes :: a -> Forest SubT
   default subTypes :: (Generic a, GST (Rep a))
                    => a -> Forest SubT
   subTypes = gst . from
   -----------------------------------------------------------
+  -- | Base types (e.g., Int, Char) aren't analyzed.
   baseType :: a -> Bool
   baseType _ = False
   -----------------------------------------------------------
@@ -140,25 +145,16 @@ class (Q.Arbitrary a, Show a, Typeable a) => SubTypes a where
                        => a -> Forest Subst -> b -> Maybe a
   replaceChild a forest b = fmap to $ grc (from a) forest b
   -----------------------------------------------------------
-  -- Grab the top contructor.
+  -- | Get the string representation of the constructor.
   toConstr :: a -> String
   default toConstr :: (Generic a, GST (Rep a)) => a -> String
   toConstr = gtc . from
   -----------------------------------------------------------
   -- | showForest generically shows a value while preserving its structure (in a
-  -- Tree).  You should always end up with either a singleton list containing
-  -- the tree or an empty list for baseTypes.  Also, it must be the case that
-  -- for a value v,
-  --
-  -- null (subTypes v) iff null (showForest v)
-  -- and
-  -- if not . null (subTypes v), then subForest . head (showForest v)
-  -- has the same structure as subTypes v.
-  --
-  -- We can't just return a Tree String or Maybe (Tree String).  The reason is
-  -- that in generically constructing the value, we have to deal with product
-  -- types.  There is no sane way to join them other than list-like
-  -- concatenation (i.e., gsf (a :*: b) = gsf a ++ gsf b).
+  -- Tree).  Always returns either a singleton list containing the tree (a
+  -- degenerate forest) or an empty list for baseTypes.  An invariant is that
+  -- the shape of the tree produced by showForest is the same as the one
+  -- produced by subTypes.
   showForest :: a -> Forest String
   default showForest :: (Generic a, GST (Rep a))
                      => a -> Forest String
@@ -222,18 +218,7 @@ instance (Constructor c, GST a) => GST (M1 C c a) where
   grc (M1 a) forest c = grc a forest c >>= return . M1
   gtc = conName
 
-  gsf m@(M1 a) = [ tree ]
-    where
-    -- When a tree has reached a constructor with a baseType value (e.g., A 3
-    -- for some constructor A), we want to show the constructor and the value,
-    -- but not have a subForest.  So we check if the rest is a baseType (gst a
-    -- tells us that), and if so, we show the conName, and extract (rootLabel
-    -- . head) (gsf a), which is basically just showing the rest (look at gsf
-    -- (K1 a) below).  Otherwise, we just want the constructor.
-    tree | null (gst a) = Node root []
-         | otherwise    = Node (conName m) (gsf a)
-    root | null (gsf a) = conName m
-         | otherwise    = conName m ++ " " ++ (rootLabel . head) (gsf a)
+  gsf m@(M1 a) = [ Node (conName m) (gsf a) ]
 
   gsz (M1 a) = gsz a
 
@@ -247,7 +232,7 @@ instance GST a => GST (M1 i k a) where
 
 instance (Show a, Q.Arbitrary a, SubTypes a, Typeable a) => GST (K1 i a) where
   gst (K1 a) = if baseType a
-                 then []
+                 then [ Node (subT a) [] ]
                  else [ Node (subT a) (subTypes a) ]
 
   grc (K1 a) forest c =
@@ -259,16 +244,13 @@ instance (Show a, Q.Arbitrary a, SubTypes a, Typeable a) => GST (K1 i a) where
 
   gtc _ = ""
 
-  -- Yes, this is right.  For a baseType value v, showForest v will just yield
-  -- [] using showForest'.  But to make the tree using generics, when we get
-  -- down to baseTypes, we need to actually show them, returing a Forest.  We
-  -- extract the value in the rootLabel above.
-  gsf (K1 a) = if baseType a then [Node (show a) []] else showForest a
+  gsf (K1 a) = if baseType a then [ Node (show a) [] ] else showForest a
 
-  gsz (K1 a) = if baseType a then 0 else 1
+  gsz _ = 1
 
 -------------------------------------------------------------------------------
--- We try to cover the instances supported by QuickCheck: http://hackage.haskell.org/packages/archive/QuickCheck/2.4.2/doc/html/Test-QuickCheck-Arbitrary.html
+-- We cover the instances supported by QuickCheck:
+-- http://hackage.haskell.org/packages/archive/QuickCheck/2.4.2/doc/html/Test-QuickCheck-Arbitrary.html
 
 instance SubTypes Bool    where baseType _    = True
 instance SubTypes Char    where baseType _    = True
@@ -336,38 +318,9 @@ instance SubTypes Word64  where
   toConstr      = toConstr'
   showForest    = showForest'
 instance SubTypes ()      where baseType _    = True
-
---instance (Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes [a]
---   subTypes      = concatMap subTypes
---   baseType _    = True
---   replaceChild  = replaceChild'
---   toConstr      = toConstr'
--- --  toConstrAndBase = toConstrAndBase'
---  showForest    = showForest'
-
--- For example, this makes String a baseType automatically.
--- instance (Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes [a] where
---   subTypes      = if baseType (undefined :: a) then \_ -> []
---                     else gst . from
---   baseType _    = baseType (undefined :: a)
---   replaceChild x forest y = if baseType (undefined :: a)
---                               then replaceChild' x forest y
---                               else fmap to $ grc (from x) forest y
---   toConstr      = if baseType (undefined :: a) then toConstr'
---                     else gtc . from
---   showForest    = if baseType (undefined :: a) then showForest'
---                     else gsf . from
-
--- For example, this makes String a baseType automatically.
-instance (Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes [a] where
-  subTypes      = gst . from
-  baseType _    = False
-  replaceChild x forest y = fmap to $ grc (from x) forest y
-  toConstr      = gtc . from
-  showForest    = gsf . from
-
+instance ( Q.Arbitrary a, SubTypes a, Typeable a) => SubTypes [a]
 instance (Integral a, Q.Arbitrary a, SubTypes a, Typeable a)
-  => SubTypes (Ratio a) where
+  => SubTypes (Ratio a)   where
   subTypes _    = []
   baseType _    = True
   replaceChild  = replaceChild'

@@ -73,6 +73,7 @@ extrapolateConstrs args a idx prop =
                 Result x      -> recConstrs (newConstr x)
                 FailedPreCond -> return False
                 FailedProp    -> return False
+                BaseType      -> return False
 
 --------------------------------------------------------------------------------
 

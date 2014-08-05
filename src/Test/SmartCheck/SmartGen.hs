@@ -27,9 +27,12 @@ iterateArbIdx :: SubTypes a
               => a -> (Idx, Maybe Int) -> Int -> Int
               -> (a -> P.Property) -> IO (Int, Result a)
 iterateArbIdx d (idx, max) tries sz prop =
-  maybe (errorMsg "iterateArb 0")
-        (\ext -> iterateArb d ext idx tries sz prop)
-        (getAtIdx d idx max)
+  case getAtIdx d idx max of
+    Nothing  -> errorMsg "iterateArb 0"
+    Just ext -> case ext of
+                  -- Don't analyze base types.
+                  SubT e -> if baseType e then return (0, BaseType)
+                              else iterateArb d ext idx tries sz prop
 
 -- | Replace the hole in d indexed by idx with a bunch of random values, and
 -- test the new d against the property.  Returns the first new d (the full d but
@@ -70,9 +73,10 @@ iterateArb d ext idx tries max prop = do
           Just d' -> do
             res' <- resultify prop d'
             case res' of
-              FailedPreCond -> rec (i, FailedPreCond)
-              FailedProp    -> rec (i+1, FailedProp)
+              FailedPreCond -> rec    (i  , FailedPreCond)
+              FailedProp    -> rec    (i+1, FailedProp)
               Result x      -> return (i+1, Result x)
+              BaseType      -> errorMsg "baseType from resultify"
     where
     (size, g0) = randomR (0, currMax) g
     sample SubT { unSubT = v } = newVal v

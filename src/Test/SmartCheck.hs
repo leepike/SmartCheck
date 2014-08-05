@@ -25,7 +25,7 @@ module Test.SmartCheck
   , grc
   , gtc
   , gsf
-  , gsz
+--  , gsz
   ) where
 
 import Test.SmartCheck.Args

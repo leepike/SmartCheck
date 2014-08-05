@@ -97,6 +97,7 @@ smartShrink args d prop =
 resultToMaybe :: Result a -> Maybe a
 resultToMaybe res =
   case res of
+    BaseType      -> Nothing
     FailedPreCond -> Nothing
     FailedProp    -> Nothing
     Result n      -> Just n

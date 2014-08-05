@@ -69,9 +69,9 @@ smartCheckRun :: forall a.
   , Generic a, ConNames (Rep a)
   ) => ScArgs -> (Maybe a, a -> Q.Property) -> IO ()
 smartCheckRun args (origMcex, origProp) = do
-  smartPrtLn $
-    "(If any stage takes too long, try modifying SmartCheck's standard "
-      ++ "arguments (see Args.hs).)"
+  putStrLn ""
+  smartPrtLn $ "Analyzing the first argument of the property with SmartCheck..."
+  smartPrtLn $ "(If any stage takes too long, modify SmartCheck's arguments.)"
   smartCheck' [] origMcex origProp
   where
   smartCheck' :: [(a, Replace Idx)]
@@ -162,6 +162,8 @@ runAgainMsg = putStrLn $
 runQC :: forall a prop . (Show a, Q.Arbitrary a, Q.Testable prop)
           => Q.Args -> (a -> prop) -> IO (Maybe a, a -> Q.Property)
 runQC args scProp = do
+  smartPrtLn "Finding a counterexample with QuickCheck..."
+--  smartPrtLn "
   (mCex, res) <- scQuickCheckWithResult args scProp
   return $ if failureRes res
              then (mCex,    Q.property . scProp)

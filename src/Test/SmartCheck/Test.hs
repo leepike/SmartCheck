@@ -364,6 +364,8 @@ localMinFound st res =
            [ putLine (terminal st) msg
            | msg <- lines (P.reason res)
            ]
+     putLine (terminal st) "*** Non SmartChecked arguments:"
+
      callbackPostFinalFailure st res
      return (numSuccessShrinks st, numTotTryShrinks st - numTryShrinks st, numTryShrinks st)
 

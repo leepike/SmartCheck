@@ -54,8 +54,8 @@ smartShrink args d prop =
   next :: a -> Maybe a -> Forest Bool -> Idx -> [Idx] -> IO (a, [Idx])
   next x res forest idx _ =
     case res of
-      -- Found a try that fails prop.  We'll now test try, and start trying to
-      -- reduce from the top!
+      -- Found an ex that fails prop.  We'll now test the ex, and start trying
+      -- to reduce from the top!
       Just y  -> iter' y (mkForest y) (Idx 0 0)
       -- Either couldn't satisfy the precondition or nothing satisfied the
       -- property.  Either way, we can't shrink it.

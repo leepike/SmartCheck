@@ -57,7 +57,7 @@ constrsGen args d prop vs = do
 extrapolateConstrs :: (SubTypes a, Generic a, ConNames (Rep a))
   => ScArgs -> a -> Idx -> (a -> Q.Property) -> IO Bool
 extrapolateConstrs args a idx prop =
-  recConstrs (S.singleton $ subConstr a idx (scMaxDepth args))
+  recConstrs $ S.singleton $ subConstr a idx $ scMaxDepth args
   where
   notProp = Q.expectFailure . prop
   allConstrs = S.fromList (conNames a)

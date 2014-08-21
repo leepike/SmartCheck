@@ -1,60 +1,17 @@
-# QuickCheck Integration
-
-* Have QC return the value itself rather than a string.
-
-* We don't want QC to do *any* shrinking itself.  We need to rip out QC's own
-  arbitrary instances.  Or perhaps, better, leave them and use them but directly
-  from SC, making sure that quickCheckWithResult never shrinks.  Indeed, we
-  already require arbitrary instances for the type being tested (for the
-  arbitrary method).
-
 # TODO
 
-* Make sure I can use extrapolation on its own, without reduce.
+* Die on exceptions from QuickCheck.
 
 * Testing with arguments to value constructors omitted in the SubTypes
   instances.
 
-* Right now, in DataToTree, sub (and functions it depends on) fail silently if
-  you give them an index that is out of bounds.  Perhaps I should return a
-  Maybe?
-
-* Have extrapolate check whether we've run out of sub constructors and let the
-  user know.
-
-* Document SubTypes class methods!
-
-* Args to optionally extrapolate and contructor extrapolate.
-
-* Need to do constructor gen for *all* previously-found counterexamples, so we
-get their constructors, too.
-
 * Web view for large data (like Yav's thing for type nats)?
 
-* I would benefit from using a zipper for traversal.
-
-* Try out SubTypes instances for Map a b and try an algebraic type inside of
-  lists (maybe Forest Foo).
-
-* Go through Reddit comments: (in refs/)
-
-* Try to fix/simplify definition of showForest.
-
-* Probably, list/map [a] should be a baseType if a is a baseType and not
-  otherwise.
-
-* Include instance for Data.Map in SubType instances?  Argument for not:
-  QuickCheck doesn't include them as basic instances...
-
-* Test () SubType method.
+* I would (maybe?) benefit from using a zipper for traversal.
 
 * Refactor so we only getAtIdx (which is expensive!) once per pass.
 
 * Pass around stdGen so that the code is more pure.
-
-* Bug with XMonad stuff.  Look in examples/StackSet.  There you'll see that
-  getAtIdx does not get the same value as replaceAtIdx.  I'm working on
-  narrowing the bug in StackSetMinBug.
 
 Won't Do / Can't Do
 -----------------------------------------------
@@ -83,23 +40,3 @@ Won't Do / Can't Do
 
   * With QuickCheck, there are essentially two passes: (1) make some arbitrary
     values and test them, and (2) shrink the values.
-
-# Done
-
-* ~~Rename examples/Test to examples/MutRecData~~
-
-  * ~~Rename it in the README, too.~~
-
-* ~~Replace (a -> Bool) properties with Properties.  This is needed in case we
-  originally want to omit certain values from triggering a failure.~~
-
-* ~~Collect failed tests as preconditions until we reach a fixed point.~~
-
-* ~~When I'm shrinking, if I find a hole that is of the same type (via cast)
-  that also fails the property, replace the original value with the hole.~~
-
-* Options:
-  * ~~Show output as data-tree or just replace values in extrapolated value.~~
-
-* ~~In strForest, I need to remove parens when removing subterms.  "()" could be
-  Units!.  Probably just bite the bullet and use parsec.~~

@@ -122,33 +122,11 @@ ordbalnrrTree =
       let subtree2 = tree (key+1) max B (n-1)
       oneof [liftM4 T (return B) subtree1 (return key) subtree2]
 
- -- tree min max _ _ | max < min = error $ "cannot generate"
- -- tree min max B 0 = return E
- -- tree min max B 1 =
- --   oneof [return E,
- --          liftM4 T (return R) (return E) (choose(min,max)) (return E)]
- -- tree min max B n | n>0 = 
- --   do key <- choose (min,max) 
- --      let subtree1 =  tree min (key-1) B (n-1)
- --      let subtree2 =  tree (key+1) max B (n-1)
- --      let subtree1' = tree min (key-1) R n
- --      let subtree2' = tree (key+1) max R n
- --      oneof [liftM4 T (return B) subtree1  (return key) subtree2,
- --             liftM4 T (return R) subtree1' (return key) subtree2']
-
- -- tree min max R 0 = return E
- -- tree min max R 1 = return E
- -- tree min max R n | n>0 = 
- --   do key <- choose (min, max)
- --      let subtree1 = tree min (key-1) B (n-1)
- --      let subtree2 = tree (key+1) max B (n-1)
- --      oneof [liftM4 T (return B) subtree1 (return key) subtree2]
-
-
  -- Generate trees from insertions:
 insertedTree :: (Arbitrary a, Ord a) => Gen (RBSet a)
 insertedTree = liftM (Data.List.foldr insert empty) arbitrary
 
+-- Redefine arbitrary since we don't have forall in SmartCheck.
 instance (Arbitrary a, Random a, 
           Bounded a, Ord a, Num a) => Arbitrary (RBSet a) where
   arbitrary = nrrTree
@@ -156,16 +134,6 @@ instance (Arbitrary a, Random a,
   --                   liftM (Data.List.foldr insert empty) arbitrary]
 
  -- Count the black depth of a red-black tree:
--- blackDepth :: RBSet a -> Maybe Int
--- blackDepth (E) = Just(1)
--- blackDepth (T R l _ r) = case (blackDepth(l),blackDepth(r)) of
---   (Just(n),Just(m)) -> if n == m then Just(n) else Nothing
---   (_,_) -> Nothing
--- blackDepth (T B l _ r) = case (blackDepth(l),blackDepth(r)) of
---   (Just(n),Just(m)) -> if n == m then Just(1+n) else Nothing
---   (_,_) -> Nothing
-
--- Bad
 blackDepth :: RBSet a -> Maybe Int
 blackDepth (E) = Just(1)
 blackDepth (T R l _ r) = case (blackDepth(l),blackDepth(r)) of

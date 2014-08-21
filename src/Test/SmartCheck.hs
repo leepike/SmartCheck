@@ -5,10 +5,11 @@
 -- | Interface module.
 
 module Test.SmartCheck
-  ( -- ** Main SmartCheck interface.
+  (
+  -- ** Main SmartCheck interface.
     smartCheck
 
-    -- ** User-suppplied counterexample interface.
+  -- ** User-suppplied counterexample interface.
   , smartCheckInput
 
   -- ** Run QuickCheck and get a result.

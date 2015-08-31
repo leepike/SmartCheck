@@ -28,11 +28,6 @@ clean:
 	@echo "Clean in the top level does not remove your cabal sandbox."
 	@echo "If you want to remove your cabal sandbox, use the 'sandbox-clean' target"
 
-.PHONY: configure
-configure:
-	git submodule init
-	git submodule update
-
 ################################################################################
 # Testing/comparing SmartCheck to other test frameworks
 

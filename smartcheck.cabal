@@ -65,26 +65,6 @@ Library
     -caf-all
     -fno-warn-orphans
 
--- Tries some SmartCheck on small examples in a REPL.
--- DEPRECATED in favor of the regression suite.
--- executable sc-examples
---   Hs-source-dirs:    examples
---   Main-is:           Tests.hs
---   Other-modules:     Div0,
---                      MutualRecData,
---                      Heap_Program,
---                      LambdaCalc
---   Build-depends:     base >= 4.0 && < 5,
---                      smartcheck >= 0.2,
---                      QuickCheck >= 2.7,
---                      mtl,
---                      random >= 1.0.1.1,
---                      containers >= 0.4,
---                      generic-deriving >= 1.2.1,
---                      ghc-prim
---   Default-language:  Haskell2010
---   Ghc-options:       -Wall
-
 -- QuickCheck some basic properties about SmartCheck.
 executable sc-qc
   Hs-source-dirs:    qc-tests

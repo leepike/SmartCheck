@@ -51,14 +51,16 @@ import Prelude hiding (break)
 
 import Test.QuickCheck
 import Test.QuickCheck.Gen
-import Test.QuickCheck.Property hiding ( Result( reason, theException) )
+import Test.QuickCheck.Property hiding ( Result( reason, theException), labels )
 import qualified Test.QuickCheck.Property as P
 import Test.QuickCheck.Text
-import Test.QuickCheck.State
+import qualified Test.QuickCheck.State as S
 import Test.QuickCheck.Exception
 import Test.QuickCheck.Random
-import System.Random(split)
+import System.Random (split)
 
+import qualified Data.Map as M
+import qualified Data.Set as Set
 import Data.Char
   ( isSpace
   )
@@ -85,22 +87,23 @@ scQuickCheckWithResult a p = (if chatty a then withStdioTerminal else withNullTe
      rnd <- case replay a of
               Nothing      -> newQCGen
               Just (rnd,_) -> return rnd
-     test MkState{ terminal                  = tm
-                 , maxSuccessTests           = maxSuccess a
-                 , maxDiscardedTests         = maxDiscardRatio a * maxSuccess a
-                 , computeSize               = case replay a of
-                                                 Nothing    -> computeSize'
-                                                 Just (_,s) -> computeSize' `at0` s
-                 , numSuccessTests           = 0
-                 , numDiscardedTests         = 0
-                 , numRecentlyDiscardedTests = 0
-                 , collected                 = []
-                 , expectedFailure           = False
-                 , randomSeed                = rnd
-                 , numSuccessShrinks         = 0
-                 , numTryShrinks             = 0
-                 , numTotTryShrinks          = 0
-                 } flipProp
+     test S.MkState{ S.terminal                  = tm
+                   , S.maxSuccessTests           = maxSuccess a
+                   , S.maxDiscardedTests         = maxDiscardRatio a * maxSuccess a
+                   , S.computeSize               = case replay a of
+                                                   Nothing    -> computeSize'
+                                                   Just (_,s) -> computeSize' `at0` s
+                   , S.numSuccessTests           = 0
+                   , S.numDiscardedTests         = 0
+                   , S.labels                    = M.empty
+                   , S.numRecentlyDiscardedTests = 0
+                   , S.collected                 = []
+                   , S.expectedFailure           = False
+                   , S.randomSeed                = rnd
+                   , S.numSuccessShrinks         = 0
+                   , S.numTryShrinks             = 0
+                   , S.numTotTryShrinks          = 0
+                   } flipProp
   where computeSize' n d
           -- e.g. with maxSuccess = 250, maxSize = 100, goes like this:
           -- 0, 1, 2, ..., 99, 0, 1, 2, ..., 99, 0, 2, 4, ..., 98.
@@ -122,71 +125,71 @@ scQuickCheckWithResult a p = (if chatty a then withStdioTerminal else withNullTe
 --------------------------------------------------------------------------
 -- main test loop
 
-test :: Arbitrary a => State -> (QCGen -> Int -> (a -> Prop)) -> IO (Maybe a, Result)
+test :: Arbitrary a => S.State -> (QCGen -> Int -> (a -> Prop)) -> IO (Maybe a, Result)
 test st f
-  | numSuccessTests st   >= maxSuccessTests st   = doneTesting st f
-  | numDiscardedTests st >= maxDiscardedTests st = giveUp st f
-  | otherwise                                    = runATest st f
+  | S.numSuccessTests st   >= S.maxSuccessTests st   = doneTesting st f
+  | S.numDiscardedTests st >= S.maxDiscardedTests st = giveUp st f
+  | otherwise                                        = runATest st f
 
-doneTesting :: State -> (QCGen -> Int -> (a -> Prop)) -> IO (Maybe a, Result)
+doneTesting :: S.State -> (QCGen -> Int -> (a -> Prop)) -> IO (Maybe a, Result)
 doneTesting st _f =
   do -- CALLBACK done_testing?
-     if expectedFailure st then
-       putPart (terminal st)
+     if S.expectedFailure st then
+       putPart (S.terminal st)
          ( "+++ OK, passed "
-        ++ show (numSuccessTests st)
+        ++ show (S.numSuccessTests st)
         ++ " tests"
          )
       else
-       putPart (terminal st)
+       putPart (S.terminal st)
          ( bold ("*** Failed!")
         ++ " Passed "
-        ++ show (numSuccessTests st)
+        ++ show (S.numSuccessTests st)
         ++ " tests (expected failure)"
          )
      success st
-     theOutput <- terminalOutput (terminal st)
-     return $ (Nothing, if expectedFailure st then
+     theOutput <- terminalOutput (S.terminal st)
+     return $ (Nothing, if S.expectedFailure st then
                           Success{ labels = summary st,
-                                   numTests = numSuccessTests st,
+                                   numTests = S.numSuccessTests st,
                                    output = theOutput }
                         else NoExpectedFailure{ labels = summary st,
-                                                numTests = numSuccessTests st,
+                                                numTests = S.numSuccessTests st,
                                                 output = theOutput })
 
-giveUp :: State -> (QCGen -> Int -> (a -> Prop)) -> IO (Maybe a, Result)
+giveUp :: S.State -> (QCGen -> Int -> (a -> Prop)) -> IO (Maybe a, Result)
 giveUp st _f =
   do -- CALLBACK gave_up?
-     putPart (terminal st)
+     putPart (S.terminal st)
        ( bold ("*** Gave up!")
       ++ " Passed only "
-      ++ show (numSuccessTests st)
+      ++ show (S.numSuccessTests st)
       ++ " tests"
        )
      success st
-     theOutput <- terminalOutput (terminal st)
+     theOutput <- terminalOutput (S.terminal st)
      return ( Nothing
-            , GaveUp{ numTests = numSuccessTests st
+            , GaveUp{ numTests = S.numSuccessTests st
                     , labels   = summary st
                     , output   = theOutput
                     }
             )
 
 runATest :: forall a. (Arbitrary a)
-         => State
+         => S.State
          -> (QCGen -> Int -> (a -> Prop))
          -> IO (Maybe a, Result)
 runATest st f =
   do -- CALLBACK before_test
-     putTemp (terminal st)
+     putTemp (S.terminal st)
         ( "("
-       ++ number (numSuccessTests st) "test"
-       ++ concat [ "; " ++ show (numDiscardedTests st) ++ " discarded"
-                 | numDiscardedTests st > 0
+       ++ number (S.numSuccessTests st) "test"
+       ++ concat [ "; " ++ show (S.numDiscardedTests st) ++ " discarded"
+                 | S.numDiscardedTests st > 0
                  ]
        ++ ")"
         )
-     let size = computeSize st (numSuccessTests st) (numRecentlyDiscardedTests st)
+     let size = S.computeSize st (S.numSuccessTests st) (S.numRecentlyDiscardedTests st)
 
      let p :: a -> Prop
          p = f rnd1 size
@@ -206,36 +209,37 @@ runATest st f =
      case res of
        MkResult{ok = Just True, stamp, expect} -> -- successful test
          do continue doneTesting
-              st{ numSuccessTests           = numSuccessTests st + 1
-                , numRecentlyDiscardedTests = 0
-                , randomSeed                = rnd2
-                , collected                 = stamp : collected st
-                , expectedFailure           = expect
+              st{ S.numSuccessTests           = S.numSuccessTests st + 1
+                , S.numRecentlyDiscardedTests = 0
+                , S.randomSeed                = rnd2
+                , S.collected                 = stamp : S.collected st
+                , S.expectedFailure           = expect
                 } f
 
        MkResult{ok = Nothing, expect = expect} -> -- discarded test
          do continue giveUp
-              st{ numDiscardedTests         = numDiscardedTests st + 1
-                , numRecentlyDiscardedTests = numRecentlyDiscardedTests st + 1
-                , randomSeed                = rnd2
-                , expectedFailure           = expect
+              st{ S.numDiscardedTests         = S.numDiscardedTests st + 1
+                , S.numRecentlyDiscardedTests = S.numRecentlyDiscardedTests st + 1
+                , S.randomSeed                = rnd2
+                , S.expectedFailure           = expect
                 } f
 
        MkResult{ok = Just False} -> -- failed test
          do if expect res
-              then putPart (terminal st) (bold "*** Failed! ")
-              else putPart (terminal st) "+++ OK, failed as expected. "
+              then putPart (S.terminal st) (bold "*** Failed! ")
+              else putPart (S.terminal st) "+++ OK, failed as expected. "
             (numShrinks, totFailed, lastFailed) <- foundFailure st res ts
-            theOutput <- terminalOutput (terminal st)
+            theOutput <- terminalOutput (S.terminal st)
             if not (expect res) then
-              mkRes  Success{ labels = summary st,
-                              numTests = numSuccessTests st+1,
-                              output = theOutput }
+              mkRes  Success{ labels   = summary st,
+                              numTests = S.numSuccessTests st+1,
+                              output   = theOutput
+                            }
              else
               mkRes  Failure{ -- correct! (this will be split first)
-                              usedSeed       = randomSeed st
+                              usedSeed       = S.randomSeed st
                             , usedSize       = size
-                            , numTests       = numSuccessTests st+1
+                            , numTests       = S.numSuccessTests st+1
                             , numShrinks     = numShrinks
                             , numShrinkTries = totFailed
                             , numShrinkFinal = lastFailed
@@ -245,86 +249,81 @@ runATest st f =
                             , labels         = summary st
                             }
  where
-  (rnd1,rnd2) = split (randomSeed st)
+  (rnd1,rnd2) = split (S.randomSeed st)
 
-summary :: State -> [(String,Int)]
+summary :: S.State -> [(String,Int)]
 summary st = reverse
            . sort
-           . map (\ss -> (head ss, (length ss * 100) `div` numSuccessTests st))
+           . map (\ss -> (head ss, (length ss * 100) `div` S.numSuccessTests st))
            . group
            . sort
-           $ [ concat (intersperse ", " s')
-             | s <- collected st
-             , let s' = [ t | (t,_) <- s ]
-             , not (null s')
+           $ [ concat (intersperse ", " (Set.toList s))
+             | s <- S.collected st
+             , not (Set.null s)
              ]
 
-success :: State -> IO ()
+success :: S.State -> IO ()
 success st =
   case allLabels ++ covers of
-    []    -> do putLine (terminal st) "."
-    [pt]  -> do putLine (terminal st)
+    []    -> do putLine (S.terminal st) "."
+    [pt]  -> do putLine (S.terminal st)
                   ( " ("
                  ++ dropWhile isSpace pt
                  ++ ")."
                   )
-    cases -> do putLine (terminal st) ":"
-                sequence_ [ putLine (terminal st) pt | pt <- cases ]
+    cases -> do putLine (S.terminal st) ":"
+                sequence_ [ putLine (S.terminal st) pt | pt <- cases ]
  where
   allLabels = reverse
             . sort
-            . map (\ss -> (showP ((length ss * 100) `div` numSuccessTests st) ++ head ss))
+            . map (\ss -> (showP ((length ss * 100) `div` S.numSuccessTests st) ++ head ss))
             . group
             . sort
             $ [ concat (intersperse ", " s')
-              | s <- collected st
-              , let s' = [ t | (t,0) <- s ]
+              | s <- S.collected st
+              , let s' = [ t | t <- Set.toList s, M.lookup t (S.labels st) == Just 0 ]
               , not (null s')
               ]
 
-  covers = [ ("only " ++ show occurP ++ "% " ++ fst (head lps) ++ "; not " ++ show reqP ++ "%")
-           | lps <- groupBy first
-                  . sort
-                  $ [ lp
-                    | lps <- collected st
-                    , lp <- maxi lps
-                    , snd lp > 0
-                    ]
-           , let occurP = (100 * length lps) `div` maxSuccessTests st
-                 reqP   = maximum (map snd lps)
-           , occurP < reqP
+  covers = [ ("only " ++ show (labelPercentage l st) ++ "% " ++ l ++ ", not " ++ show reqP ++ "%")
+           | (l, reqP) <- M.toList (S.labels st)
+           , labelPercentage l st < reqP
            ]
 
-  (x,_) `first` (y,_) = x == y
-
-  maxi = map (\lps -> (fst (head lps), maximum (map snd lps)))
-       . groupBy first
-       . sort
+  -- (x,_) `first` (y,_) = x == y
 
   showP p = (if p < 10 then " " else "") ++ show p ++ "% "
+
+labelPercentage :: String -> S.State -> Int
+labelPercentage l st =
+    -- XXX in case of a disjunction, a label can occur several times,
+    -- need to think what to do there
+    (100 * occur) `div` S.maxSuccessTests st
+  where
+        occur = length [ l' | l' <- concat (map Set.toList (S.collected st)), l == l' ]
 
 --------------------------------------------------------------------------
 -- main shrinking loop
 
-foundFailure :: State -> P.Result -> [Rose P.Result] -> IO (Int, Int, Int)
+foundFailure :: S.State -> P.Result -> [Rose P.Result] -> IO (Int, Int, Int)
 foundFailure st res ts =
-  do localMin st{ numTryShrinks = 0 } res res ts
+  do localMin st{ S.numTryShrinks = 0 } res res ts
 
-localMin :: State -> P.Result -> P.Result -> [Rose P.Result] -> IO (Int, Int, Int)
+localMin :: S.State -> P.Result -> P.Result -> [Rose P.Result] -> IO (Int, Int, Int)
 localMin st MkResult{P.theException = Just e} lastRes _
   | isInterrupt e = localMinFound st lastRes
 localMin st res _ ts = do
-  putTemp (terminal st)
+  putTemp (S.terminal st)
     ( short 26 (oneLine (P.reason res))
-   ++ " (after " ++ number (numSuccessTests st+1) "test"
+   ++ " (after " ++ number (S.numSuccessTests st+1) "test"
    ++ concat [ " and "
-            ++ show (numSuccessShrinks st)
-            ++ concat [ "." ++ show (numTryShrinks st) | numTryShrinks st > 0 ]
+            ++ show (S.numSuccessShrinks st)
+            ++ concat [ "." ++ show (S.numTryShrinks st) | S.numTryShrinks st > 0 ]
             ++ " shrink"
-            ++ (if numSuccessShrinks st == 1
-                && numTryShrinks st == 0
+            ++ (if S.numSuccessShrinks st == 1
+                && S.numTryShrinks st == 0
                 then "" else "s")
-             | numSuccessShrinks st > 0 || numTryShrinks st > 0
+             | S.numSuccessShrinks st > 0 || S.numTryShrinks st > 0
              ]
    ++ ")..."
     )
@@ -335,57 +334,57 @@ localMin st res _ ts = do
          (exception "Exception while generating shrink-list" err) { callbacks = callbacks res }
     Right ts' -> localMin' st res ts'
 
-localMin' :: State -> P.Result -> [Rose P.Result] -> IO (Int, Int, Int)
+localMin' :: S.State -> P.Result -> [Rose P.Result] -> IO (Int, Int, Int)
 localMin' st res [] = localMinFound st res
 localMin' st res (t:ts) =
   do -- CALLBACK before_test
     MkRose res' ts' <- protectRose (reduceRose t)
     callbackPostTest st res'
     if ok res' == Just False
-      then localMin st{ numSuccessShrinks = numSuccessShrinks st + 1,
-                        numTryShrinks     = 0 } res' res ts'
-      else localMin st{ numTryShrinks    = numTryShrinks st + 1,
-                        numTotTryShrinks = numTotTryShrinks st + 1 } res res ts
+      then localMin st{ S.numSuccessShrinks = S.numSuccessShrinks st + 1,
+                        S.numTryShrinks     = 0 } res' res ts'
+      else localMin st{ S.numTryShrinks    = S.numTryShrinks st + 1,
+                        S.numTotTryShrinks = S.numTotTryShrinks st + 1 } res res ts
 
-localMinFound :: State -> P.Result -> IO (Int, Int, Int)
+localMinFound :: S.State -> P.Result -> IO (Int, Int, Int)
 localMinFound st res =
   do let report = concat [
-           "(after " ++ number (numSuccessTests st+1) "test",
-           concat [ " and " ++ number (numSuccessShrinks st) "shrink"
-                  | numSuccessShrinks st > 0
+           "(after " ++ number (S.numSuccessTests st+1) "test",
+           concat [ " and " ++ number (S.numSuccessShrinks st) "shrink"
+                  | S.numSuccessShrinks st > 0
                   ],
            "): "
            ]
      if isOneLine (P.reason res)
-       then putLine (terminal st) (P.reason res ++ " " ++ report)
+       then putLine (S.terminal st) (P.reason res ++ " " ++ report)
        else do
-         putLine (terminal st) report
+         putLine (S.terminal st) report
          sequence_
-           [ putLine (terminal st) msg
+           [ putLine (S.terminal st) msg
            | msg <- lines (P.reason res)
            ]
-     putLine (terminal st) "*** Non SmartChecked arguments:"
+     putLine (S.terminal st) "*** Non SmartChecked arguments:"
 
      callbackPostFinalFailure st res
-     return (numSuccessShrinks st, numTotTryShrinks st - numTryShrinks st, numTryShrinks st)
+     return (S.numSuccessShrinks st, S.numTotTryShrinks st - S.numTryShrinks st, S.numTryShrinks st)
 
 --------------------------------------------------------------------------
 -- callbacks
 
-callbackPostTest :: State -> P.Result -> IO ()
+callbackPostTest :: S.State -> P.Result -> IO ()
 callbackPostTest st res =
   sequence_ [ safely st (f st res) | PostTest _ f <- callbacks res ]
 
-callbackPostFinalFailure :: State -> P.Result -> IO ()
+callbackPostFinalFailure :: S.State -> P.Result -> IO ()
 callbackPostFinalFailure st res =
   sequence_ [ safely st (f st res) | PostFinalFailure _ f <- callbacks res ]
 
-safely :: State -> IO () -> IO ()
+safely :: S.State -> IO () -> IO ()
 safely st x = do
   r <- tryEvaluateIO x
   case r of
     Left e ->
-      putLine (terminal st)
+      putLine (S.terminal st)
         ("*** Exception in callback: " ++ show e)
     Right x' ->
       return x'

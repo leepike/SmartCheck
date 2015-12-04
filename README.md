@@ -17,7 +17,7 @@ SmartCheck is a smarter [QuickCheck](http://hackage.haskell.org/package/QuickChe
 
 SmartCheck is useful for debugging programs operating on algebraic datatypes.  When a property is true, SmartCheck is just like QuickCheck (SmartCheck uses QuickCheck as a backend).  When a property fails, SmartCheck kicks into gear.  First, it attempts to find a _minimal_ counterexample to the property in a robust, systematic way.  (You do not need to define any custom shrink instances, like with QuickCheck, but if you do, those are used.  SmartCheck usually can do much better than even custom shrink instances.)  Second, once a minimal counterexample is found, SmartCheck then attempts to generalize the failed value `d` by replacing `d`'s substructures with new values to make `d'`, and QuickChecking each new `d'`.  If for each new `d'` generated, the property also fails, we claim the property fails for any substructure replaced here (of course, this is true modulo the coverage of the tests).
 
-SmartCheck executes in a real-eval-print loop.  In each iteration, all values that have the "same shape" as the generalized value are removed from possible created tests.  The loop can be iterated until a fixed-point is reached, and SmartCheck is not able to create any new values that fail the property.
+SmartCheck executes in a read-eval-print loop.  In each iteration, all values that have the "same shape" as the generalized value are removed from possible created tests.  The loop can be iterated until a fixed-point is reached, and SmartCheck is not able to create any new values that fail the property.
 
 # A typical example
 
@@ -69,7 +69,7 @@ So our property (tries) to state that so long as a value satisfies divSubTerms, 
 
 Assuming we've defined an Arbitrary instance for M (just like in
 QuickCheck---however, we just have to implement the arbitrary method; the shrink
-method is superfluous), we are ready to run SmartCheck.  (The property you want
+method is superfluous), we are ready to run SmartCheck.  The property you want
 to check must be an instance of the type
 
     prop :: Testable a => a -> b
@@ -118,7 +118,7 @@ In addition, SmartCheck tries to do something I call *constructor generalization
 
     D (C 0) (D C0 (C (-1)))
 
-So in the hole `C0`, SmartCheck was able to build a value using each of the constructors `C`, `A`, and `D` (well, it already knew there was a value using `C`---`C 0`.
+So in the hole `C0`, SmartCheck was able to build a value using each of the constructors `C`, `A`, and `D` (well, it already knew there was a value using `C`---`C 0`).
 
 SmartCheck asks us if we want to continue:
 
@@ -156,9 +156,9 @@ At this point, SmartCheck can't find a newly-shaped counterexample.  (This doesn
 
 # Other notes
 
-- More details can be found in the [technical paper][./paper].
+- More details can be found in the [technical paper](paper/paper.pdf).
 
 - We use
   [GHC Generics](http://www.haskell.org/ghc/docs/7.4.1/html/libraries/ghc-prim-0.2.0.0/GHC-Generics.html).
-  You may have to define new instances in src/Test/SmartCheck/Types.hs .  Email (leepike at Gmail) 
+  You may have to define new instances in [src/Test/SmartCheck/Types.hs](src/Test/SmartCheck/Types.hs) .  Email (leepike at Gmail)
   (or submit patches) if you need instances for other types.

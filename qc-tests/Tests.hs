@@ -20,8 +20,8 @@ import Test.SmartCheck.Types
 
 --------------------------------------------------------------------------------
 
-deriving instance Generic a =>  Generic (Tree a)
-instance (SubTypes a, Generic a) => SubTypes (Tree a)
+deriving instance Generic (Tree a)
+instance (SubTypes a) => SubTypes (Tree a)
 
 instance Q.Arbitrary a => Q.Arbitrary (Tree a) where
   arbitrary = Q.sized mkT

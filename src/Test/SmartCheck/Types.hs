@@ -253,10 +253,30 @@ instance (Show a, Q.Arbitrary a, SubTypes a, Typeable a) => GST (K1 i a) where
 -- http://hackage.haskell.org/packages/archive/QuickCheck/2.4.2/doc/html/Test-QuickCheck-Arbitrary.html
 
 instance SubTypes Bool    where baseType _    = True
-instance SubTypes Char    where baseType _    = True
-instance SubTypes Double  where baseType _    = True
-instance SubTypes Float   where baseType _    = True
-instance SubTypes Int     where baseType _    = True
+instance SubTypes Char where
+  subTypes _    = []
+  baseType _    = True
+  replaceChild  = replaceChild'
+  toConstr      = toConstr'
+  showForest    = showForest'
+instance SubTypes Double  where
+  subTypes _    = []
+  baseType _    = True
+  replaceChild  = replaceChild'
+  toConstr      = toConstr'
+  showForest    = showForest'
+instance SubTypes Float   where
+  subTypes _    = []
+  baseType _    = True
+  replaceChild  = replaceChild'
+  toConstr      = toConstr'
+  showForest    = showForest'
+instance SubTypes Int where
+  subTypes _    = []
+  baseType _    = True
+  replaceChild  = replaceChild'
+  toConstr      = toConstr'
+  showForest    = showForest'
 instance SubTypes Integer where
   subTypes _    = []
   baseType _    = True

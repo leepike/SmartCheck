@@ -61,8 +61,6 @@ Library
   ghc-options:
     -Wall
     -fwarn-tabs
-    -auto-all
-    -caf-all
     -fno-warn-orphans
 
 -- QuickCheck some basic properties about SmartCheck.
@@ -70,7 +68,7 @@ executable sc-qc
   Hs-source-dirs:    qc-tests
   Main-is:           Tests.hs
   Build-depends:     base >= 4.0 && < 5,
-                     smartcheck >= 0.2,
+                     smartcheck,
                      QuickCheck >= 2.8,
                      mtl,
                      random >= 1.0.1.1,

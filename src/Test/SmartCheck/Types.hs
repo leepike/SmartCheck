@@ -3,8 +3,8 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE DefaultSignatures #-}
-{-# LANGUAGE OverlappingInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE OverlappingInstances #-}
 
 module Test.SmartCheck.Types
   ( SubT(..)
@@ -26,7 +26,6 @@ module Test.SmartCheck.Types
 import GHC.Generics
 import Data.Tree
 import Data.Typeable
-import Control.Applicative
 import Control.Monad (ap)
 
 -- For instances
@@ -252,11 +251,36 @@ instance (Show a, Q.Arbitrary a, SubTypes a, Typeable a) => GST (K1 i a) where
 -- We cover the instances supported by QuickCheck:
 -- http://hackage.haskell.org/packages/archive/QuickCheck/2.4.2/doc/html/Test-QuickCheck-Arbitrary.html
 
-instance SubTypes Bool    where baseType _    = True
-instance SubTypes Char    where baseType _    = True
-instance SubTypes Double  where baseType _    = True
-instance SubTypes Float   where baseType _    = True
-instance SubTypes Int     where baseType _    = True
+instance SubTypes Bool where
+  subTypes _    = []
+  baseType _    = True
+  replaceChild  = replaceChild'
+  toConstr      = toConstr'
+  showForest    = showForest'
+instance SubTypes Char where
+  subTypes _    = []
+  baseType _    = True
+  replaceChild  = replaceChild'
+  toConstr      = toConstr'
+  showForest    = showForest'
+instance SubTypes Double where
+  subTypes _    = []
+  baseType _    = True
+  replaceChild  = replaceChild'
+  toConstr      = toConstr'
+  showForest    = showForest'
+instance SubTypes Float where
+  subTypes _    = []
+  baseType _    = True
+  replaceChild  = replaceChild'
+  toConstr      = toConstr'
+  showForest    = showForest'
+instance SubTypes Int where
+  subTypes _    = []
+  baseType _    = True
+  replaceChild  = replaceChild'
+  toConstr      = toConstr'
+  showForest    = showForest'
 instance SubTypes Integer where
   subTypes _    = []
   baseType _    = True

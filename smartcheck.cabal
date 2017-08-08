@@ -43,7 +43,6 @@ Library
                        containers >= 0.4,
                        generic-deriving >= 1.2.1,
                        ghc-prim,
-                       testing-feat,
                        lazysmallcheck
   else
     Build-depends:     base >= 4.0 && < 5,

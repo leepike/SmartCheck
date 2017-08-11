@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE CPP #-}
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -19,6 +20,11 @@ import Test.SmartCheck.DataToTree
 import Test.SmartCheck.Types
 
 --------------------------------------------------------------------------------
+
+#if MIN_VERSION_containers(0,5,10)
+#else
+deriving instance Generic (Tree a)
+#endif
 
 instance (SubTypes a) => SubTypes (Tree a)
 
